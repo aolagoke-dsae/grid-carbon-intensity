@@ -1,6 +1,7 @@
 # Grid Carbon Intensity & Load-Shift Optimiser
 
-Hourly-and-quarter-hourly carbon intensity for five European bidding zones,
+Hourly-and-quarter-hourly carbon intensity for two European bidding zones,
+DE-LU and FR,
 **derived** from ENTSO-E generation mix using IPCC AR5 lifecycle factors rather
 than consumed from a vendor — with the published factor uncertainty propagated
 through to a 90% interval by Monte Carlo and the variance attributed to its
@@ -13,11 +14,15 @@ in tCO2e and euros.
 
 ## Stack
 
-Open-access end to end. Python ingestion → immutable raw layer with a SHA-256
-manifest → Parquet → **DuckDB** warehouse → **dbt** (sources, staging,
-intermediate, marts, tests, lineage) → **GitHub Actions** for CI and scheduled
-refresh → **Quarto** published to GitHub Pages. Uncertainty propagation and global
-sensitivity analysis in R (`sensitivity`).
+Open-access end to end, by design. Python ingestion → immutable raw layer with a
+SHA-256 manifest → Parquet → **DuckDB** warehouse → **dbt** (sources, staging,
+intermediate, marts, tests, lineage), with **GitHub Actions** for CI and a
+**Quarto** report to follow. Uncertainty propagation and global sensitivity
+analysis in R (`sensitivity`).
+
+The ingestion, parsing and uncertainty layers are written and tested. The dbt
+project, the CI workflows and the report are specified in `RUNBOOK.md` and not
+yet built — the Layout below marks which is which.
 
 The acceptance criterion that governs the whole build: **the deterministic point
 estimate must fall inside its own 90% interval.** If it does not, the model is
@@ -102,15 +107,17 @@ config/             zones + emission factors, every row carrying a citation
 src/ingest/         ENTSO-E client → raw/ + manifest.csv
 src/transform/      parser, intensity, uncertainty
 src/checks/         stage checkpoint functions, importable and testable
-models/             dbt project: staging / intermediate / marts
-sql/                hand-written T-SQL schema + DQ views (portability evidence)
-warehouse/          grid.duckdb — rebuildable, git-ignored
-raw/                immutable landing, git-ignored
-curated/            Parquet outputs
-report/             Quarto source → GitHub Pages
-docs/               ARCHITECTURE.md (shared standard), METHODOLOGY.md (assurance)
-.github/workflows/  ci.yml (pytest + dbt build) and refresh.yml (scheduled)
+sql/                hand-written schema + DQ views
+docs/               ARCHITECTURE.md — the standard shared across projects
+raw/                immutable landing, git-ignored (empty until the first pull)
+curated/            Parquet outputs, git-ignored
 conftest.py         makes `pytest` work from the repo root
+
+planned, not present yet — see RUNBOOK.md:
+models/             dbt project: staging / intermediate / marts
+report/             Quarto source → GitHub Pages
+docs/METHODOLOGY.md assurance write-up
+.github/workflows/  ci.yml (pytest + dbt build), refresh.yml (scheduled)
 ```
 
 ## Licence / reuse
