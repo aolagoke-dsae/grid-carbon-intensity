@@ -1,0 +1,31 @@
+# secrets
+.env
+*.env
+
+# raw payloads are large and reproducible; the manifest is the provenance
+# record and MUST be committed. git will not descend into an ignored
+# directory, so the contents are ignored rather than the directory itself.
+raw/*
+!raw/manifest.csv
+
+# curated Parquet: ignore the full backfill, commit a bounded sample so that
+# `git clone && dbt build` works for someone with no ENTSO-E token.
+curated/*
+!curated/sample/
+
+# notebooks: exploration only. Outputs can embed a token printed by a cell,
+# which .env protection does not cover. Clear outputs before committing.
+.ipynb_checkpoints/
+notebooks/scratch/
+
+# build artefacts
+__pycache__/
+*.pyc
+.venv/
+warehouse/*.duckdb
+target/
+dbt_packages/
+logs/
+
+# Power BI binary, committed deliberately at Stage 6b
+!*.pbix

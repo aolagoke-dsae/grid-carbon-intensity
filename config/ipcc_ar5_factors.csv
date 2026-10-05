@@ -1,0 +1,18 @@
+psr_type,fuel,ef_median_g_kwh,ef_min_g_kwh,ef_max_g_kwh,confidence,source
+B01,Biomass,230,130,420,medium,IPCC AR5 WG3 Annex III Table A.III.2 (dedicated biomass)
+B02,Fossil Brown coal/Lignite,820,740,910,high,IPCC AR5 WG3 Annex III Table A.III.2 (coal PC)
+B03,Fossil Coal-derived gas,820,740,910,low,Proxy: coal PC. Coal-derived gas has no AR5 row - REVIEW
+B04,Fossil Gas,490,410,650,high,IPCC AR5 WG3 Annex III Table A.III.2 (gas combined cycle)
+B05,Fossil Hard coal,820,740,910,high,IPCC AR5 WG3 Annex III Table A.III.2 (coal PC)
+B06,Fossil Oil,650,510,840,low,No AR5 oil row - placeholder pending a cited source. REVIEW
+B09,Geothermal,38,6,79,high,IPCC AR5 WG3 Annex III Table A.III.2
+B10,Hydro Pumped Storage,,,,excluded,"Storage, not generation. Emissions derive from charging mix - handled separately"
+B11,Hydro Run-of-river,24,1,2200,medium,IPCC AR5 WG3 Annex III Table A.III.2 (hydropower; very wide range)
+B12,Hydro Water Reservoir,24,1,2200,medium,IPCC AR5 WG3 Annex III Table A.III.2 (hydropower; very wide range)
+B14,Nuclear,12,3.7,110,high,IPCC AR5 WG3 Annex III Table A.III.2
+B15,Other renewable,,,,unknown,Composition not disclosed by ENTSO-E - REVIEW
+B16,Solar,48,18,180,high,IPCC AR5 WG3 Annex III Table A.III.2 (utility PV)
+B17,Waste,,,,unknown,Biogenic/fossil split undisclosed; contested methodology - REVIEW
+B18,Wind Offshore,12,8,35,high,IPCC AR5 WG3 Annex III Table A.III.2
+B19,Wind Onshore,11,7,56,high,IPCC AR5 WG3 Annex III Table A.III.2
+B20,Other,,,,unknown,Composition not disclosed by ENTSO-E - REVIEW
