@@ -1,0 +1,24 @@
+version: 2
+
+sources:
+  - name: entsoe
+    description: >
+      Raw ENTSO-E payloads landed as parquet by src/transform/xml_to_parquet.py.
+      Stated points only — no gap filling, no direction split, no unit conversion.
+      All business logic lives in the intermediate models, where it is visible
+      in the lineage graph rather than buried in Python.
+    meta:
+      external_location: "../raw/parquet/{name}.parquet"
+    loaded_at_field: period_end_utc
+    freshness:
+      warn_after:  {count: 2, period: day}
+      error_after: {count: 7, period: day}
+    tables:
+      - name: a75
+        description: Aggregated generation per production type (16.1.B & C)
+      - name: a65
+        description: Actual total load (6.1.A)
+      - name: a44
+        description: Day-ahead prices (12.1.D)
+      - name: a11
+        description: Cross-border physical flows (12.1.G)

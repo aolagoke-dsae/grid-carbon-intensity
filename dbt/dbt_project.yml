@@ -1,0 +1,19 @@
+name: grid_intensity
+version: "1.0.0"
+config-version: 2
+profile: grid_intensity
+
+model-paths: ["models"]
+test-paths:  ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+# No seed-paths: the factor table lives once, in ../config/ipcc_ar5_factors.csv,
+# and is read directly by DuckDB. One copy, no drift.
+
+models:
+  grid_intensity:
+    staging:      {+materialized: view,  +schema: staging}
+    intermediate: {+materialized: view,  +schema: intermediate}
+    marts:        {+materialized: table, +schema: marts}

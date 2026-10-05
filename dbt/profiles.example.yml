@@ -1,0 +1,9 @@
+# copy to ~/.dbt/profiles.yml
+grid_intensity:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../warehouse/grid.duckdb    # matches RUNBOOK Stage 6
+      threads: 4
+      extensions: [parquet]
