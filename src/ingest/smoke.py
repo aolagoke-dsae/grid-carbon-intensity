@@ -29,16 +29,41 @@ YEAR = 2025
 
 
 def read_token() -> str:
+    """Read ENTSOE_TOKEN from .env, tolerating how Windows shells write files.
+
+    PowerShell 5.1 writes UTF-16LE by default when you redirect with '>', and
+    writes UTF-8 with a BOM with Set-Content. cmd.exe keeps any space you leave
+    before the '>' inside the value. All three produce a token that looks right
+    and is not, so handle them here rather than in a troubleshooting session.
+    """
     env = ROOT / ".env"
     if not env.exists():
-        sys.exit("No .env in the project root. Create it with:\n"
-                 "    ENTSOE_TOKEN=<your token>")
-    for line in env.read_text(encoding="utf-8").splitlines():
-        if line.strip().startswith("ENTSOE_TOKEN"):
-            tok = line.split("=", 1)[1].strip().strip('"').strip("'")
-            if tok and "your" not in tok.lower():
-                return tok
-    sys.exit("ENTSOE_TOKEN missing or still a placeholder in .env")
+        sys.exit("No .env in the project root. Create it with one line:\n"
+                 "    ENTSOE_TOKEN=<paste the token, no quotes, no spaces>")
+
+    raw = env.read_bytes()
+    for enc in ("utf-8-sig", "utf-16", "utf-8", "latin-1"):
+        try:
+            txt = raw.decode(enc)
+            if "ENTSOE_TOKEN" in txt:
+                break
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+    else:
+        sys.exit(".env could not be decoded. Re-save it as plain UTF-8 text.")
+
+    for line in txt.splitlines():
+        line = line.lstrip("\ufeff").strip()
+        if not line.startswith("ENTSOE_TOKEN"):
+            continue
+        tok = line.split("=", 1)[1].strip().strip('"').strip("'").strip()
+        if not tok or "your" in tok.lower() or "<" in tok:
+            sys.exit("ENTSOE_TOKEN is still a placeholder in .env")
+        if len(tok) < 20:
+            sys.exit(f"ENTSOE_TOKEN looks too short ({len(tok)} characters). "
+                     "A Transparency Platform token is a 36-character UUID.")
+        return tok
+    sys.exit("No ENTSOE_TOKEN line found in .env")
 
 
 def main() -> int:
