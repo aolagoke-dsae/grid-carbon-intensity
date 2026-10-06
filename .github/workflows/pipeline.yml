@@ -27,14 +27,17 @@ on:
 jobs:
   tests:
     name: unit tests
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: the latest label migrates to Ubuntu 26 on
+    # 19.10.2026. Until the capstone ships on 11.12.2026 a red build should mean
+    # this code broke, not that the runner image changed. Revisit in January.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.14"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -44,10 +47,10 @@ jobs:
 
   dbt:
     name: dbt project parses
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
