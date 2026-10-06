@@ -48,6 +48,35 @@ and shared with the Sentinel-2 biomass MRV and German data-role market projects.
 All grid, price and factor data are real and cited. Where a facility load
 profile is used in the optimiser it is **illustrative and labelled as such**.
 
+### What the manifest hash does and does not tell you
+
+`raw/manifest.csv` records a sha256 for every payload. That hash identifies the
+**retrieval**, not the data. ENTSO-E stamps each response with a fresh `mRID` and
+a `createdDateTime`, so the same query repeated minutes later returns a different
+hash. Measured on two pulls of the identical 2025 DE-LU A44 query:
+
+| Retrieved (UTC) | Bytes | sha256 | `mRID` |
+| --- | --- | --- | --- |
+| 2026-10-06 16:30:47 | 7,544,161 | `d9687790…` | `a87148b1…` |
+| 2026-10-06 18:31:50 | 7,544,161 | `9d48b590…` | `1c85b890…` |
+
+Same byte count, same 732 TimeSeries, same 50,044 points, different hash. The
+size is unchanged because both differing fields are fixed-width.
+
+The consequence: **a changed manifest hash does not mean the data changed.** It
+changes on every fetch. Comparing hashes to answer "has ENTSO-E revised this
+series since we pulled it?" returns a false positive every time.
+
+The field that does answer that question is `revisionNumber` in the
+`Publication_MarketDocument` — 1 in both pulls above. For a content-level check
+independent of the envelope, hash the extracted
+`(resolution, classificationSequence, timestamp, value)` tuples instead of the
+raw file: that is stable across retrievals and moves only when the numbers do.
+
+The file hash is still worth recording. It answers a different and narrower
+question — whether the bytes on this disk are the bytes that arrived — which is
+what a provenance record is for.
+
 ## What is non-obvious in this data
 
 Five things in the real ENTSO-E payload that a naive parser gets wrong. Traps 1
