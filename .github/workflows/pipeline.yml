@@ -1,7 +1,17 @@
 name: pipeline
 
-# Unit tests and a dbt parse on every push, plus a weekly run so that
-# dependency drift surfaces here rather than in December.
+# Unit tests and a dbt parse on every push, plus a weekly run.
+#
+# The matrix tests the ends, not the middle: 3.11 is the oldest version this
+# project claims to support, 3.14 is the version it is developed on. A failure
+# that exists only between them is rare enough not to buy a third job.
+#
+# requirements.txt pins nothing, so each run installs the newest of everything.
+# That makes the Monday run a drift detector, and it means a red build has two
+# different meanings:
+#   red after a push you made   -> you broke something
+#   red on a Monday, no commits -> the ecosystem moved, not you
+# Read the trigger before reading the failure.
 #
 # Deliberately NOT in CI: src/ingest/smoke.py and smoke_smard.py. Those call
 # live APIs and smoke.py needs the ENTSO-E token. A build must not depend on a
@@ -21,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.14"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

@@ -149,6 +149,12 @@ which rule fired for which fuel and why.
 
 `pytest` — 42 tests, all green.
 
+Runs on **Python 3.11 and later**. CI proves both ends of that claim —
+3.11, the oldest version supported, and 3.14, the version it is developed
+on — on every push and once a week. It also runs `dbt parse`, which
+resolves every model, source, `ref` and test without touching data, so a
+broken reference fails at push time rather than at build time.
+
 Four of them are the payload traps above. Six pin the daylight-saving
 arithmetic. The rest cover the uncertainty propagation, including the one that
 matters most: **the point estimate must fall inside its own interval.** If the
