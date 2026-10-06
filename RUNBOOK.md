@@ -100,7 +100,7 @@ provisioning easy to do early and expensive to do early. Do not.
 **Needs:** nothing. The token already exists — generate it and paste it in.
 
 ```bash
-cd project-a-grid-intensity
+cd grid-carbon-intensity
 python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env        # paste the real token when it arrives

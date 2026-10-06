@@ -171,22 +171,36 @@ every downstream figure is decoration.
 
 ```
 config/             zones + emission factors, every row carrying a citation
-src/ingest/         ENTSO-E client → raw/ + manifest.csv
+src/ingest/         ENTSO-E and SMARD clients → raw/ + manifest.csv
 src/transform/      parser, intensity, uncertainty
 src/checks/         stage checkpoint functions, importable and testable
 sql/                hand-written schema + DQ views
+dbt/                staging / intermediate / marts, plus three singular tests
 docs/               ARCHITECTURE.md — the standard shared across projects
-raw/                immutable landing, git-ignored (empty until the first pull)
+.github/workflows/  pipeline.yml — pytest on 3.11 and 3.14, dbt parse, weekly
+raw/                immutable landing, git-ignored; manifest.csv is committed
 curated/            Parquet outputs, git-ignored
 conftest.py         makes `pytest` work from the repo root
 
 planned, not present yet — see RUNBOOK.md:
-models/             dbt project: staging / intermediate / marts
+curated/sample/     bounded sample so `git clone && dbt build` runs tokenless
 report/             Quarto source → GitHub Pages
 docs/METHODOLOGY.md assurance write-up
-.github/workflows/  ci.yml (pytest + dbt build), refresh.yml (scheduled)
 ```
 
 ## Licence / reuse
-Public data, open method. Emission factors are reproduced under fair use with
-citation; verify against the source before relying on them.
+
+Three different things are licensed three different ways.
+
+**The code is MIT** — see `LICENSE`. Use it, change it, ship it; keep the notice.
+
+**The emission factors** in `config/ipcc_ar5_factors.csv` are reproduced from
+IPCC AR5 WG3 Annex III with citation. Verify against the source before relying
+on them.
+
+**The ENTSO-E data is not redistributed here.** `raw/` is git-ignored and only
+`manifest.csv` — the provenance record, with the token redacted — is committed.
+Anyone re-running the ingestion obtains the data themselves, under the ENTSO-E
+Transparency Platform's own terms of use, which this repository's licence does
+not and cannot grant. The same will apply to `curated/sample/` once it exists:
+a sample of ENTSO-E-derived values carries ENTSO-E's terms, not MIT.
