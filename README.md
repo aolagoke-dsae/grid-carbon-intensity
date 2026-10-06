@@ -50,8 +50,10 @@ profile is used in the optimiser it is **illustrative and labelled as such**.
 
 ## What is non-obvious in this data
 
-Four things in the real ENTSO-E payload that a naive parser gets wrong, all
-handled in `src/transform/entsoe_parse.py` and asserted in `test_parse.py`:
+Five things in the real ENTSO-E payload that a naive parser gets wrong. Traps 1
+to 4 are handled in `src/transform/entsoe_parse.py` and asserted in
+`test_parse.py`. Trap 5 was found on 6 October 2026 in the first full-year pull
+and is **not yet implemented** — it is an open decision, not a solved problem.
 
 1. **`curveType` A03 omits repeated values.** One DE-LU series states 5 points
    for a 96-step day; the other 91 must be carried forward. A naive loop loses
@@ -63,6 +65,36 @@ handled in `src/transform/entsoe_parse.py` and asserted in `test_parse.py`:
    **92 and 100** steps, not 23 and 25.
 4. **The unit is MAW — power, not energy.** MWh = MW × step_hours, which matters
    as soon as zones at different resolutions are combined.
+5. **A44 returns two competing price curves for 2025, and only one field tells
+   them apart.** The full-year DE-LU day-ahead pull is 50,044 points — more than
+   a year holds at PT15M (35,040). The document carries 732 TimeSeries that are
+   identical in `businessType` (A62), `contract_MarketAgreement.type` (A01),
+   `auction.type` (A01), domain, currency and unit. The *only* discriminator is
+   `classificationSequence_AttributeInstanceComponent.position`:
+
+   | position | resolution | coverage | points | median €/MWh |
+   | --- | --- | --- | --- | --- |
+   | 1 | PT60M | 2024-12-31 23:00 → 2025-09-30 21:00 | 6,514 | 94.50 |
+   | 1 | PT15M | 2025-09-30 22:00 → 2026-01-01 22:15 | 8,853 | 89.67 |
+   | 2 | PT15M | 2024-12-31 23:00 → 2026-01-01 22:00 | 34,677 | 92.41 |
+
+   Position 1 is one continuous series that switches resolution at the German
+   15-minute MTU go-live, 1 October 2025 local. Position 2 runs at PT15M for the
+   whole year. Where they overlap — 8,605 timestamps in Q4 — they **disagree in
+   8,602 of them**: median difference +0.41 €/MWh, but the range runs from
+   −198.37 to +278.69. The divergence is largest in exactly the scarcity and
+   negative-price quarter-hours a load-shift study is about.
+
+   Key on `(resolution, classificationSequence…position, timestamp)`, never on
+   timestamp alone. A parser that groups by timestamp silently turns the choice
+   of curve into whatever `first()`, `mean()` or `last()` happens to do.
+
+   Two corollaries of trap 1 measured on the same file: the PT60M series declares
+   6,551 hours in its `timeInterval` (6,552 minus the 23-hour DST day on
+   30 March) and delivers 6,514 — **37 points dropped by A03 compression** that
+   must be carried forward. And the hourly price never equals its four
+   quarter-hours: 0 agreements in 6,323 comparable hours. They are separate
+   market products, not an aggregation.
 
 ## The interval is the deliverable
 

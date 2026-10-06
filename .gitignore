@@ -1,6 +1,9 @@
 # secrets
 .env
 *.env
+*token*.txt
+*token*.json
+entsoe_token.txt
 
 # raw payloads are large and reproducible; the manifest is the provenance
 # record and MUST be committed. git will not descend into an ignored
