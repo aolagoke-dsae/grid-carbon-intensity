@@ -28,6 +28,8 @@ __pycache__/
 warehouse/*.duckdb
 target/
 dbt_packages/
+.user.yml
+dbt/profiles.yml
 logs/
 
 # Power BI binary, committed deliberately at Stage 6b
