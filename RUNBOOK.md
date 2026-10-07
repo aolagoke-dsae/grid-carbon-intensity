@@ -16,20 +16,31 @@ and shared with Projects B and C. This runbook is its instantiation for Project 
 
 ## Where this actually stands
 
+*Revised 7 October 2026. The table below used to say no git repository, empty
+directories and nothing against the live API. All three were true on
+25 September and none is true now.*
+
 | | Written | Unit-tested | Run against real data |
 |---|---|---|---|
-| Ingestion client | yes, 117 lines | — | **no** |
-| Parser (A03, direction, DST, MAW) | yes, 93 lines | yes, 10 tests | **no** |
-| Intensity + uncertainty | yes, 286 lines | yes, 19 tests | **no** |
-| Stage checks (2, 3, 4, 5) | yes, 124 lines | yes, 6 DST tests | **no** |
-| SQL schema + DQ views | yes, 145 lines | — | **no** |
-| Version control | **no git repo** | — | — |
+| Ingestion client (ENTSO-E) | yes | yes | **yes** — two A44 pulls, 06.10.2026 |
+| Ingestion client (SMARD) | yes | — | **yes** — 06.10.2026 |
+| Parser (A03, direction, DST, MAW) | yes | yes | **not yet** — WE 2, 17./18.10. |
+| Intensity + uncertainty | yes | yes | **not yet** |
+| Stage checks (2, 3, 4, 5) | yes | yes, since 07.10. | **not yet** |
+| SQL schema + DQ views | yes | — | **not yet** |
+| dbt models | **no** — project and sources only | — | — |
+| CI | yes, `.github/workflows/pipeline.yml` | — | **yes**, green on 3.11 and 3.14 |
+| Version control | yes — public, MIT | — | — |
 
-1,354 lines of code and config. `raw/`, `curated/` and `docs/` are empty.
+`raw/` holds one ENTSO-E payload and one SMARD week, both in `manifest.csv`.
+`curated/` is still empty. `docs/` holds ARCHITECTURE.md and RESOURCES.md.
 
-This is not a build problem any more. Almost everything is written. It is an
-**execution** problem: nothing has touched the live API, and nothing is under
-version control. Both are fixed in the next two weeks, and neither costs money.
+Three of the stage checkpoints could not pass on real data until 7 October:
+Stage 2 compared a whole series against one period's step count, Stage 3 merged
+zones into one key, and Stage 4 called `.get()` on a dataclass. All three are
+fixed and carry regression tests. They are listed here because a checkpoint
+that cannot fail is worse than no checkpoint — it sends you debugging a parser
+that works.
 
 ---
 
@@ -113,7 +124,7 @@ git init && git add . && git commit -m "scaffold: ingestion, parser, intensity, 
 python3 -c "from dotenv import load_dotenv; import os; load_dotenv(); \
 t=os.getenv('ENTSOE_TOKEN'); print('token loaded:', bool(t), '| length:', len(t or ''))"
 git status --porcelain | grep -c '\.env$'    # must print 0
-pytest -q                                     # 35 test functions, all green
+pytest -q                                     # 49 test functions, all green
 ```
 
 - Token loads, and `.env` does **not** appear in git status
@@ -143,9 +154,7 @@ print(row)
 - `raw/A75/10Y1001A1001A82H/2025.xml` exists and is **more than 1 MB**
 - `raw/manifest.csv` has one row, `http_status` 200, `rejected` 0
 - The `url` column contains `***REDACTED***` and not your token
-- Re-run it: `sha256` must be **identical**. If it differs for a closed
-  historical year, the API is non-deterministic and you need to know that
-  before building on it.
+- Re-run it. The `sha256` WILL differ, and that is not a defect: ENTSO-E stamps every response with a fresh `mRID` and `createdDateTime`, so the manifest hash identifies the retrieval, not the data. Measured on 06.10.2026: two pulls of the identical query, 7,544,161 bytes both times, different hashes. What must be identical is the byte count and the point count; what signals an upstream revision is `revisionNumber`. See the README's provenance section.
 
 **If it fails:** a small file (a few KB) with `rejected` 1 is an Acknowledgement
 document. Open the XML — it states the rejection reason, usually a bad EIC or an

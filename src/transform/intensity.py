@@ -221,6 +221,26 @@ def intensity_draws(
     return numerator / priced_mwh, total, priced_mwh
 
 
+def deterministic_intensity(
+    mix: dict[str, float], factors: dict[str, Factor]
+) -> float | None:
+    """The number you would report if you ignored uncertainty.
+
+    Energy-weighted mean over the priced fuels, each at its MEDIAN factor --
+    no sampling. It exists so the acceptance criterion can be checked:
+    this point must fall inside the Monte Carlo 90% interval. Comparing the
+    two is also the cheapest detector of a skewed propagation, because the
+    bands are not symmetric: lo-to-median is narrower than median-to-hi for
+    most AR5 fuels, so the sampled median sits above this point by design,
+    and a large gap means the lognormal fit is doing more than intended.
+    """
+    priced = {p: e for p, e in mix.items() if p in factors and factors[p].priced}
+    tot = sum(priced.values())
+    if tot <= 0:
+        return None
+    return sum(e * factors[p].median for p, e in priced.items()) / tot
+
+
 def summarise(
     mix: dict[str, float],
     factors: dict[str, Factor],
@@ -235,6 +255,7 @@ def summarise(
             "total_mwh": total,
             "priced_mwh": 0.0,
             "coverage_pct": None,
+            "intensity_point": None,
             "intensity_median": None,
             "intensity_p05": None,
             "intensity_p95": None,
@@ -245,6 +266,7 @@ def summarise(
         "total_mwh": total,
         "priced_mwh": priced_mwh,
         "coverage_pct": round(100.0 * priced_mwh / total, 2) if total else None,
+        "intensity_point": deterministic_intensity(mix, factors),
         "intensity_median": float(np.median(draws)),
         "intensity_p05": float(np.percentile(draws, 5)),
         "intensity_p95": float(np.percentile(draws, 95)),

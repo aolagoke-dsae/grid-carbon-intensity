@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 from intensity import (
+    deterministic_intensity,
     SKEW_RATIO_LOGNORMAL,
     Factor,
     describe_sampling,
@@ -118,10 +119,32 @@ def test_pure_coal_hour_lands_on_the_coal_factor(factors):
 
 
 def test_point_estimate_lies_inside_its_own_interval(factors):
-    """If the median escapes p05..p95 the propagation is wrong, full stop."""
+    """The DETERMINISTIC point must fall inside the sampled interval.
+
+    Rewritten 2026-10-07. The old assertion compared intensity_median against
+    p05 and p95 -- all three computed from the same draws, so the median of a
+    sample always lies between its own percentiles. It was a tautology and
+    could not fail, which made the project's headline acceptance criterion
+    vacuous. The deterministic point is computed from the median factors
+    without sampling, so it genuinely can escape the interval if the
+    propagation is skewed.
+    """
     mix = {"B05": 400.0, "B04": 300.0, "B19": 800.0, "B16": 200.0, "B14": 100.0}
     out = summarise(mix, factors, n_draws=20_000)
-    assert out["intensity_p05"] <= out["intensity_median"] <= out["intensity_p95"]
+    point = out["intensity_point"]
+    assert point is not None
+    assert out["intensity_p05"] <= point <= out["intensity_p95"], (
+        f"deterministic {point:.1f} outside "
+        f"[{out['intensity_p05']:.1f}, {out['intensity_p95']:.1f}]"
+    )
+
+
+def test_the_old_tautology_cannot_come_back(factors):
+    """The sampled median is NOT the deterministic point, and the distance
+    between them is the signal the acceptance criterion is reading."""
+    mix = {"B05": 400.0, "B04": 300.0, "B19": 800.0, "B16": 200.0, "B14": 100.0}
+    out = summarise(mix, factors, n_draws=20_000)
+    assert out["intensity_point"] != out["intensity_median"]
 
 
 def test_interval_is_not_degenerate(factors):

@@ -1,12 +1,15 @@
-# Grid Carbon Intensity & Load-Shift Optimiser
+# Grid Carbon Intensity
 
 Hourly-and-quarter-hourly carbon intensity for two European bidding zones,
-DE-LU and FR,
-**derived** from ENTSO-E generation mix using IPCC AR5 lifecycle factors rather
-than consumed from a vendor — with the published factor uncertainty propagated
-through to a 90% interval by Monte Carlo and the variance attributed to its
-sources by Sobol indices, and a load-shifting optimiser that prices the saving
-in tCO2e and euros.
+DE-LU and FR, **derived** from the ENTSO-E generation mix using IPCC AR5
+lifecycle factors rather than consumed from a vendor — with the published
+factor uncertainty propagated through to a 90% interval by Monte Carlo, and a
+first-order sensitivity index saying which fuel's factor that interval is
+mostly made of.
+
+The eventual purpose is a load-shifting decision model that prices the saving
+in tCO2e and euros. That is the question the project exists to answer; it is
+not built yet. See **What is not built** below.
 
 > **Status: in build (started 7 August 2026).** See `RUNBOOK.md` for the staged
 > plan and current position. Nothing in this repository is presented as
@@ -17,21 +20,52 @@ in tCO2e and euros.
 Open-access end to end, by design. Python ingestion → immutable raw layer with a
 SHA-256 manifest → Parquet → **DuckDB** warehouse → **dbt** (sources, staging,
 intermediate, marts, tests, lineage), with **GitHub Actions** for CI and a
-**Quarto** report to follow. Uncertainty propagation and global sensitivity
-analysis in R (`sensitivity`).
+**Quarto** report to follow. Uncertainty propagation and the sensitivity index
+are plain Python — NumPy, no modelling framework — in
+`src/transform/intensity.py`.
 
-The ingestion, parsing and uncertainty layers are written and tested. The dbt
-project, the CI workflows and the report are specified in `RUNBOOK.md` and not
-yet built — the Layout below marks which is which.
+The ingestion, parsing, uncertainty and CI layers are written, tested and
+running. The dbt models and the report are specified in `RUNBOOK.md` and not
+yet built — the Layout and **What is not built** mark which is which.
 
-The acceptance criterion that governs the whole build: **the deterministic point
-estimate must fall inside its own 90% interval.** If it does not, the model is
-wrong somewhere and no figure is published.
+The acceptance criterion that governs the whole build: **the deterministic
+point estimate must fall inside the sampled 90% interval.** The deterministic
+point is `deterministic_intensity()` — the energy-weighted mean at each fuel's
+median factor, no sampling — and it is a different quantity from the median of
+the draws. If it escapes the interval the propagation is skewed, and no figure
+is published.
 
-No subscription, no licence and no free tier is required to run any of it:
-`git clone` then `dbt build` reproduces the warehouse from scratch. Azure SQL
-and Power BI appear once, as a bounded portability excursion (RUNBOOK Stage 6b),
-and the artefacts from it — `.pbix` and `.bacpac` — are committed as files.
+> Corrected 7 October 2026. The test behind this criterion used to compare the
+> sampled median against the sampled percentiles, which is true by definition
+> and could never fail. The headline control was vacuous for seven weeks.
+
+## What is not built
+
+Named here rather than left for a reader to discover.
+
+| | Status |
+|---|---|
+| dbt models (staging, intermediate, marts) | project and sources configured; **no models written** |
+| `curated/sample/` | **absent**, so `dbt build` from a clean clone does not run |
+| Load-shifting decision model | **not started** — the question the project exists to answer |
+| Quarto report, GitHub Pages | **not started** |
+| Power BI / Azure portability excursion | **not started**; no `.pbix` or `.bacpac` exists |
+| Global (Sobol) sensitivity | **not built**. What exists is a first-order index, `variance_contribution()` |
+| Cross-border flow (A11) import adjustment | **not built**; intensity is average, not marginal |
+| Trap 5, the two competing A44 price curves | **documented, not handled** — see above |
+
+What *is* built and running: ingestion with a redacting manifest, the A75
+parser with its four traps, Monte Carlo uncertainty with the first-order
+index, the stage checkpoints, and CI across Python 3.11 and 3.14.
+
+`config/zones.yml` carries five zones; the analysis covers two. The other three
+are configuration kept for later, not results.
+
+No subscription, no licence and no free tier is required to run any of it.
+`git clone` then `pytest` works today. `dbt build` from a clean clone is the
+goal and does not work yet: it needs `curated/sample/`, which is not committed,
+and the dbt models, which are not written. Stated here rather than discovered
+after cloning.
 
 The architecture is defined once in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 and shared with the Sentinel-2 biomass MRV and German data-role market projects.
@@ -40,13 +74,16 @@ and shared with the Sentinel-2 biomass MRV and German data-role market projects.
 
 | Source | Used for | Access |
 |---|---|---|
-| ENTSO-E Transparency Platform | Actual generation per production type (A75), day-ahead prices (A44), actual load (A65), cross-border flows (A11) | REST API, token |
+| ENTSO-E Transparency Platform | Generation per production type (A75), day-ahead prices (A44), actual load (A65) | REST API, token |
+| SMARD (Bundesnetzagentur) | Independent second source for the reconciliation test | REST, no key |
 | IPCC AR5 WG3 Annex III | Lifecycle emission factors with published ranges | `config/ipcc_ar5_factors.csv` |
-| DWD Open Data | Hourly temperature | Open, no key |
-| EEA EU ETS data viewer | Installation-level verified emissions, for benchmarking | Open |
 
-All grid, price and factor data are real and cited. Where a facility load
-profile is used in the optimiser it is **illustrative and labelled as such**.
+A fetcher exists for each row above and has been run. Cross-border flows (A11),
+DWD temperature and EEA verified emissions are candidates for later work and
+have no fetcher, so they are not listed as sources.
+
+All grid, price and factor data are real and cited. Any facility load profile
+used later in the decision model will be **illustrative and labelled as such**.
 
 ### What the manifest hash does and does not tell you
 
@@ -147,7 +184,7 @@ which rule fired for which fuel and why.
 
 ## Tests
 
-`pytest` — 48 tests, all green.
+`pytest` — 49 tests, all green.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
@@ -175,7 +212,8 @@ src/ingest/         ENTSO-E and SMARD clients → raw/ + manifest.csv
 src/transform/      parser, intensity, uncertainty
 src/checks/         stage checkpoint functions, importable and testable
 sql/                hand-written schema + DQ views
-dbt/                staging / intermediate / marts, plus three singular tests
+dbt/                project and sources configured; four singular tests written,
+                    no models yet — see What is not built
 docs/               ARCHITECTURE.md — the standard shared across projects
 .github/workflows/  pipeline.yml — pytest on 3.11 and 3.14, dbt parse, weekly
 raw/                immutable landing, git-ignored; manifest.csv is committed
