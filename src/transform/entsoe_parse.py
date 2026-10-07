@@ -81,6 +81,10 @@ def parse(xml_text):
             for pos, mw in series:
                 rows.append({
                     "ts_utc": start + dt.timedelta(hours=step_h * (pos - 1)),
+                    # The period a row came from. Without it a series cannot be
+                    # told apart from the sum of its periods, and a yearly
+                    # payload carries one Period per day.
+                    "period_start_utc": start,
                     "zone": zone, "psr": psr, "fuel": PSR.get(psr, psr),
                     "direction": direction,
                     "resolution": res, "step_hours": step_h,

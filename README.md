@@ -147,7 +147,7 @@ which rule fired for which fuel and why.
 
 ## Tests
 
-`pytest` — 42 tests, all green.
+`pytest` — 48 tests, all green.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed

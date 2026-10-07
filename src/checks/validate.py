@@ -39,10 +39,14 @@ def check_stage2_parse(rows) -> tuple[bool, str]:
     bad = [r for r in rows if r["mw"] is None]
     if bad:
         return False, f"{len(bad)} rows with null mw"
+    # The key must include the period. A yearly payload carries one Period per
+    # day, so keying on the series alone compares 365 days of rows against one
+    # day's step count and fails on every correct parse. Fixtures are single-
+    # period, which is why the tests never caught it.
     per_series = defaultdict(int)
     stated = {}
     for r in rows:
-        k = (r["psr"], r["direction"])
+        k = (r["psr"], r["direction"], r.get("period_start_utc"))
         per_series[k] += 1
         stated[k] = r["n_steps_expanded"]
     wrong = {k: v for k, v in per_series.items() if v != stated[k]}
@@ -81,15 +85,20 @@ def check_stage3_coverage(rows, tz: str) -> tuple[bool, str]:
         if r["direction"] != "generation":
             continue
         local = r["ts_utc"].astimezone(z).date()
-        by_day[(local, r["psr"])].add(r["ts_utc"])
-        steps[(local, r["psr"])] = r["step_hours"]
+        # Zone belongs in the key. Without it two zones with the same
+        # timestamps collapse into one set, and a zone missing a whole day is
+        # invisible as long as another zone has it.
+        k = (r.get("zone"), local, r["psr"])
+        by_day[k].add(r["ts_utc"])
+        steps[k] = r["step_hours"]
     problems, dst = [], []
-    for (day, psr), tss in sorted(by_day.items()):
-        exp = expected_steps(day, tz, steps[(day, psr)])
+    for (zone, day, psr), tss in sorted(by_day.items(), key=lambda kv: (str(kv[0][0]), kv[0][1], kv[0][2])):
+        k = (zone, day, psr)
+        exp = expected_steps(day, tz, steps[k])
         got = len(tss)
         if got != exp:
-            problems.append(f"{day} {psr}: {got}/{exp}")
-        elif exp != int(round(24 / steps[(day, psr)])):
+            problems.append(f"{zone} {day} {psr}: {got}/{exp}")
+        elif exp != int(round(24 / steps[k])):
             dst.append(f"{day} ({exp} steps)")
     msg = f"{len(by_day)} day-series checked"
     if dst:
@@ -103,8 +112,11 @@ def check_stage4_factors(rows, factors: dict) -> tuple[bool, str]:
     """Every generating psrType must map to a factor or be explicitly flagged."""
     seen = {r["psr"] for r in rows if r["direction"] == "generation"}
     missing = [p for p in sorted(seen) if p not in factors]
+    # load_factors() returns Factor dataclasses, not csv.DictReader rows, so
+    # .get() raised AttributeError here. Factor.priced is the same test: a
+    # median AND a band.
     unpriced = [p for p in sorted(seen)
-                if p in factors and not factors[p].get("ef_median_g_kwh")]
+                if p in factors and not factors[p].priced]
     if missing:
         return False, f"psrTypes with no row in the factor table at all: {missing}"
     return True, (f"{len(seen)} psrTypes present; "
