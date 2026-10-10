@@ -88,7 +88,7 @@ the stage it belongs to.
 | # | Stage | Produces | Cost | Target |
 |---|---|---|---|---|
 | 0 | Environment, secrets, git | first commit | €0 | **today** |
-| 1 | First raw pull with manifest | `raw/A75/.../2025.xml` | €0 | **this weekend** |
+| 1 | First raw pull with manifest | `raw/A75/<eic>/2025/` | €0 | **this weekend** |
 | 2 | Parse: A03, direction, DST, MAW | parsed rows in memory | €0 | w/c 28 Sept |
 | 3 | Backfill and coverage | 5 zones × 6 years in `raw/` | €0 | w/c 5 Oct |
 | 4 | Emission factors verified | audited `ipcc_ar5_factors.csv` | €0 | w/c 12–19 Oct |
@@ -124,8 +124,8 @@ git init && git add . && git commit -m "scaffold: ingestion, parser, intensity, 
 python3 -c "from dotenv import load_dotenv; import os; load_dotenv(); \
 t=os.getenv('ENTSOE_TOKEN'); print('token loaded:', bool(t), '| length:', len(t or ''))"
 git status --porcelain | grep -c '\.env$'    # must print 0
-pytest -q                                     # 73 tests (63 functions), all green
-                                              # (69 + 4 skipped where raw/ is absent)
+pytest -q                                     # 86 tests (73 functions), all green
+                                              # (82 + 4 skipped where raw/ is absent)
 ```
 
 - Token loads, and `.env` does **not** appear in git status
@@ -152,14 +152,15 @@ print(row)
 
 **Checkpoint 1**
 
-- `raw/A75/10Y1001A1001A82H/2025.xml` exists and is **more than 1 MB**
-- `raw/manifest.csv` has one row, `http_status` 200, `rejected` 0
+- The new file in `raw/A75/10Y1001A1001A82H/2025/` is **more than 1 MB**
+- Its `raw/manifest.csv` row has `http_status` 200, `rejected` 0 and a `revision`
 - The `url` column contains `***REDACTED***` and not your token
 - Re-run it. The `sha256` WILL differ, and that is not a defect: ENTSO-E stamps every response with a fresh `mRID` and `createdDateTime`, so the manifest hash identifies the retrieval, not the data. Measured on 06.10.2026: two pulls of the identical query, 7,544,161 bytes both times, different hashes. What must be identical is the byte count and the point count; what signals an upstream revision is `revisionNumber`. See the README's provenance section.
 
-**If it fails:** a small file (a few KB) with `rejected` 1 is an Acknowledgement
-document. Open the XML — it states the rejection reason, usually a bad EIC or an
-out-of-range period.
+**If it fails:** a row with `rejected` 1 points into the `_failed/` folder, and
+nothing earlier in `raw/` was touched. A file of a few KB there is usually an
+Acknowledgement document: open it, it states the rejection reason, usually a bad
+EIC or an out-of-range period. A 401 means the token was refused.
 
 **What it unlocks:** the first honest past-tense sentence on your CV.
 
@@ -179,7 +180,9 @@ out-of-range period.
 ```python
 from src.transform.entsoe_parse import parse
 from src.checks.validate import check_stage2_parse, check_stage2_direction
-rows = parse(open("raw/A75/10Y1001A1001A82H/2025.xml", encoding="utf-8").read())
+from pathlib import Path
+newest = sorted(Path("raw/A75/10Y1001A1001A82H/2025").glob("*.xml"))[-1]   # latest retrieval
+rows = parse(newest.read_text(encoding="utf-8"))
 print(check_stage2_parse(rows))
 print(check_stage2_direction(rows))
 ```

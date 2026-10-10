@@ -163,11 +163,18 @@ README.md         opens with a screenshot, states what is real
 
 ### Ingestion and provenance
 
-Every response is written once, hashed, and recorded. `manifest.csv` carries
-URL with the token redacted, HTTP status, SHA-256, byte count and timestamp.
-A re-run of a closed historical period must reproduce an identical hash; if it
-does not, the source is non-deterministic and you need to know that before
-building on it.
+Every response is written once, to a new file, hashed and recorded; nothing in
+`raw/` is ever overwritten. Each logical item (document type, zone, year) is a
+directory with one file per retrieval, and a response that is not data goes to
+its `_failed/` folder (`src/ingest/raw_store.py`). `manifest.csv` carries URL
+with the token redacted, HTTP status, SHA-256, byte count, timestamp and the
+document's `revisionNumber`.
+
+A re-run of a closed historical period must reproduce identical *data*, not an
+identical hash: ENTSO-E stamps every response with a fresh `mRID` and
+`createdDateTime`, so compare the payloads from the first `<TimeSeries>` on. If
+the data differs, the source is non-deterministic or has been revised, and you
+need to know that before building on it.
 
 Secrets live in `.env` locally and in repository secrets for Actions. Never in
 a training tenant, never in git.

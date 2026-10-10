@@ -25,7 +25,8 @@ field the others do not:
 
         classificationSequence_AttributeInstanceComponent.position
 
-    Measured on raw/A44/10Y1001A1001A82H/2025.xml (revision 1). These are
+    Measured on raw/A44/10Y1001A1001A82H/2025/20261006T183150Z_9d48b590.xml
+    (revision 1). These are
     STATED points; after A03 expansion (15,483 and 35,136 steps) the medians
     are 90.63 and 92.30 and the negative shares 4.7 % and 6.6 %:
 

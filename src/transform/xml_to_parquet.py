@@ -131,6 +131,8 @@ def land(xml_path: Path, out_path: Path | None = None) -> pd.DataFrame:
                 rows.append({
                     "document_type": doc_type,
                     "revision_number": revision,
+                    # which retrieval this row came from: raw/ keeps every one
+                    "source_file": xml_path.as_posix(),
                     "zone_eic": zone,
                     "psr_type": psr,
                     "direction": direction,
@@ -164,8 +166,26 @@ def land(xml_path: Path, out_path: Path | None = None) -> pd.DataFrame:
     return df
 
 
+def current_payloads(doc_dir: Path) -> list[Path]:
+    """The newest accepted retrieval of every logical item under doc_dir.
+
+    raw/ is append-only (src/ingest/raw_store.py): each document type, zone
+    and year is a directory with one file per retrieval, and responses that
+    were not data sit in its _failed/ folder. Landing every file would count a
+    re-pulled year twice; landing a failure would land an error page. File
+    names start with the UTC retrieval time, so the newest sorts last.
+    """
+    groups: dict[Path, list[Path]] = {}
+    for xml in doc_dir.rglob("*.xml"):
+        if "_failed" in xml.relative_to(doc_dir).parts:
+            continue
+        groups.setdefault(xml.parent, []).append(xml)
+    return [max(files) for _, files in sorted(groups.items())]
+
+
 def land_tree(raw_root: Path, parquet_root: Path, strict: bool = True) -> dict:
-    """Walk raw/<DOCTYPE>/<EIC>/<year>.xml -> raw/parquet/<doctype>.parquet
+    """Land the newest accepted retrieval of every raw/<DOCTYPE>/<EIC>/<year>/
+    item into raw/parquet/<doctype>.parquet.
 
     strict=True re-raises after reporting. The previous bare `except Exception:
     print(...)` meant a document type that failed on EVERY file produced no
@@ -175,10 +195,11 @@ def land_tree(raw_root: Path, parquet_root: Path, strict: bool = True) -> dict:
     counts: dict[str, int] = {}
     failures: list[tuple[Path, Exception]] = []
     for doc_dir in sorted(
-        p for p in raw_root.iterdir() if p.is_dir() and p.name != "parquet"
+        p for p in raw_root.iterdir()
+        if p.is_dir() and p.name != "parquet" and not p.name.startswith("_")
     ):
         frames = []
-        xmls = sorted(doc_dir.rglob("*.xml"))
+        xmls = current_payloads(doc_dir)
         for xml in xmls:
             try:
                 frames.append(land(xml))

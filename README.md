@@ -122,6 +122,13 @@ hash. Measured on two pulls of the identical 2025 DE-LU A44 query:
 Same byte count, same 732 TimeSeries, same 50,044 points, different hash. The
 size is unchanged because both differing fields are fixed-width.
 
+Only the second of those two payloads still exists: the second pull overwrote
+the first. Since 10 October 2026 that cannot happen. `raw/` is append-only
+(`src/ingest/raw_store.py`): every retrieval is a new file named by its
+retrieval time and hash, a response that is not data — a non-200 status, an
+Acknowledgement, a body that does not parse — goes to a `_failed/` folder, and
+the manifest records each document's `revisionNumber`.
+
 The consequence: **a changed manifest hash does not mean the data changed.** It
 changes on every fetch. Comparing hashes to answer "has ENTSO-E revised this
 series since we pulled it?" returns a false positive every time.
@@ -232,10 +239,10 @@ which rule fired for which fuel and why.
 
 ## Tests
 
-`pytest` — 73 tests, all green: 63 test functions, some parametrised. Four of
+`pytest` — 86 tests, all green: 73 test functions, some parametrised. Four of
 them read the real 7.5 MB A44 payload and **skip in CI**, because `raw/*` is
-gitignored; CI therefore reports 69 passed, 4 skipped, and a local run with
-`raw/` populated reports 73 passed.
+gitignored; CI therefore reports 82 passed, 4 skipped, and a local run with
+`raw/` populated reports 86 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
@@ -251,6 +258,8 @@ broken reference fails at push time rather than at build time.
 | `src/transform/test_intensity.py` | 20 | The uncertainty propagation and factor handling |
 | `src/checks/test_validate.py` | 6 | The stage checkpoints |
 | `src/ingest/test_entsoe_client.py` | 3 | Token redaction in exceptions and the manifest |
+| `src/ingest/test_raw_store.py` | 12 | `raw/` is append-only: a failed pull never replaces data, every retrieval is kept, the smoke scripts report the status they actually got |
+| `src/transform/test_xml_to_parquet.py` | 1 | The landing reads only the newest accepted retrieval of each year |
 
 The test that matters most: **the deterministic point estimate must fall
 inside the Monte Carlo interval built around it.** If it falls outside, the
@@ -282,7 +291,9 @@ dbt/                10 models and six singular tests, written and parsing;
                     never executed — see What is not built
 docs/               ARCHITECTURE.md — the standard shared across projects
 .github/workflows/  pipeline.yml — pytest on 3.11 and 3.14, dbt parse, weekly
-raw/                immutable landing, git-ignored; manifest.csv is committed
+raw/                append-only landing, git-ignored: one folder per document,
+                    zone and year, one file per retrieval, failures in
+                    _failed/; manifest.csv is committed
 raw/parquet/        stated points per document type, git-ignored, rebuilt with
                     `python -m src.transform.xml_to_parquet`
 curated/            Parquet outputs, git-ignored

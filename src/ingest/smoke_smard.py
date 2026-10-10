@@ -6,16 +6,16 @@ Reads the index first to learn which weeks SMARD actually holds, then pulls the
 most recent complete one. Two files land in raw/SMARD/ and two rows in
 raw/manifest.csv.
 
-UNTESTED AS WRITTEN. It could not be run from the machine it was written on,
-because that sandbox cannot reach smard.de. The first run is the test. If the
-field names differ from what is assumed below, the script says so rather than
-guessing — which is the behaviour that matters.
+First run 06.10.2026 (manifest rows for filter 4169). If the field names ever
+differ from what is assumed below, the script says so rather than guessing —
+which is the behaviour that matters.
 """
 from __future__ import annotations
 
 import datetime as dt
 import json
 import sys
+import zoneinfo
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +24,9 @@ sys.path.insert(0, str(ROOT))
 from src.ingest.smard_client import FILTERS, REGION, RESOLUTION, index, week  # noqa: E402
 
 FILTER_ID = 4169          # Grosshandelspreis DE-LU
+# SMARD weeks start on Monday 00:00 German time. Labelled in UTC, every week
+# looked as if it began on the Sunday before.
+BERLIN = zoneinfo.ZoneInfo("Europe/Berlin")
 
 
 def main() -> int:
@@ -42,20 +45,25 @@ def main() -> int:
         print("  index returned no timestamps — nothing to fetch")
         return 1
 
-    first = dt.datetime.fromtimestamp(stamps[0] / 1000, dt.timezone.utc)
-    last = dt.datetime.fromtimestamp(stamps[-1] / 1000, dt.timezone.utc)
+    first = dt.datetime.fromtimestamp(stamps[0] / 1000, BERLIN)
+    last = dt.datetime.fromtimestamp(stamps[-1] / 1000, BERLIN)
     print(f"  {len(stamps)} weekly files available, "
           f"{first:%Y-%m-%d} to {last:%Y-%m-%d}")
 
     # the last entry is the week in progress; take the one before it
     target = stamps[-2] if len(stamps) > 1 else stamps[-1]
-    when = dt.datetime.fromtimestamp(target / 1000, dt.timezone.utc)
-    print(f"  fetching week beginning {when:%Y-%m-%d} ...")
+    when = dt.datetime.fromtimestamp(target / 1000, BERLIN)
+    print(f"  fetching week beginning {when:%a %Y-%m-%d} (Berlin) ...")
 
     row = week(FILTER_ID, target)
     print(f"  HTTP {row['http_status']} · {row['bytes']:,} bytes")
     print(f"  file   {row['path']}")
     print(f"  sha256 {row['sha256'][:16]}...")
+
+    if row["rejected"] or row["http_status"] != 200:
+        print(f"\n  NOT ACCEPTED — HTTP {row['http_status']}. The response is kept in")
+        print("  the _failed/ folder; nothing in raw/ was replaced.")
+        return 1
 
     doc = json.loads(Path(row["path"]).read_text(encoding="utf-8"))
     series = doc.get("series")

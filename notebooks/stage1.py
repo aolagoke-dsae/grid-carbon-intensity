@@ -35,8 +35,10 @@ assert token, "paste the token into .env — see RUNBOOK Pre-flight"
 # %% [markdown]
 # ## Stage 1 — one pull, one zone, one year
 #
-# DE-LU, 2025. The client writes `raw/A75/<eic>/2025.xml`, appends a row to
-# `raw/manifest.csv`, hashes the body and redacts the token in the logged URL.
+# DE-LU, 2025. The client stores the response as a new file in
+# `raw/A75/<eic>/2025/` (or its `_failed/` folder when it is not data), never
+# overwriting an earlier one, appends a row to `raw/manifest.csv`, hashes the
+# body and redacts the token in the logged URL.
 
 # %%
 from src.ingest.entsoe_client import generation_per_type
@@ -46,33 +48,38 @@ row
 
 # %% [markdown]
 # ### Checkpoint 1
-# File over 1 MB · manifest has one row, status 200, rejected 0 ·
-# url shows `***REDACTED***` · re-running reproduces the same `sha256`.
+# Accepted (status 200, rejected 0) · the stored file is over 1 MB · the token
+# appears nowhere in the manifest · a second pull returns the same data.
 
 # %%
-import csv
-
-xml_path = ROOT / "raw" / "A75" / "10Y1001A1001A82H" / "2025.xml"
+assert not row["rejected"], (
+    f"NOT ACCEPTED — HTTP {row['http_status']}. The response is kept at "
+    f"{row['path']}: open it, it states why."
+)
+xml_path = ROOT / row["path"]          # raw/A75/<eic>/2025/<retrieved>_<sha8>.xml
 size_mb = xml_path.stat().st_size / 1_048_576
-print(f"{xml_path.name}: {size_mb:.2f} MB", "OK" if size_mb > 1 else "TOO SMALL — read the XML, it is an Acknowledgement")
+print(f"{xml_path.name}: {size_mb:.2f} MB", "OK" if size_mb > 1 else "TOO SMALL — open the XML and look")
 
-with open(ROOT / "raw" / "manifest.csv", encoding="utf-8") as fh:
-    rows = list(csv.DictReader(fh))
-for r in rows:
-    print(r["http_status"], "| rejected:", r.get("rejected"), "| sha256:", r["sha256"][:16], "…")
-    print("   url:", r["url"])
-assert all("***REDACTED***" in r["url"] for r in rows), "TOKEN IN MANIFEST — stop and fix before committing"
+# Search for the token itself. The old check demanded ***REDACTED*** in every
+# row, and SMARD rows carry no token to redact, so it halted on a false alarm.
+manifest_text = (ROOT / "raw" / "manifest.csv").read_text(encoding="utf-8")
+assert token not in manifest_text, "TOKEN IN MANIFEST — stop and fix before committing"
+print("token absent from the manifest | revision:", row["revision"] or "not stated")
 
 # %% [markdown]
-# Re-run the pull. The hash for a closed historical year must be identical.
-# If it is not, the API is non-deterministic and you need to know that now.
+# Re-run the pull. A closed historical year should return the same DATA, but
+# the file hash cannot show that: every response carries a fresh mRID and
+# createdDateTime, so identical data hashes differently (README, "What the
+# manifest hash does and does not tell you"). raw/ keeps both retrievals, so
+# compare them on disk from the first TimeSeries onward.
 
 # %%
-before = rows[-1]["sha256"]
-generation_per_type("10Y1001A1001A82H", 2025, token)
-with open(ROOT / "raw" / "manifest.csv", encoding="utf-8") as fh:
-    after = list(csv.DictReader(fh))[-1]["sha256"]
-print("deterministic:", before == after)
+row2 = generation_per_type("10Y1001A1001A82H", 2025, token)
+assert not row2["rejected"], f"second pull NOT ACCEPTED — HTTP {row2['http_status']}"
+a = xml_path.read_bytes()
+b = (ROOT / row2["path"]).read_bytes()
+same = a.split(b"<TimeSeries>", 1)[-1] == b.split(b"<TimeSeries>", 1)[-1]
+print("same data in both pulls:", same, "| revisions:", row["revision"], row2["revision"])
 
 # %% [markdown]
 # ## Stage 2 — parse, and check the two traps

@@ -8,8 +8,8 @@
       classificationSequence_AttributeInstanceComponent.position
   landed here as classification_sequence.
 
-  Measured on raw/A44/10Y1001A1001A82H/2025.xml, revision 1, on stated
-  points -- which is what this model carries:
+  Measured on raw/A44/10Y1001A1001A82H/2025/20261006T183150Z_9d48b590.xml,
+  revision 1, on stated points -- which is what this model carries:
       curve 1   15,367 pts   PT60M 6,514 + PT15M 8,853
                 median 90.80   min -250.32   max 583.40   negative 4.5 %
       curve 2   34,677 pts   PT15M throughout

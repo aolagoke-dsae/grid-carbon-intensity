@@ -78,11 +78,21 @@ def main() -> int:
 
     body = Path(row["path"]).read_text(encoding="utf-8", errors="replace")
 
-    if row["rejected"]:
-        reason = re.search(r"<text>(.*?)</text>", body, re.S)
-        print("\n  REJECTED — ENTSO-E returned an Acknowledgement document.")
-        print(f"  reason: {reason.group(1).strip() if reason else 'not stated'}")
-        print("  This is a 200. Nothing crashed. Exactly the failure the manifest exists to catch.")
+    # Both conditions, independently: a non-200 response is never a pass, even
+    # if something upstream failed to flag it. This script used to check only
+    # `rejected`, so a 401 page without an Acknowledgement printed ACCEPTED.
+    if row["rejected"] or row["http_status"] != 200:
+        print(f"\n  NOT ACCEPTED — HTTP {row['http_status']}.")
+        if "Acknowledgement_MarketDocument" in body:
+            reason = re.search(r"<text>(.*?)</text>", body, re.S)
+            print("  ENTSO-E returned an Acknowledgement document instead of data.")
+            print(f"  reason: {reason.group(1).strip() if reason else 'not stated'}")
+        elif row["http_status"] == 401:
+            print("  The token was refused. Check .env, and whether it was rotated.")
+        else:
+            print("  The response is not a parseable ENTSO-E document.")
+        print("  It is kept in the _failed/ folder for inspection. Nothing in raw/ was")
+        print("  replaced: the previous payload, if any, is still the current one.")
         return 1
 
     points = body.count("<Point>")

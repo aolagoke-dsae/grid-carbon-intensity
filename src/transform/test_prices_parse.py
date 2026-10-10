@@ -253,9 +253,13 @@ def test_a_naive_timestamp_is_refused():
 # The real payload. Skipped where raw/* is not present, i.e. in CI.
 # --------------------------------------------------------------------------
 
-REAL = Path(__file__).resolve().parents[2] / "raw" / "A44" / ZONE / "2025.xml"
+# raw/ is append-only: the 2025 payload is a directory of retrievals, newest last.
+_REAL_DIR = Path(__file__).resolve().parents[2] / "raw" / "A44" / ZONE / "2025"
+_REAL_FILES = sorted(_REAL_DIR.glob("*.xml")) if _REAL_DIR.is_dir() else []
+REAL = _REAL_FILES[-1] if _REAL_FILES else _REAL_DIR / "none.xml"
 needs_real = pytest.mark.skipif(
-    not REAL.exists(), reason=f"{REAL} absent; raw/* is gitignored and not shipped to CI"
+    not REAL.exists(),
+    reason=f"no retrieval under {_REAL_DIR}; raw/* is gitignored and not shipped to CI",
 )
 
 
@@ -266,7 +270,10 @@ def real_rows():
 
 @needs_real
 def test_real_payload_reproduces_the_measured_curve_split(real_rows):
-    """Locks in the 07.10.2026 measurement of raw/A44/.../2025.xml revision 1."""
+    """Locks in the 07.10.2026 measurement of the 2025 DE-LU payload, revision 1.
+
+    A newer retrieval with different numbers fails here on purpose: re-measure.
+    """
     s = curve_summary(real_rows)
     assert set(s) == {1, 2}, "the real payload must carry exactly two curves"
     assert s[1]["resolutions"] == {"PT60M": 6551, "PT15M": 8932}
