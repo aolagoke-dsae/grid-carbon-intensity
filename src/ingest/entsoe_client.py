@@ -10,7 +10,7 @@ Design notes that matter for the assurance story:
     https://transparencyplatform.zendesk.com/hc/en-us/articles/15854536354964
 """
 from __future__ import annotations
-import csv, hashlib, os, time, datetime as dt
+import csv, hashlib, os, time, urllib.parse, datetime as dt
 from pathlib import Path
 import requests
 
@@ -28,8 +28,16 @@ def _fmt(d: dt.date | dt.datetime) -> str:
     return d.strftime("%Y%m%d%H%M")
 
 
-def _redact(url: str, token: str) -> str:
-    return url.replace(token, "***REDACTED***")
+def _redact(text: str, token: str) -> str:
+    """Remove the token from any text, raw or percent-encoded.
+
+    An empty token would otherwise splice the marker between every character.
+    """
+    if not token:
+        return text
+    for form in {token, urllib.parse.quote(token, safe="")}:
+        text = text.replace(form, "***REDACTED***")
+    return text
 
 
 def _append_manifest(row: dict) -> None:
@@ -73,7 +81,14 @@ def fetch(params: dict, token: str, out_path: Path) -> dict:
         except Exception as e:      # noqa: BLE001
             last_err = e
             time.sleep(min(2 ** attempt, 30))
-    raise RuntimeError(f"failed after {MAX_RETRIES} attempts: {last_err}")
+    # requests puts the full URL, query string included, into its exception
+    # text, so `last_err` carries the securityToken. Unredacted, it reached
+    # every traceback a failed connection printed -- smoke.py does not catch
+    # it. Redact before raising, and drop the chain so nothing underneath
+    # repeats the URL.
+    raise RuntimeError(
+        f"failed after {MAX_RETRIES} attempts: {_redact(str(last_err), token)}"
+    ) from None
 
 
 def generation_per_type(zone_eic: str, year: int, token: str) -> dict:
