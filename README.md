@@ -15,6 +15,27 @@ not built yet. See **What is not built** below.
 > plan and current position. Nothing in this repository is presented as
 > operational until Stage 10 passes.
 
+## Hypothesis
+
+*Recorded on 10 October 2026, before any generation data was pulled. At this
+commit `raw/manifest.csv` lists day-ahead prices (A44) and SMARD rows only —
+there is no A75 generation for either zone — so no result yet exists that this
+could have been fitted to. The commit timestamp is the record.*
+
+The zone comparison tests a hypothesis rather than asserting one. France's
+generation mix barely changes across the day; Germany's (DE-LU) changes a great
+deal. For the same plant shifting the same load within the day, therefore:
+
+- the **CO₂ saving should differ sharply between the zones** — larger in DE-LU,
+  where the mix moves, than in FR, where it barely does;
+- the **cost saving should exist in both**.
+
+Whether that holds is for the data to say. Each saving will be reported per
+zone with its Monte Carlo interval. One limitation is stated with it from the
+start: the intensity used here is the *average* intensity of the generation
+mix, not the *marginal* intensity of the plant that actually responds to a
+shift, and the two can differ substantially.
+
 ## Stack
 
 Open-access end to end, by design. Python ingestion → immutable raw layer with a
