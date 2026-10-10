@@ -66,18 +66,19 @@ Named here rather than left for a reader to discover.
 
 | | Status |
 |---|---|
-| dbt models (staging, intermediate, marts) | project and sources configured; **no models written** |
+| dbt models | **CORRECTION, 08.10.2026, made precise 10.10.2026.** An earlier version of this row said "no models written". That was wrong. The 10 models arrived on 5 October in commit `1c21970` (a second root, merged in `9f60b2f`); today they run to 314 lines, including the 08.10 rewrite of `stg_entsoe__prices.sql`. `stg_entsoe__prices` and its two tests were built and run against the real A44 payload on 10.10.2026. Everything that depends on A75 is unexecuted, because no A75 payload exists yet. |
 | `curated/sample/` | **absent**, so `dbt build` from a clean clone does not run |
 | Load-shifting decision model | **not started** — the question the project exists to answer |
 | Quarto report, GitHub Pages | **not started** |
 | Power BI / Azure portability excursion | **not started**; no `.pbix` or `.bacpac` exists |
 | Global (Sobol) sensitivity | **not built**. What exists is a first-order index, `variance_contribution()` |
 | Cross-border flow (A11) import adjustment | **not built**; intensity is average, not marginal |
-| Trap 5, the two competing A44 price curves | **documented, not handled** — see above |
+| Trap 5, the two competing A44 price curves | **handled** 08.10.2026 — `entsoe_prices_parse.py`, `xml_to_parquet.py` and the curve filter in `stg_entsoe__prices.sql`. What stays open is *which* curve is authoritative: that needs SMARD filter 4169 for the 2025 weeks, which has not been pulled |
 
 What *is* built and running: ingestion with a redacting manifest, the A75
-parser with its four traps, Monte Carlo uncertainty with the first-order
-index, the stage checkpoints, and CI across Python 3.11 and 3.14.
+parser with its four traps, the A44 price parser with the fifth, the raw
+parquet landing, Monte Carlo uncertainty with the first-order index, the stage
+checkpoints, and CI across Python 3.11 and 3.14.
 
 `config/zones.yml` carries five zones; the analysis covers two. The other three
 are configuration kept for later, not results.
@@ -140,7 +141,9 @@ what a provenance record is for.
 Five things in the real ENTSO-E payload that a naive parser gets wrong. Traps 1
 to 4 are handled in `src/transform/entsoe_parse.py` and asserted in
 `test_parse.py`. Trap 5 was found on 6 October 2026 in the first full-year pull
-and is **not yet implemented** — it is an open decision, not a solved problem.
+and is handled as of 8 October 2026 in `src/transform/entsoe_prices_parse.py`,
+asserted in `test_prices_parse.py`, and enforced in SQL by the curve filter in
+`stg_entsoe__prices.sql` plus two singular dbt tests.
 
 1. **`curveType` A03 omits repeated values.** One DE-LU series states 5 points
    for a 96-step day; the other 91 must be carried forward. A naive loop loses
@@ -183,6 +186,30 @@ and is **not yet implemented** — it is an open decision, not a solved problem.
    quarter-hours: 0 agreements in 6,323 comparable hours. They are separate
    market products, not an aggregation.
 
+   **How it is handled.** `classification_sequence` is emitted by the parser,
+   carried through `raw/parquet/a44.parquet`, and filtered once in
+   `stg_entsoe__prices.sql` under the dbt var `a44_curve`, default 1. Curve 1
+   is chosen for continuity — it is the series that was actually binding at
+   each moment, hourly until the 15-minute MTU go-live and 15-minute after —
+   **not** because it has been shown to be the authoritative one. That question
+   needs SMARD filter 4169 for the 2025 weeks and stays open.
+
+   The arithmetic of ignoring the discriminator, measured: unfiltered, the
+   50,044 points carry 15,014 duplicated `(zone, period, position)` keys and a
+   median of **91.80 €/MWh** — a figure that belongs to neither curve (90.80
+   and 92.41). `dbt/tests/assert_one_price_per_zone_timestamp.sql` fails if a
+   timestamp ever appears twice again, and
+   `dbt/tests/assert_every_price_period_survives_the_curve_filter.sql` catches
+   the opposite mistake: a curve setting that silently deletes delivery periods.
+   Curves are counted per zone *and* delivery period, so a zone that publishes
+   one curve in one year and two in the next keeps both years.
+
+   One limit worth stating: the staging model carries **stated points only**,
+   as the raw layer is meant to. A03 compression means curve 1 is missing 116
+   of 15,483 steps (0.75%) and curve 2 is missing 459 of 35,136 (1.31%). The
+   carry-forward belongs in an `int_` model that does not exist yet, so a join
+   on `ts_utc` today silently drops those intervals.
+
 ## The interval is the deliverable
 
 A carbon intensity quoted as a single number is a number nobody can audit.
@@ -205,7 +232,10 @@ which rule fired for which fuel and why.
 
 ## Tests
 
-`pytest` — 49 tests, all green.
+`pytest` — 73 tests, all green: 63 test functions, some parametrised. Four of
+them read the real 7.5 MB A44 payload and **skip in CI**, because `raw/*` is
+gitignored; CI therefore reports 69 passed, 4 skipped, and a local run with
+`raw/` populated reports 73 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
@@ -213,11 +243,25 @@ on — on every push and once a week. It also runs `dbt parse`, which
 resolves every model, source, `ref` and test without touching data, so a
 broken reference fails at push time rather than at build time.
 
-Four of them are the payload traps above. Six pin the daylight-saving
-arithmetic. The rest cover the uncertainty propagation, including the one that
-matters most: **the point estimate must fall inside its own interval.** If the
-median escapes the distribution it came from, the propagation is wrong and
-every downstream figure is decoration.
+| File | Tests | What they pin |
+|---|---|---|
+| `src/transform/test_parse.py` | 10 | Traps 1–4 in the A75 parser, on fixtures |
+| `src/transform/test_prices_parse.py` | 21 | Trap 5 and the A44 parser, including 4 transition-day cases and the 4 real-payload checks |
+| `src/transform/test_dst.py` | 13 | Daylight-saving arithmetic of the validation calendar, `validate.expected_steps` |
+| `src/transform/test_intensity.py` | 20 | The uncertainty propagation and factor handling |
+| `src/checks/test_validate.py` | 6 | The stage checkpoints |
+| `src/ingest/test_entsoe_client.py` | 3 | Token redaction in exceptions and the manifest |
+
+The test that matters most: **the deterministic point estimate must fall
+inside the Monte Carlo interval built around it.** If it falls outside, the
+propagation is wrong and every downstream figure is decoration. It currently
+holds for the test mix, which is coal- and gas-heavy, and fails for
+nuclear-heavy French mixes, because the triangular sampler takes the published
+median as the mode of a right-skewed band. That is the next fix.
+
+Not yet covered: the A75 parser on the transition days themselves. Its fixtures
+are 24-hour days, and its step count can be hard-coded to 24 hours without a
+single test failing.
 
 > **Fixed 2026-09-17.** `validate.expected_steps` returned 24 hours for every
 > day of the year, including both transition days. Python subtracts two aware
@@ -230,14 +274,17 @@ every downstream figure is decoration.
 ```
 config/             zones + emission factors, every row carrying a citation
 src/ingest/         ENTSO-E and SMARD clients → raw/ + manifest.csv
-src/transform/      parser, intensity, uncertainty
+src/transform/      A75 parser, A44 price parser, parquet landing, intensity,
+                    uncertainty
 src/checks/         stage checkpoint functions, importable and testable
 sql/                hand-written schema + DQ views
-dbt/                project and sources configured; four singular tests written,
-                    no models yet — see What is not built
+dbt/                10 models and six singular tests, written and parsing;
+                    never executed — see What is not built
 docs/               ARCHITECTURE.md — the standard shared across projects
 .github/workflows/  pipeline.yml — pytest on 3.11 and 3.14, dbt parse, weekly
 raw/                immutable landing, git-ignored; manifest.csv is committed
+raw/parquet/        stated points per document type, git-ignored, rebuilt with
+                    `python -m src.transform.xml_to_parquet`
 curated/            Parquet outputs, git-ignored
 conftest.py         makes `pytest` work from the repo root
 

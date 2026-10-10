@@ -124,7 +124,8 @@ git init && git add . && git commit -m "scaffold: ingestion, parser, intensity, 
 python3 -c "from dotenv import load_dotenv; import os; load_dotenv(); \
 t=os.getenv('ENTSOE_TOKEN'); print('token loaded:', bool(t), '| length:', len(t or ''))"
 git status --porcelain | grep -c '\.env$'    # must print 0
-pytest -q                                     # 49 test functions, all green
+pytest -q                                     # 73 tests (63 functions), all green
+                                              # (69 + 4 skipped where raw/ is absent)
 ```
 
 - Token loads, and `.env` does **not** appear in git status
