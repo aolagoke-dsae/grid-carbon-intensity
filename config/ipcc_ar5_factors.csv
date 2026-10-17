@@ -1,10 +1,10 @@
 psr_type,fuel,ef_median_g_kwh,ef_min_g_kwh,ef_max_g_kwh,confidence,source
 B01,Biomass,230,130,420,medium,IPCC AR5 WG3 Annex III Table A.III.2 (dedicated biomass)
-B02,Fossil Brown coal/Lignite,820,740,910,high,IPCC AR5 WG3 Annex III Table A.III.2 (coal PC)
+B02,Fossil Brown coal/Lignite,820,740,910,low,"Proxy: IPCC AR5 WG3 Annex III Table A.III.2 (coal PC). AR5 has one coal row; lignite plants generally emit more per kWh than hard-coal plants, so this probably understates DE-LU - REVIEW"
 B03,Fossil Coal-derived gas,820,740,910,low,Proxy: coal PC. Coal-derived gas has no AR5 row - REVIEW
 B04,Fossil Gas,490,410,650,high,IPCC AR5 WG3 Annex III Table A.III.2 (gas combined cycle)
 B05,Fossil Hard coal,820,740,910,high,IPCC AR5 WG3 Annex III Table A.III.2 (coal PC)
-B06,Fossil Oil,650,510,840,low,No AR5 oil row - placeholder pending a cited source. REVIEW
+B06,Fossil Oil,,,,unknown,"No AR5 oil row. Unpriced until a cited source is found; until 17.10.2026 priced at 650 (510-840) from a placeholder - REVIEW"
 B09,Geothermal,38,6,79,high,IPCC AR5 WG3 Annex III Table A.III.2
 B10,Hydro Pumped Storage,,,,excluded,"Storage, not generation. Emissions derive from charging mix - handled separately"
 B11,Hydro Run-of-river,24,1,2200,medium,IPCC AR5 WG3 Annex III Table A.III.2 (hydropower; very wide range)

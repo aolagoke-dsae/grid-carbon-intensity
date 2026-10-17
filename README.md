@@ -185,7 +185,10 @@ so rather than smoothing it over (`check_stage3_coverage` in
   recorded one whose size changes in a later pull.
 
 Battery storage (B25) is unpriced, like pumped storage (B10): its emissions
-belong to whatever charged it.
+belong to whatever charged it. Oil (B06) is unpriced as well until a factor is
+cited: AR5 has no oil row, and the earlier value was a placeholder. Lignite
+(B02) is priced from AR5's single coal row and marked a low-confidence proxy;
+it probably understates DE-LU, where lignite was 15% of 2025 generation.
 
 ## What is non-obvious in this data
 

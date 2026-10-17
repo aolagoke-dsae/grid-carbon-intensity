@@ -49,10 +49,33 @@ def test_every_factor_row_carries_a_source(factors):
 
 
 def test_unpriced_fuels_are_flagged_not_missing(factors):
-    for psr in ("B10", "B15", "B17", "B20", "B25"):
+    for psr in ("B06", "B10", "B15", "B17", "B20", "B25"):
         assert psr in factors, f"{psr} must exist as an explicit row"
         assert not factors[psr].priced, f"{psr} must be deliberately unpriced"
         assert factors[psr].confidence in {"excluded", "unknown"}
+
+
+def test_proxies_say_so(factors):
+    """AR5 has one coal row. Lignite and coal-derived gas borrow it, which is
+    a proxy, not a citation, and lignite is DE-LU's largest fossil source
+    (audit A12)."""
+    for psr in ("B02", "B03"):
+        assert factors[psr].confidence == "low"
+        assert factors[psr].source.startswith("Proxy")
+
+
+def test_a_priced_placeholder_is_refused(tmp_path):
+    """Until 17.10.2026 oil was priced from a row reading "placeholder
+    pending a cited source", and the provenance test only checked that the
+    text was not empty."""
+    csv = tmp_path / "factors.csv"
+    csv.write_text(
+        "psr_type,fuel,ef_median_g_kwh,ef_min_g_kwh,ef_max_g_kwh,confidence,source\n"
+        "B06,Fossil Oil,650,510,840,low,No AR5 oil row - placeholder pending a cited source\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="placeholder"):
+        load_factors(csv)
 
 
 def test_bands_are_ordered(factors):

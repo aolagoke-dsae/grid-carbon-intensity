@@ -276,13 +276,17 @@ dashboard on this data. A supplied training set produces a screenshot nobody cli
 ## Stage 4 — Emission factors and coverage
 
 **Needs:** Stage 3. `config/ipcc_ar5_factors.csv` carries median, min, max, a
-confidence flag and a citation per `psrType`. Five rows are deliberately
+confidence flag and a citation per `psrType`. Six rows are deliberately
 **unpriced**: B10 and B25 (pumped and battery storage, not generation), B15 and
 B20 (composition undisclosed by ENTSO-E), B17 (waste, contested biogenic/fossil
-split). B25 joined on 17 October 2026, when the first French A75 pull reported
-battery storage and the stage 4 check failed on a fuel with no row. Two more
-— B03 and B06 — are marked `low` because they are proxies rather than published
-AR5 rows.
+split) and B06 (oil: AR5 has no oil row, and until 17 October 2026 it was
+priced from a placeholder). B25 joined on 17 October 2026, when the first French
+A75 pull reported battery storage and the stage 4 check failed on a fuel with
+no row. Two priced rows are proxies, marked `low`: B03 (coal-derived gas) and
+B02 (lignite), both on AR5's single coal row. Lignite plants generally emit
+more per kWh than hard-coal plants, so the B02 proxy probably understates
+DE-LU, where lignite was 15.3% of 2025 generation. `load_factors` refuses a
+priced row whose source is a placeholder.
 
 > **This is the stage that carries the whole project's credibility.** Open IPCC
 > AR5 WG3 Annex III Table A.III.2 and verify every number in that CSV against
@@ -301,6 +305,9 @@ print(check_stage4_factors(rows, factors))
 - You have **personally** verified each published figure against Table A.III.2
 - Priced share: unpriced fuels under **2%** of DE-LU energy. Higher means the
   unpriced categories are material and you must say so wherever intensity appears.
+  Measured on the 2025 pulls (17.10.2026): **4.8% unpriced in DE-LU** (pumped
+  storage 2.3, waste 1.3, oil 0.6, other 0.4, other renewable 0.2) and 2.3% in
+  France. The bar is not met; storage alone exceeds it.
 
 **What it unlocks:** the single strongest line for an MRV or assurance
 audience — every factor traced by hand to a named table in a named annex.
@@ -406,7 +413,7 @@ every grain, plus four singular tests that encode the domain:
 - `OK` dominates the coverage status; `OK_DST_SPRING_FORWARD` and
   `OK_DST_FALL_BACK` appear once per year per zone; `MISSING_STEPS` and
   `DUPLICATE_STEPS` are zero
-- Unmapped fuels returns only the five deliberately unpriced categories
+- Unmapped fuels returns only the six deliberately unpriced categories
 - **Break one on purpose.** Delete a day from a staging model and confirm the
   coverage test fails loudly. A test you have not seen fail is a test you do
   not know works.
@@ -492,8 +499,8 @@ Tableau module, on this data rather than a supplied training set.
 - README opens with a **screenshot**, not a folder tree
 - `docs/METHODOLOGY.md` written: sources, factor table with citations, the
   A03/DST/direction handling, the sampling-rule decision, the uncertainty
-  method, and the known limitations (no import adjustment yet, five unpriced
-  fuel categories)
+  method, and the known limitations (no import adjustment yet, six unpriced
+  fuel categories, the lignite proxy)
 - Once you have 30+ consecutive green scheduled runs, screenshot the Actions
   history and put it near the top of the README. That image is worth more than
   any certificate, because it proves the thing ran without you.

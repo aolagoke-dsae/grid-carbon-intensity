@@ -16,8 +16,8 @@ For one timestamp, intensity is the energy-weighted mean of the fuel factors:
     I = sum_f (MWh_f * EF_f) / sum_f MWh_f          [gCO2e/kWh]
 
 restricted to fuels that carry a factor. Fuels deliberately left unpriced
-(B10 and B25 storage, B15/B17/B20 undisclosed composition) are excluded from BOTH
-sides, and the share of energy that was priced is reported as `coverage_pct`
+(B10 and B25 storage, B15/B17/B20 undisclosed composition, B06 oil until a
+factor is cited) are excluded from BOTH sides, and the share of energy that was priced is reported as `coverage_pct`
 so a thin hour is visible rather than silently averaged away.
 
 EF_f is not a point. AR5 publishes a range across surveyed studies, so each
@@ -165,6 +165,10 @@ def load_factors(path: str | Path) -> dict[str, Factor]:
                 )
             if not f.source:
                 raise ValueError(f"{psr}: no source citation (provenance is a control)")
+            if f.priced and "placeholder" in f.source.lower():
+                # B06 was priced from a row that said so (audit A12): a
+                # non-empty source column is not yet a citation.
+                raise ValueError(f"{psr}: priced from a placeholder; cite a source or unprice it")
             out[psr] = f
     return out
 

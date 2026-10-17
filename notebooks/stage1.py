@@ -99,12 +99,17 @@ print(check_stage2_direction(parsed, xml_text))   # reads the XML a second time
 # millions of MWh. Orders of magnitude out means a MAW→MWh units error.
 
 # %%
+import zoneinfo
 from collections import defaultdict
 
+# By LOCAL day. The pull covers the local year, so its first UTC date holds a
+# single hour (23:00-24:00 on 31 December) and, totalled by UTC date, read as
+# a units error.
+berlin = zoneinfo.ZoneInfo("Europe/Berlin")
 by_day = defaultdict(float)
 for r in parsed:
     if r["direction"] == "generation":
-        by_day[str(r["ts_utc"])[:10]] += r["mwh"]
+        by_day[r["ts_utc"].astimezone(berlin).date()] += r["mwh"]
 sample = sorted(by_day.items())[:3]
 for d, v in sample:
     print(d, f"{v:,.0f} MWh")
