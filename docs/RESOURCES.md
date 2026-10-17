@@ -52,7 +52,7 @@ Study how these are *organised*. Do not copy their content.
 |---|---|
 | [Security token — how to get it](https://transparencyplatform.zendesk.com/hc/en-us/articles/12845911031188-How-to-get-security-token) | Access granted 7 Aug 2026 (ticket #9465462). Token is generated under My Account. |
 | [API rate limit](https://transparencyplatform.zendesk.com/hc/en-us/articles/12783148966036) | 400 req/min per token, 429 with ~10 min auto-unban. `SLEEP_SECONDS = 1.5` is ten times under. |
-| [Transparency Platform area list](https://transparencyplatform.zendesk.com/hc/en-us/articles/15885757676308) | Verify every EIC in `config/zones.yml` against this before trusting it. |
+| [Transparency Platform area list](https://transparencyplatform.zendesk.com/hc/en-us/articles/15885757676308) | Verify every EIC in `config/zones.csv` against this before trusting it. |
 | [EnergieID/entsoe-py](https://github.com/EnergieID/entsoe-py) | **Do not switch to it.** See the note below. Use it as an independent cross-check. |
 | IPCC AR5 WG3 Annex III, Table A.III.2 | The factor source. Stage 4 requires verifying every row of `config/ipcc_ar5_factors.csv` against it by hand. |
 | Electricity Maps (free tier) | Independent published intensity series for the Stage 5 cross-check. Its default figures are life-cycle intensities of the consumed, flow-traced mix, so expect differences from imports and from the factor sets, not from lifecycle versus combustion. |

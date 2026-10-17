@@ -14,11 +14,10 @@ Design notes that matter for the assurance story:
     https://transparencyplatform.zendesk.com/hc/en-us/articles/15854536354964
 """
 from __future__ import annotations
-import hashlib, re, time, urllib.parse, zoneinfo, datetime as dt
+import csv, hashlib, re, time, urllib.parse, zoneinfo, datetime as dt
 import xml.etree.ElementTree as ET
 from pathlib import Path
 import requests
-import yaml
 
 try:                        # run as a module from the repository root
     from src.ingest import raw_store
@@ -28,7 +27,7 @@ except ImportError:         # imported with src/ingest on sys.path (pytest)
 BASE = "https://web-api.tp.entsoe.eu/api"
 RAW = Path("raw")
 MANIFEST = RAW / "manifest.csv"
-ZONES = Path(__file__).resolve().parents[2] / "config" / "zones.yml"
+ZONES = Path(__file__).resolve().parents[2] / "config" / "zones.csv"
 
 # Conservative default. Check the published rate limit before raising it:
 # https://transparencyplatform.zendesk.com/hc/en-us/articles/12783148966036
@@ -41,11 +40,12 @@ def _fmt(d: dt.date | dt.datetime) -> str:
 
 
 def _zone_tz(zone_eic: str) -> str:
-    """The bidding zone's IANA time zone, from config/zones.yml."""
-    for z in yaml.safe_load(ZONES.read_text(encoding="utf-8"))["zones"]:
-        if z["eic"] == zone_eic:
-            return z["tz"]
-    raise ValueError(f"{zone_eic} is not in config/zones.yml; add it with its time zone first")
+    """The bidding zone's IANA time zone, from config/zones.csv."""
+    with ZONES.open(newline="", encoding="utf-8") as fh:
+        for z in csv.DictReader(fh):
+            if z["eic"] == zone_eic:
+                return z["tz"]
+    raise ValueError(f"{zone_eic} is not in config/zones.csv; add it with its time zone first")
 
 
 def _local_year(zone_eic: str, year: int) -> tuple[dt.datetime, dt.datetime]:

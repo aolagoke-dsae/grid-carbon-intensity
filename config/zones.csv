@@ -1,0 +1,6 @@
+key,eic,name,country,tz,in_analysis
+DE_LU,10Y1001A1001A82H,Germany-Luxembourg,DE,Europe/Berlin,yes
+FR,10YFR-RTE------C,France,FR,Europe/Paris,yes
+NL,10YNL----------L,Netherlands,NL,Europe/Amsterdam,no
+PL,10YPL-AREA-----S,Poland,PL,Europe/Warsaw,no
+IE_SEM,10Y1001A1001A59C,Ireland (SEM),IE,Europe/Dublin,no

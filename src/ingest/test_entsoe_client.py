@@ -103,6 +103,6 @@ def test_consecutive_years_meet_without_overlapping(monkeypatch):
 
 def test_an_unknown_zone_is_refused_before_any_request(monkeypatch):
     seen = _capture(monkeypatch)
-    with pytest.raises(ValueError, match="zones.yml"):
+    with pytest.raises(ValueError, match="zones.csv"):
         C.generation_per_type("10YXX-UNKNOWN--1", 2025, TOKEN)
     assert not seen

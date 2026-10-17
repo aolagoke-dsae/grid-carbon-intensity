@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 from src.ingest.entsoe_client import day_ahead_prices  # noqa: E402
 
 ZONE_KEY = "DE_LU"
-ZONE_EIC = "10Y1001A1001A82H"      # config/zones.yml
+ZONE_EIC = "10Y1001A1001A82H"      # config/zones.csv
 YEAR = 2025
 
 

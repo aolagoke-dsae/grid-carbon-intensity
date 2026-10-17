@@ -177,7 +177,7 @@ def check_stage3_coverage(rows, tz: str, sparse=frozenset(), known=None) -> tupl
     """Per local day, per series: does the step count match the calendar?
 
     `sparse`: {(zone, psr)} series published only while a unit runs (declared
-    in config/zones.yml); a missing step there is zero output.
+    in config/sparse_series.csv); a missing step there is zero output.
     `known`: {(zone, local_date, psr): missing_steps}, source gaps recorded in
     config/source_gaps.csv after inspection. A gap of exactly the recorded
     size is reported, not failed. Any other gap fails, including a recorded
@@ -200,19 +200,19 @@ def check_stage3_coverage(rows, tz: str, sparse=frozenset(), known=None) -> tupl
     return True, msg
 
 
-def load_coverage_policy(zones_yml=None, gaps_csv=None) -> tuple[frozenset, dict]:
+def load_coverage_policy(sparse_csv=None, gaps_csv=None) -> tuple[frozenset, dict]:
     """(sparse, known) for check_stage3_coverage, from the two config files.
 
     sparse: series a zone publishes only while a unit runs, from
-        `reported_only_while_running` in config/zones.yml.
+        config/sparse_series.csv.
     known: recorded source gaps, from config/source_gaps.csv.
+    The dbt coverage test reads the same two files.
     """
     import csv
     from pathlib import Path
-    import yaml
     config = Path(__file__).resolve().parents[2] / "config"
-    zones = yaml.safe_load(Path(zones_yml or config / "zones.yml").read_text(encoding="utf-8"))["zones"]
-    sparse = frozenset((z["eic"], psr) for z in zones for psr in z.get("reported_only_while_running", []))
+    with Path(sparse_csv or config / "sparse_series.csv").open(newline="", encoding="utf-8") as fh:
+        sparse = frozenset((row["zone_eic"], row["psr"]) for row in csv.DictReader(fh))
     known = {}
     with Path(gaps_csv or config / "source_gaps.csv").open(newline="", encoding="utf-8") as fh:
         for row in csv.DictReader(fh):

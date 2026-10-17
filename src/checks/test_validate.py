@@ -119,6 +119,19 @@ def test_the_coverage_policy_files_load():
     assert known and all(n > 0 for n in known.values())
 
 
+def test_every_zone_in_the_policy_files_is_a_known_zone():
+    """A typo in an EIC would exempt nothing and fail nowhere."""
+    import csv
+    from pathlib import Path
+    config = Path(__file__).resolve().parents[2] / "config"
+    with (config / "zones.csv").open(newline="", encoding="utf-8") as fh:
+        zones = {row["eic"]: row for row in csv.DictReader(fh)}
+    sparse, known = load_coverage_policy()
+    assert {z for z, _ in sparse} <= set(zones)
+    assert {z for z, _, _ in known} <= set(zones)
+    assert {z["key"] for z in zones.values() if z["in_analysis"] == "yes"} == {"DE_LU", "FR"}
+
+
 def test_stage4_accepts_factor_dataclasses():
     """load_factors() returns Factor objects; the check called dict.get()
     and raised AttributeError. The two modules had never been run together."""

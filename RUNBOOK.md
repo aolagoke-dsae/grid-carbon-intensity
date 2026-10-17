@@ -221,21 +221,21 @@ year, so consecutive years meet at local midnight and no hour arrives twice.
 > to one day, which turns 30 requests into roughly 11,000.
 
 ```python
-import yaml, os
+import csv, os
 from dotenv import load_dotenv
 from src.ingest.entsoe_client import generation_per_type
 load_dotenv()
-cfg = yaml.safe_load(open("config/zones.yml"))
-for z in cfg["zones"]:
-    if z["key"] not in ("DE_LU", "FR"):      # the analysis covers two zones
-        continue
+with open("config/zones.csv", newline="", encoding="utf-8") as fh:
+    zones = [z for z in csv.DictReader(fh) if z["in_analysis"] == "yes"]   # DE_LU and FR
+for z in zones:
     for year in range(2021, 2027):
-        generation_per_type(z["eic"], year, os.environ["ENTSOE_TOKEN"])
+        row = generation_per_type(z["eic"], year, os.environ["ENTSOE_TOKEN"])
+        print(z["key"], year, row["http_status"], row["rejected"], row["bytes"])
 ```
 
 The pauses between calls add 18 seconds; the downloads take most of the time,
 since one DE-LU year is about 75 MB. Verify every EIC in
-`config/zones.yml` against the Transparency Platform Area List before trusting it.
+`config/zones.csv` against the Transparency Platform Area List before trusting it.
 
 **Checkpoint 3**
 
@@ -247,7 +247,7 @@ print(check_stage3_coverage(rows, "Europe/Berlin", sparse, known))
 
 - Returns `True`. Every series is checked on every day, so a day with no rows
   at all is a gap too. A gap passes only if its series is declared in
-  `config/zones.yml` as reported only while running (French coal and battery
+  `config/sparse_series.csv` as reported only while running (French coal and battery
   storage, where a missing quarter-hour is zero output), or if
   `config/source_gaps.csv` records it with the same size. The 2025 pulls carry
   11 recorded gaps (37 quarter-hours) for DE-LU and 58 (531) for France, most

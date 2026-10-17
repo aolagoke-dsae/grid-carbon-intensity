@@ -96,8 +96,9 @@ the real 2025 payload; the raw parquet landing; Monte Carlo uncertainty with
 the sensitivity shares; the stage checkpoints; and CI across Python 3.11 and
 3.14.
 
-`config/zones.yml` carries five zones; the analysis covers two. The other three
-are configuration kept for later, not results.
+`config/zones.csv` carries five zones and marks the two the analysis covers.
+The other three are configuration kept for the third-zone diagnostic, not
+results.
 
 No subscription, no licence and no free tier is required to run any of it.
 `git clone` then `pytest` works today. `dbt build` from a clean clone is the
@@ -172,8 +173,8 @@ so rather than smoothing it over (`check_stage3_coverage` in
   only intermittently.** Coal is absent on 307 days of 2025 and storage on 121;
   when coal is present, its median is 524 MW, the output of running plants.
   These two series are read as published only while units run, so a missing
-  quarter-hour counts as zero output. That assumption is declared per zone in
-  `config/zones.yml`.
+  quarter-hour counts as zero output. That assumption is declared per series
+  in `config/sparse_series.csv`.
 - **Every other gap is a recorded source gap,** listed with its size in
   `config/source_gaps.csv`: 37 quarter-hours in DE-LU (one quarter-hour on
   9 July across seven fuels, the rest in hydro reservoir and waste) and 531 in
