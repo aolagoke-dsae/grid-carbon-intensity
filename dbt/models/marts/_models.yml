@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: dim_zone
+    description: Bidding zones, read from config/zones.csv.
+    columns:
+      - name: zone_eic
+        data_tests: [unique, not_null]
+      - name: iana_tz
+        data_tests: [not_null]
+  - name: dim_date
+    description: Every local day of each zone's data span, with its length in hours (23, 24 or 25).
+    columns:
+      - name: hours_in_local_day
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [23, 24, 25]
+                quote: false
+  - name: dim_production_type
+    description: The factor bands of config/ipcc_ar5_factors.csv, read in place.

@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: int_generation_gapfilled
+    description: Every step of every period; A03 carried forward, A01 not.
+    columns:
+      - name: mw
+        description: NULL where an A01 position is missing or an A03 series has no position 1. Both are data errors.
+        data_tests:
+          - not_null
+  - name: int_generation_net
+    description: Generation and consumption legs side by side; a full outer join, so a pump-only step keeps its consumption.
+  - name: int_generation_energy
+    description: MW times step_hours, per direction.

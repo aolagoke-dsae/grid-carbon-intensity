@@ -9,7 +9,7 @@
     2.0.0, 17.10.2026). This model carries the band, not the sampling — the
     sampling stays in one place, in Python.                                    */
 with src as (
-    select * from read_csv_auto('../config/ipcc_ar5_factors.csv', header = true)
+    select * from read_csv_auto('{{ env_var("GRID_ROOT", "..") }}/config/ipcc_ar5_factors.csv', header = true)
 )
 select
     psr_type,

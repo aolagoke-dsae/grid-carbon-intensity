@@ -15,6 +15,7 @@ select
     cast(position as integer)               as position,
     cast(quantity as double)                as quantity_mw,
     cast(period_start_utc as timestamp)
-      + to_milliseconds(cast(step_hours * (position - 1) * 3600000 as bigint)) as ts_utc
+      + to_milliseconds(cast(step_hours * (position - 1) * 3600000 as bigint)) as ts_utc,
+    source_sha256
 from src
 where psr_type is not null

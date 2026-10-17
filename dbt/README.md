@@ -3,25 +3,34 @@
 Imported 5 October 2026 from the parallel `capstone-loadshift` working copy,
 which is now retired. **This repository is the single source of truth.**
 
-## What came across
+## What is here
 
-| Layer | Files | Why |
+As of 17 October 2026:
+
+| Layer | Files | What it does |
 |---|---|---|
-| `models/staging/` | 4 models + `_sources.yml` | 1:1 with the sources. Rename, cast, resolve `position` to a timestamp. No business logic, per RUNBOOK Stage 6. |
-| `models/intermediate/` | 3 models | The four traps, where the lineage graph can show them. |
-| `models/marts/` | 3 conformed dimensions | Matches the Stage 6 spec. |
-| `tests/` | 4 singular tests | Each encodes an error that yields a *plausible number* rather than a crash. |
+| `models/staging/` | 4 models, `_sources.yml`, `_models.yml` | 1:1 with the sources: rename, cast, resolve `position` to a timestamp. No business logic, per RUNBOOK Stage 6. `stg_entsoe__load` and `stg_entsoe__flows` are disabled until A65 and A11 are pulled. |
+| `models/intermediate/` | 3 models, `_models.yml` | Traps 1, 2 and 4, where the lineage graph can show them: A03 carry-forward with A01 left empty, the direction split as a full outer join, MW to MWh. |
+| `models/marts/` | 3 dimensions, `_models.yml` | `dim_zone` and `dim_production_type` read `config/` in place. `dim_date` is a generated calendar holding the length of every local day (trap 3). |
+| `tests/` | 7 singular tests (1 disabled), plus 9 generic ones in the `_models.yml` files | Each encodes an error that yields a *plausible number* rather than a crash. |
 
-`int_generation_gapfilled` was checked in DuckDB after the import against the
-five-point B15 series in the `test_parse.py` fixture. That series was lifted
-from a DE-LU payload of August 2026; it is not an A75 pull of this repository,
-which has none yet. 5 stated points expand to 96 rows, the value holds to
-position 18 and changes at 19, and the daily total is 1736.635 MWh, the figure
-the Python parser's test asserts.
+## Checked against the Python parser
 
-*Corrected 17 October 2026. This paragraph used to call the fixture "the real
-DE-LU B15 series" and to compare 1736.64 with 1736.63, which are two roundings
-of the same 1736.635.*
+`src/transform/test_dbt_models.py` lands fixture payloads with
+`xml_to_parquet.py`, builds every enabled model on them and compares the SQL
+with `entsoe_parse.parse()` step by step: carry-forward, both transition days
+(92 steps at PT15M, 25 at PT60M), a pump-only series, a series published only
+while a unit runs, and both A44 curves. A second build deletes one day and
+leaves one A01 position empty, and the coverage test and the `not_null` test
+on `mw` must fail. CI runs it in the dbt job. Until 17 October 2026 the only
+check was a manual one against the five-point B15 series of the
+`test_parse.py` fixture, which had been described as the real DE-LU series.
+
+On the real 2025 A75 pulls for DE-LU and France, with the 2025 DE-LU A44
+pull, `dbt build` is green: 23 nodes, every test passing. The SQL coverage
+test and the Python `check_stage3_coverage` agree exactly: 5,840 day-series
+checked for DE-LU and 4,745 for France, 11 and 518 short ones before the
+declared exemptions and recorded gaps, none after.
 
 ## What deliberately did not come across
 
@@ -34,32 +43,48 @@ of the same 1736.635.*
 - **The facts.** RUNBOOK Stage 6 specifies three facts; the import had one.
   The marts facts are left to that design rather than pre-empted.
 - **A seed copy of the factor table.** `dim_production_type` reads
-  `../config/ipcc_ar5_factors.csv` directly via `read_csv_auto`. One copy, in
+  `config/ipcc_ar5_factors.csv` directly via `read_csv_auto`. One copy, in
   the same file `intensity.py` reads, so the SQL join and the Python interval
-  cannot drift apart.
+  cannot drift apart. `dim_zone` and the coverage test read `config/` the same
+  way.
 - **`sql/01_schema.sql`.** Untouched. RUNBOOK keeps it as portability evidence
   and the second dbt target at Stage 6b.
 
 ## Disabled
 
-`tests/assert_deterministic_within_mc_interval.sql` is disabled with
-`config(enabled = false)` until a fact carries both the deterministic value and
-the band. Until 17 October 2026 it was a `where false` guard, which dbt
-reported as a passing test although it tested nothing. When the fact exists,
-point the query at it and remove the config line. The criterion itself is
-already tested in Python (`src/transform/test_intensity.py`).
+- `tests/assert_deterministic_within_mc_interval.sql`, until a fact carries
+  both the deterministic value and the band. Until 17 October 2026 it was a
+  `where false` guard, which dbt reported as a passing test although it tested
+  nothing. When the fact exists, point the query at it and remove the config
+  line. The criterion itself is already tested in Python
+  (`src/transform/test_intensity.py`).
+- `stg_entsoe__load` and `stg_entsoe__flows`, until `raw/parquet/a65.parquet`
+  and `a11.parquet` exist. A view over a missing file fails when it is
+  created, so `dbt build` could not go green on the data that does exist.
 
 ## Running it
 
-Run it from `dbt/`: the models read `../raw/parquet` and `../config`
-relative to this folder.
+Every path the models read (`raw/parquet/`, `config/`, `warehouse/`) hangs off
+the environment variable `GRID_ROOT`, the repository root. Its default, `..`,
+is that root seen from `dbt/`. Until 17 October 2026 the paths were fixed
+relative to `dbt/`, and a build from the root failed with "Cannot open file
+…/warehouse/grid.duckdb".
 
 ```bash
-pip install -r ../requirements.txt
-cp profiles.example.yml ~/.dbt/profiles.yml   # edit the path
-dbt deps && dbt parse
+pip install -r requirements.txt                 # from the repository root
+python -m src.transform.xml_to_parquet          # lands raw/ into raw/parquet/
+cp dbt/profiles.example.yml dbt/profiles.yml
+mkdir -p warehouse
+
+cd dbt && dbt build --profiles-dir .            # from dbt/, GRID_ROOT defaults to ..
+# or from the root:
+GRID_ROOT=. dbt build --project-dir dbt --profiles-dir dbt
+# PowerShell:  $env:GRID_ROOT = "."; dbt build --project-dir dbt --profiles-dir dbt
 ```
 
-`dbt build` needs landed data. From a clean clone only `dbt parse` succeeds.
-With the A44 payload landed, `dbt build --select stg_entsoe__prices` builds
-that model and runs its two tests; the rest waits for A75 (see the main README).
+No `dbt deps`: the project uses no packages. `dbt_utils` was declared and
+never used, so CI depended on hub.getdbt.com for nothing.
+
+From a clean clone, without `raw/`, run
+`python -m pytest src/transform/test_dbt_models.py`: it lands fixtures and
+builds every model on them, as CI does.

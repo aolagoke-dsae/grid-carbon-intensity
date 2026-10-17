@@ -6,7 +6,9 @@ Deliberate architecture note for the README:
   transformations are visible in the DAG and testable in the warehouse.
   src/transform/entsoe_parse.py keeps the Python implementation of the same
   logic for A75 and serves as the independent oracle the SQL is checked
-  against; src/transform/entsoe_prices_parse.py does the same for A44.
+  against: src/transform/test_dbt_models.py builds the models on landed
+  fixtures and compares them with parse() step by step (since 17.10.2026;
+  until then no such check existed). entsoe_prices_parse.py is the A44 twin.
 
 One column is landed that is not a stated point: classification_sequence.
 It is read straight off the TimeSeries without interpretation, and it has to

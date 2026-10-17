@@ -6,19 +6,23 @@ sources:
       Raw ENTSO-E payloads landed as parquet by src/transform/xml_to_parquet.py.
       Stated points only — no gap filling, no direction split, no unit conversion.
       All business logic lives in the intermediate models, where it is visible
-      in the lineage graph rather than buried in Python.
+      in the lineage graph rather than buried in Python. Every row carries
+      source_sha256, the key of its retrieval in raw/manifest.csv.
+    # GRID_ROOT is the repository root; its default, '..', is that root seen
+    # from dbt/. From the root: GRID_ROOT=. dbt build --project-dir dbt
+    # --profiles-dir dbt. See dbt/README.md.
+    #
+    # No freshness block (removed 17.10.2026, audit B9): the landed columns
+    # carry delivery periods, not load times, so a historical year read as
+    # stale for ever, and nothing ran `dbt source freshness` anyway.
     meta:
-      external_location: "../raw/parquet/{name}.parquet"
-    loaded_at_field: period_end_utc
-    freshness:
-      warn_after:  {count: 2, period: day}
-      error_after: {count: 7, period: day}
+      external_location: "{{ env_var('GRID_ROOT', '..') }}/raw/parquet/{name}.parquet"
     tables:
       - name: a75
         description: Aggregated generation per production type (16.1.B & C)
       - name: a65
-        description: Actual total load (6.1.A)
+        description: Actual total load (6.1.A). Not pulled yet.
       - name: a44
         description: Day-ahead prices (12.1.D)
       - name: a11
-        description: Cross-border physical flows (12.1.G)
+        description: Cross-border physical flows (12.1.G). Not pulled yet.

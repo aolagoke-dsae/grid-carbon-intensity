@@ -1,9 +1,11 @@
-# copy to ~/.dbt/profiles.yml
+# Copy to dbt/profiles.yml (git-ignored) and pass --profiles-dir, or to ~/.dbt/.
 grid_intensity:
   target: dev
   outputs:
     dev:
       type: duckdb
-      path: ../warehouse/grid.duckdb    # matches RUNBOOK Stage 6
+      # GRID_ROOT is the repository root; its default, '..', is that root seen
+      # from dbt/. No extensions line: parquet is built into DuckDB, and
+      # listing it made dbt try to download it (audit B7).
+      path: "{{ env_var('GRID_ROOT', '..') }}/warehouse/grid.duckdb"
       threads: 4
-      extensions: [parquet]

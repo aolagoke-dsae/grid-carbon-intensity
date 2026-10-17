@@ -10,7 +10,13 @@ target-path: "target"
 clean-targets: ["target", "dbt_packages"]
 
 # No seed-paths: the factor table lives once, in ../config/ipcc_ar5_factors.csv,
-# and is read directly by DuckDB. One copy, no drift.
+# and is read directly by DuckDB. One copy, no drift. The same holds for
+# zones.csv, sparse_series.csv and source_gaps.csv.
+#
+# Every path the models read hangs off the environment variable GRID_ROOT,
+# the repository root. Its default, '..', is that root seen from dbt/, so
+# `dbt build` works from dbt/ as before; from the root, set GRID_ROOT=. and
+# pass --project-dir dbt --profiles-dir dbt (audit B5).
 
 # TRAP 5. A DE-LU A44 payload carries two complete, disagreeing day-ahead
 # price curves separated only by classificationSequence. This picks one.

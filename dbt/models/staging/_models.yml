@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: stg_entsoe__generation
+    description: Stated A75 points, renamed and cast, position resolved to ts_utc. No business logic.
+    columns:
+      - name: zone_eic
+        description: A zone with no row in config/zones.csv has no time zone, so its days could not be checked (audit B8).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: zone_eic
+      - name: direction
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['generation', 'consumption']
+      - name: curve_type
+        description: A03 is carried forward, A01 is not, and any other type has no reading.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['A01', 'A03']
