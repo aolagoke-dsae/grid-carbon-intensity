@@ -3,9 +3,10 @@ uncertainty propagated through to an interval.
 
 Why this module exists
 ----------------------
-`sql/01_schema.sql` has carried `intensity_p05`, `intensity_p95` and
-`mc_draws` since the first draft, and `config/ipcc_ar5_factors.csv` has
-carried a min/median/max band per fuel. Nothing computed them. This closes
+The first schema draft (`sql/01_schema.sql`, archived on 17.10.2026 in
+`archive/azure-excursion/`) carried `intensity_p05`, `intensity_p95` and
+`mc_draws`, and `config/ipcc_ar5_factors.csv` has carried a min/median/max
+band per fuel. Nothing computed them. This closes
 that gap: the interval is the differentiator, and until now it existed only
 as a column definition.
 

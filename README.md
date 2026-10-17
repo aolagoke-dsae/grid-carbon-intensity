@@ -51,11 +51,12 @@ apart throughout. The ingestion clients, both parsers, the uncertainty module
 and CI are written and unit-tested. Of the live sources, ENTSO-E day-ahead
 prices (A44) and SMARD were pulled on 6 October 2026, and generation per type
 (A75) for DE-LU and FR, 2025, on 17 October 2026; load (A65) has not been
-fetched. The A75 parser and the stage 2–4 checks have run on the real 2025
-pulls. Landing them, the dbt models that use them and the intensity on real
-data have not run yet. The dbt project has 10 models, and `stg_entsoe__prices`
-with its two tests has run on the real A44 payload. The report is not started.
-**What is not built** has the detail.
+fetched. The A75 parser and the stage 2–5 checks have run on the real 2025
+pulls, stage 5 on the median-factor intensity. Landed, the 2025 A75 and A44
+data build green through the dbt project, 23 nodes on 17 October 2026, and CI
+builds every model on fixtures and checks it against the Python parser. The
+fact tables, the Monte Carlo interval on real data and the report are not
+built. **What is not built** has the detail.
 
 The acceptance criterion that governs the whole build: **the deterministic
 point estimate must fall inside the sampled 90% interval.** The deterministic
@@ -80,31 +81,34 @@ Named here rather than left for a reader to discover.
 
 | | Status |
 |---|---|
-| dbt models | **CORRECTION, 08.10.2026, made precise 10.10.2026.** An earlier version of this row said "no models written". That was wrong. The 10 models arrived on 5 October in commit `1c21970` (a second root, merged in `9f60b2f`); today they run to 314 lines, including the 08.10 rewrite of `stg_entsoe__prices.sql`. `stg_entsoe__prices` and its two tests were built and run against the real A44 payload on 10.10.2026. Everything that depends on A75 is unexecuted: the payloads arrived on 17.10.2026 and have not been landed or built yet. |
-| `curated/sample/` | **absent**, so `dbt build` from a clean clone does not run |
+| dbt facts | **not built.** Staging, the three intermediate models and the three dimensions stand: built green on the 2025 A75 and A44 data on 17.10.2026, and on fixtures in CI. `stg_entsoe__load` and `stg_entsoe__flows` are disabled until A65 and A11 are pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
+| `curated/sample/` | **absent.** From a clean clone, `dbt build` has no data to read; `pytest src/transform/test_dbt_models.py` builds the models on fixtures instead |
 | Load-shifting decision model | **not started** — the question the project exists to answer |
 | Quarto report, GitHub Pages | **not started** |
-| Power BI dashboard | **not started**; it will read the exported Parquet. The Azure portability excursion was dropped in October 2026 |
+| Power BI dashboard | **not started**; it will read the exported Parquet. The Azure portability excursion was dropped in October 2026 and is archived in `archive/azure-excursion/` |
 | Sobol sensitivity of the saving | **not built**. For the intensity alone, `variance_contribution()` reports first-order variance shares — for this linear model, its first-order Sobol indices — and each fuel's share of the 90% interval width |
 | Cross-border flow (A11) import adjustment | **not built**; intensity is average, not marginal |
 | Trap 5, the two competing A44 price curves | **handled** 08.10.2026 — `entsoe_prices_parse.py`, `xml_to_parquet.py` and the curve filter in `stg_entsoe__prices.sql`. What stays open is *which* curve is authoritative: that needs SMARD filter 4169 for the 2025 weeks, which has not been pulled |
 
 What *is* built: ingestion with a redacting manifest, run for A44 and SMARD;
 the A75 parser with its four traps, tested on fixtures including both
-daylight-saving transition days and run on the real 2025 pulls for DE-LU and FR; the A44 price parser with the fifth, run on
-the real 2025 payload; the raw parquet landing; Monte Carlo uncertainty with
-the sensitivity shares; the stage checkpoints; and CI across Python 3.11 and
-3.14.
+daylight-saving transition days and run on the real 2025 pulls for DE-LU and
+FR; the A44 price parser with the fifth, run on the real 2025 payload; the raw
+parquet landing, with both domains and the source digest on every row; the dbt
+staging, intermediate and dimension models, checked against the Python parser;
+Monte Carlo uncertainty with the sensitivity shares; the stage checkpoints,
+each with a test that makes it fail; and CI across Python 3.11 and 3.14.
 
 `config/zones.csv` carries five zones and marks the two the analysis covers.
 The other three are configuration kept for the third-zone diagnostic, not
 results.
 
 No subscription, no licence and no free tier is required to run any of it.
-`git clone` then `pytest` works today. `dbt build` from a clean clone is the
-goal and does not work yet: it needs `curated/sample/`, which is not committed,
-and A75 data for every model except `stg_entsoe__prices`. Stated here rather
-than discovered after cloning.
+`git clone` then `pytest` works today, and it builds the dbt models on
+fixtures. `dbt build` on real data needs the payloads, which are not
+redistributed (see **Licence**): pull and land them with a token, or wait for
+`curated/sample/`, which is planned. Stated here rather than discovered after
+cloning.
 
 The architecture is defined once in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 and shared with the Sentinel-2 biomass MRV and German data-role market projects.
@@ -300,27 +304,35 @@ supplies 3% of the energy, 23% of the variance and 13% of the interval width.
 
 ## Tests
 
-`pytest` — 111 tests, all green: 92 test functions, some parametrised. Four
+`pytest` — 152 tests, all green: 131 test functions, some parametrised. Four
 of them read the real 7.5 MB A44 payload and **skip in CI**, because `raw/*` is
-gitignored; CI therefore reports 107 passed, 4 skipped, and a local run with
-`raw/` populated reports 111 passed.
+gitignored. Seven build the dbt models with dbt-duckdb and run in CI's dbt job
+only; the unit-test job reports 141 passed, 4 skipped. A local run with `raw/`
+populated reports 152 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
-on — on every push and once a week. It also runs `dbt parse`, which
-resolves every model, source, `ref` and test without touching data, so a
-broken reference fails at push time rather than at build time.
+on — on every push and once a week. Its dbt job parses the project, which
+resolves every model, source, `ref` and test without touching data, and then
+builds every enabled model on landed fixtures and compares the result with
+the Python parser step by step (`test_dbt_models.py`). Until 17 October 2026
+CI only parsed, so no model had run there.
+
+The checks rewritten on 17 October 2026 and the new dbt tests were also run
+against mutants, copies of the code with one fix reverted: every mutant makes
+at least one test fail.
 
 | File | Tests | What they pin |
 |---|---|---|
-| `src/transform/test_parse.py` | 16 | Traps 1–4 in the A75 parser, on fixtures, including both transition days at PT15M and PT60M |
-| `src/transform/test_prices_parse.py` | 21 | Trap 5 and the A44 parser, including 4 transition-day cases and the 4 real-payload checks |
+| `src/transform/test_parse.py` | 24 | Traps 1–4 in the A75 parser, on fixtures, including both transition days at PT15M and PT60M; A01 gaps left empty; an Acknowledgement or an empty document refused; the direction check against the XML |
+| `src/transform/test_prices_parse.py` | 25 | Trap 5 and the A44 parser, including 4 transition-day cases and the 4 real-payload checks |
 | `src/transform/test_dst.py` | 13 | Daylight-saving arithmetic of the validation calendar, `validate.expected_steps` |
-| `src/transform/test_intensity.py` | 29 | The uncertainty propagation, the factor handling and the sensitivity shares |
-| `src/checks/test_validate.py` | 10 | The stage checkpoints, including whole missing days and the coverage policy |
+| `src/transform/test_intensity.py` | 31 | The uncertainty propagation, the factor handling and the sensitivity shares |
+| `src/checks/test_validate.py` | 20 | The stage checkpoints, including whole missing days, the coverage policy and the stage 5 recomputation |
 | `src/ingest/test_entsoe_client.py` | 9 | Token redaction in exceptions and the manifest; yearly requests that cover the local year |
 | `src/ingest/test_raw_store.py` | 12 | `raw/` is append-only: a failed pull never replaces data, every retrieval is kept, the smoke scripts report the status they actually got |
-| `src/transform/test_xml_to_parquet.py` | 1 | The landing reads only the newest accepted retrieval of each year |
+| `src/transform/test_xml_to_parquet.py` | 11 | The landing: stated points only, both domains, dtypes, provenance and the digest check, the newest accepted retrieval of each year |
+| `src/transform/test_dbt_models.py` | 7 | The dbt models on landed fixtures, step by step against `parse()`; a deleted day and an empty A01 position fail their tests |
 
 The test that matters most: **the deterministic point estimate must fall
 inside the Monte Carlo interval built around it.** If it falls outside, the
@@ -343,24 +355,28 @@ quarter-hour fails four more.
 ## Layout
 
 ```
-config/             zones + emission factors, every row carrying a citation
+config/             zones, coverage exemptions, recorded source gaps and
+                    emission factors: CSV, read by Python and dbt alike
 src/ingest/         ENTSO-E and SMARD clients → raw/ + manifest.csv
 src/transform/      A75 parser, A44 price parser, parquet landing, intensity,
                     uncertainty
 src/checks/         stage checkpoint functions, importable and testable
-sql/                hand-written schema + DQ views
-dbt/                10 models and six singular tests, one disabled until its
-                    fact exists; all parse in CI, and stg_entsoe__prices with
-                    its two tests has run on real data — see What is not built
+dbt/                10 models (8 enabled), 7 singular tests (1 disabled) and
+                    9 generic ones; built on fixtures in CI and on the real
+                    2025 data — see What is not built
 docs/               ARCHITECTURE.md — the standard shared across projects
-.github/workflows/  pipeline.yml — pytest on 3.11 and 3.14, dbt parse, weekly
+.github/workflows/  pipeline.yml — pytest on 3.11 and 3.14; dbt parse and a
+                    build on fixtures; weekly
 raw/                append-only landing, git-ignored: one folder per document,
                     zone and year, one file per retrieval, failures in
                     _failed/; manifest.csv is committed
 raw/parquet/        stated points per document type, git-ignored, rebuilt with
                     `python -m src.transform.xml_to_parquet`
 curated/            Parquet outputs, git-ignored
+archive/            the dropped Azure excursion: its procedure and T-SQL,
+                    kept for reference, run nowhere
 conftest.py         makes `pytest` work from the repo root
+requirements-figures.txt  figure libraries, not installed in CI
 
 planned, not present yet — see RUNBOOK.md:
 curated/sample/     bounded sample so `git clone && dbt build` runs tokenless

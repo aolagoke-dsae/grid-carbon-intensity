@@ -1,0 +1,8 @@
+# Figure libraries, for the Python versions of the project figures (each
+# figure is also made in Power BI or Tableau). The pipeline and the tests
+# import none of them, so CI does not install them; until 17.10.2026 every CI
+# job did (audit D11).
+#   pip install -r requirements.txt -r requirements-figures.txt
+matplotlib>=3.8
+seaborn>=0.13
+plotly>=5.20

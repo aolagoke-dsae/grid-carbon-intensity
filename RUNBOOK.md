@@ -2,8 +2,9 @@
 
 **Grid Carbon Intensity & Load-Shift Optimiser**
 Dr. Adewole Olagoke · started 7 August 2026 · runbook revised 17 October 2026
-Gate: Stages 1–8 complete by **26 November 2026** (Abschlussprojekt opens 27.11.)
-Target: Stage 10 public during Modul IV, before **5 January 2027**
+Gate: Stages 1–6 standing and the first defensible number by **26 November 2026**
+Capstone: Stages 7–8 in Modul 10, the final-project block, **01.–11.12.2026**
+Target: Stage 10 public during Modul IV, before **6 January 2027**
 
 Ten stages. Each has a **checkpoint** that must pass before the next one starts.
 The checkpoints exist because every stage here is one where a silent error
@@ -29,10 +30,10 @@ has been pulled.*
 | Ingestion client (SMARD) | yes | — | **yes** — 06.10.2026 |
 | Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **yes** — DE-LU and FR 2025, 17.10.2026 |
 | Parser, A44 prices (trap 5) | yes | yes | **yes** — the 2025 DE-LU payload |
-| Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | **not yet** — the A75 data is in; the fact table is not built |
-| Stage checks (2, 3, 4, 5) | yes | yes, since 07.10. | **2, 3 and 4** on the 2025 A75 pulls, 17.10.2026; 5 waits for the intensity |
-| SQL schema + DQ views | yes | — | **not yet** |
-| dbt models | yes — 10 models, 6 singular tests (1 disabled) | `dbt parse` in CI | `stg_entsoe__prices` and its two tests, 10.10.2026 |
+| Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2025 pulls, under the stage 5 check, 17.10.2026; the Monte Carlo interval and the fact table **not yet** |
+| Stage checks (2, 3, 4, 5) | yes; 2 and 5 rewritten 17.10. so they can fail | yes, each made to fail | **all four** on the 2025 A75 pulls, 17.10.2026 |
+| T-SQL schema + DQ views (Azure) | archived 17.10.2026 in `archive/azure-excursion/` | — | never: DuckDB cannot run them |
+| dbt models | yes — 10 models (8 enabled), 7 singular tests (1 disabled), 9 generic | built on fixtures in CI and compared with the Python parser | **yes** — the 2025 A75 and A44 data, 17.10.2026: 23 nodes green |
 | CI | yes, `.github/workflows/pipeline.yml` | — | **yes**, green on 3.11 and 3.14 |
 | Version control | yes — MIT; public from WE 3, 24./25.10.2026 | — | — |
 
@@ -78,7 +79,7 @@ defaults to 1.5s — that is 40/minute, ten times under the limit. Leave it alon
 | Publication | **Quarto → GitHub Pages** (static, permanent) | €0 | none |
 | Uncertainty | **NumPy**, in `src/transform/intensity.py`, tested in CI | €0 | none |
 | Environment | **VS Code** + dbt / Quarto extensions; `duckdb -ui` to inspect | €0 | none |
-| *Dropped* | Azure SQL (free offer), Stage 6b — see **The gate**. Power BI is built on the exported Parquet instead | €0 | none |
+| *Dropped* | Azure SQL (free offer), Stage 6b — see **The gate**; archived in `archive/azure-excursion/`. Power BI is built on the exported Parquet instead | €0 | none |
 
 Defined once in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and shared with
 the Sentinel-2 biomass MRV and the German data-role market projects. Tutorials,
@@ -90,23 +91,26 @@ the stage it belongs to.
 
 ## Stage map
 
+Targets rebased on 17 October 2026 on the running curriculum and the weekend
+plan; see **Schedule against the curriculum** below.
+
 | # | Stage | Produces | Cost | Target |
 |---|---|---|---|---|
-| 0 | Environment, secrets, git | first commit | €0 | **today** |
-| 1 | First raw pull with manifest | `raw/A75/<eic>/2025/` | €0 | **this weekend** |
-| 2 | Parse: A03, direction, DST, MAW | parsed rows in memory | €0 | w/c 28 Sept |
-| 3 | Backfill and coverage | DE-LU and FR × 6 years in `raw/` | €0 | w/c 5 Oct |
-| 4 | Emission factors verified | audited `ipcc_ar5_factors.csv` | €0 | w/c 12–19 Oct |
-| 5 | Deterministic intensity | a defensible number | €0 | by 1 Nov |
-| 6 | DuckDB warehouse + dbt | tested marts, lineage docs | €0 | w/c 2 Nov |
-| 7 | Quality gate | dbt tests + DQ views green | €0 | w/c 16 Nov |
-| 8 | Monte Carlo and Sobol | 90% interval + drivers | €0 | w/c 23 Nov |
-| 9 | Orchestration (GitHub Actions) | unattended daily runs | €0 | w/c 7 Dec |
-| 10 | Publication (Quarto → Pages) | public URL + methodology | €0 | by 19 Dec |
-| 6b | *Dropped:* Azure excursion | — | — | see **The gate** |
+| 0 | Environment, secrets, git | first commit | €0 | done |
+| 1 | First raw pull with manifest | `raw/A75/<eic>/2025/` | €0 | done — A44 06.10., A75 17.10.2026 |
+| 2 | Parse: A03, direction, DST, MAW | parsed rows in memory | €0 | done — 17.10.2026 |
+| 3 | Backfill and coverage | DE-LU and FR × 6 years in `raw/` | €0 | WE 2–3, by 25.10. |
+| 4 | Emission factors verified | audited `ipcc_ar5_factors.csv` | €0 | WE 3, 24./25.10. |
+| 5 | Deterministic intensity | a defensible number | €0 | WE 4, 31.10./01.11. |
+| 6 | DuckDB warehouse + dbt | tested marts, lineage docs | €0 | WE 5–6, by 15.11. |
+| 7 | Quality gate | every dbt test green on the backfill | €0 | Modul 10, 01.–11.12. |
+| 8 | Monte Carlo and Sobol | 90% interval + drivers | €0 | Modul 10, 01.–11.12. |
+| 9 | Orchestration (GitHub Actions) | unattended daily runs | €0 | Modul IV, from 14.12. |
+| 10 | Publication (Quarto → Pages) | public URL + methodology | €0 | Modul IV, by 06.01.2027 |
+| 6b | *Dropped:* Azure excursion | — | — | archived |
 
 **Stages 0–9 are local and free.** The Azure excursion (Stage 6b) was dropped
-in October 2026; its procedure is kept below for reference.
+in October 2026 and is archived in `archive/azure-excursion/`.
 
 ---
 
@@ -128,8 +132,9 @@ git init && git add . && git commit -m "scaffold: ingestion, parser, intensity, 
 python3 -c "from dotenv import load_dotenv; import os; load_dotenv(); \
 t=os.getenv('ENTSOE_TOKEN'); print('token loaded:', bool(t), '| length:', len(t or ''))"
 git status --porcelain | grep -c '\.env$'    # must print 0
-pytest -q                                     # 111 tests (92 functions), all green
-                                              # (107 + 4 skipped where raw/ is absent)
+pytest -q                                     # 152 tests (131 functions), all green
+                                              # 7 of them build the dbt models on
+                                              # fixtures; 4 skip where raw/ is absent
 ```
 
 - Token loads, and `.env` does **not** appear in git status
@@ -346,10 +351,15 @@ print(check_stage5_intensity(rows, factors, values, sparse))
 - Plot one week and look at it. Sunny summer midday low, still winter evening
   high. An inverted shape means a join error.
 - Cross-check a handful of hours against an independent published series
-  (Electricity Maps free tier). Expect a few percent difference — you use
-  lifecycle factors, some sources use direct combustion only. **Document the
-  difference and explain it.** That explanation is the single most impressive
-  paragraph in the methodology document.
+  (Electricity Maps free tier). Expect a difference, but not from lifecycle
+  versus combustion factors: Electricity Maps' default figures are life-cycle
+  intensities too, of the consumed, flow-traced mix. The difference comes from
+  imports and from the factor sets. **Document the difference and explain it.**
+  That explanation is the single most impressive paragraph in the methodology
+  document.
+- Measured on the 2025 pulls (17.10.2026), at median factors: DE-LU 83–600 and
+  France 16–77 gCO2e/kWh per quarter-hour; 31 and 322 quarter-hours withheld,
+  every one at a recorded source gap.
 
 **This is the free/local gate.** Everything to here costs nothing. Nothing
 after it should start until this passes.
@@ -360,10 +370,17 @@ after it should start until this passes.
 
 **Needs:** Stage 5 passed. **Cost: €0.** No account, no provisioning.
 
+The project exists in `dbt/` and needs no `dbt init` (which would scaffold a
+second project). Every path its models read hangs off `GRID_ROOT`, the
+repository root, which defaults to `..`, the root seen from `dbt/`.
+
 ```bash
-pip install duckdb dbt-duckdb
-dbt init  # profile target: duckdb, path: warehouse/grid.duckdb
-dbt build
+python -m src.transform.xml_to_parquet          # land raw/ into raw/parquet/
+cp dbt/profiles.example.yml dbt/profiles.yml
+mkdir -p warehouse
+GRID_ROOT=. dbt build --project-dir dbt --profiles-dir dbt     # from the repository root
+# PowerShell:  $env:GRID_ROOT = "."; dbt build --project-dir dbt --profiles-dir dbt
+# or from dbt/, where GRID_ROOT defaults to "..":  dbt build --profiles-dir .
 ```
 
 **Inspecting the warehouse.** `duckdb -ui` opens a local UI on
@@ -373,21 +390,28 @@ one process read-write *or* many read-only. A UI holding the file read-write
 makes the next `dbt build` fail. Full note in
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-Four layers: declared sources with freshness → 1:1 staging → intermediate
-models carrying the business logic (directional split, factor join, DST-aware
-coverage) → marts exposing three conformed dimensions and three facts. Every
-model documented. Nothing bypasses a source declaration.
+Four layers: declared sources → 1:1 staging → intermediate models carrying
+the business logic (directional split, factor join, DST-aware coverage) →
+marts exposing three conformed dimensions and three facts. Every model
+documented. Nothing bypasses a source declaration. The sources carry no
+freshness block: the landed columns are delivery periods, not load times.
 
-Keep `sql/01_schema.sql` exactly as it is. It is hand-written T-SQL with
-persisted computed columns and CHECK constraints, and it becomes the second
-dbt target at Stage 6b. It is the portability evidence.
+Standing on 17 October 2026: staging, the three intermediate models and the
+three dimensions, built green on the 2025 data. The facts are this stage's
+work. The T-SQL schema written for the Azure excursion is archived in
+`archive/azure-excursion/`; DuckDB cannot run it.
 
 **Checkpoint 6**
 
 - `dbt build` green; `dbt docs generate` produces a lineage graph
 - Mart row count equals the parsed row count **exactly**
-- Every fact row resolves to a batch in the ingest manifest
-- `select count(*) from dim_production_type where ef_source_citation is null` returns 0
+- Every fact row resolves to its retrieval in the ingest manifest: every
+  landed row carries `source_sha256`, and the intermediate models pass it on
+- `select count(*) from main_marts.dim_production_type where ef_source_citation is null or trim(ef_source_citation) = ''`
+  returns 0, and so does
+  `select count(*) from main_marts.dim_production_type where is_priced and lower(ef_source_citation) like '%placeholder%'`.
+  Until 17 October 2026 the first query named the wrong schema and would have
+  passed oil's placeholder anyway
 - `git clone` + `dbt build` reproduces the warehouse from scratch on a machine
   that has never seen the project. That is the property the whole standard exists for.
 
@@ -400,23 +424,28 @@ dbt target at Stage 6b. It is the portability evidence.
 Generic tests (`unique`, `not_null`, `relationships`, `accepted_values`) on
 every grain, plus four singular tests that encode the domain:
 
-1. Step coverage distinguishing a genuine gap from a 92- or 100-step DST day
-2. Pumped-storage double-count detection
-3. Priced-fuel coverage threshold below which a figure is withheld
-4. Intensity plausibility band
-
-`sql/02_dq_checks.sql` stays as the portable SQL expression of the same logic.
+1. Step coverage distinguishing a genuine gap from a 92- or 100-step DST day —
+   `assert_step_count_per_local_day`, built
+2. The direction split, losing nothing and mixing nothing —
+   `assert_no_consumption_in_generation_total`, built
+3. Priced-fuel coverage threshold below which a figure is withheld — with the fact
+4. The intensity recomputed from the mix, the SQL twin of
+   `check_stage5_intensity` — with the fact. Not a plausibility band: no units
+   error leaves one
 
 **Checkpoint 7**
 
 - All dbt tests pass
-- `OK` dominates the coverage status; `OK_DST_SPRING_FORWARD` and
-  `OK_DST_FALL_BACK` appear once per year per zone; `MISSING_STEPS` and
-  `DUPLICATE_STEPS` are zero
+- `assert_step_count_per_local_day` returns no rows, and `dim_date` marks one
+  23-hour and one 25-hour day per year per zone (`is_dst_transition`). The test
+  reads the same exemptions as `check_stage3_coverage`, and on the 2025 pulls
+  the two agree day-series for day-series
 - Unmapped fuels returns only the six deliberately unpriced categories
 - **Break one on purpose.** Delete a day from a staging model and confirm the
   coverage test fails loudly. A test you have not seen fail is a test you do
-  not know works.
+  not know works. Until 17 October 2026 this one would have passed: it
+  counted only the days that had rows. `test_dbt_models.py` now deletes a day
+  on fixtures in every CI run.
 
 ---
 
@@ -457,8 +486,9 @@ and pushed the deterministic point outside its interval on nuclear-heavy mixes.
 **Needs:** Stage 8. **Cost: €0** — Actions is free with no minute cap on public
 repositories using standard runners.
 
-Today `pipeline.yml` runs `pytest` on Python 3.11 and 3.14 and `dbt parse`, on
-every push and weekly. This stage turns it into two workflows:
+Today `pipeline.yml` runs `pytest` on Python 3.11 and 3.14, parses the dbt
+project and builds it on fixtures, on every push and weekly. This stage turns
+it into two workflows:
 
 - **`ci.yml`** — on every pull request: `pytest`, then `dbt build`. The green
   check on the repository page is evidence nobody can fabricate.
@@ -509,91 +539,84 @@ Tableau module, on this data rather than a supplied training set.
 
 ## Stage 6b — Azure and Power BI excursion (dropped)
 
-*Dropped from the capstone in October 2026 — see **The gate**. Kept as the
-procedure if it is ever run; Power BI is built on the exported Parquet instead.*
-
-**Needs:** Stage 7. **Bounded to about one week. Run once, then stop.**
-
-This exists to produce Microsoft-stack evidence for the German market, without
-making Azure the spine of the project.
-
-1. **Set the €30 budget alert first**, while the subscription is still empty.
-2. Create the database under the **Azure SQL Database free offer**: free for the
-   lifetime of the subscription, 100,000 vCore-seconds and 32 GB a month. Leave
-   **"Behavior when free limit reached" on auto-pause**, the default. The other
-   option, *Continue using database for additional charges*, is the one that
-   **cannot be reverted** to auto-pause (Microsoft Learn, checked 17.10.2026).
-3. Do **not** use the 12-month free-services tier. It expires around September
-   2027 and then bills silently rather than pausing.
-4. Add `azuresql` as a second dbt target. Run `sql/01_schema.sql`, load, run
-   `sql/02_dq_checks.sql`.
-5. Build the `.pbix`: DirectQuery on the fact, import on dimensions, row-level
-   security by zone. Twenty minutes, and a standard interview question at utilities.
-6. Screenshot everything. Commit `.pbix` and a `.bacpac`. Let it auto-pause forever.
-
-**Checkpoint 6b**
-
-- The same dbt project builds green against both targets
-- Deliberately insert `mw = -1` and confirm the CHECK constraint rejects it.
-  A constraint you have not seen fire is a constraint you do not know works.
-- `.pbix` and `.bacpac` are committed; the warehouse rebuilds from the `.bacpac`
-- Budget alert has fired zero times
-
-**What it earns, honestly stated:** *dbt project with two warehouse targets
-(DuckDB and Azure SQL); CI runs `dbt build` on every pull request; Power BI
-semantic model committed as `.pbix`.*
+*Dropped from the capstone in October 2026 — see **The gate**. Power BI is
+built on the exported Parquet instead.* The procedure, its checkpoint and the
+T-SQL it would have run are archived in
+[`archive/azure-excursion/`](archive/azure-excursion/README.md). The T-SQL
+runs nowhere: DuckDB stops at `CREATE OR ALTER`, and Azure SQL would need
+Windows time-zone names.
 
 ---
 
-## Schedule against the Maßnahmebogen
+## Schedule against the curriculum
 
-Course blocks are taken from the Maßnahmebogen. The right-hand column is what
-exists in the repository at the end of that block. Where the curriculum, which
-is what is actually taught, differs from the Maßnahmebogen, the curriculum
-governs: Modul IV runs 14.12.2026–06.01.2027.
+Rebased on 17 October 2026 on the running curriculum and on the weekend plan
+decided on 5 October 2026: eight weekends, then Modul 10. Until then this
+section followed the Maßnahmebogen, the funding document, which dates the end
+of the course differently. Where the two disagree, the curriculum is what is
+taught and governs this plan:
 
-| Dates | Course block | UE | Runbook work |
-|---|---|---|---|
-| 15.09.–07.10. | Python | 153 | **Stages 0–3.** Pull, parser, four trap tests, backfill, load to DuckDB, CI green, repo public. |
-| 08.10.–19.10. | Datenbanken und Visualisierung | 72 | **Stage 6 (first half).** dbt project created, sources and staging done, first generic tests, `dim_datum` with DST logic. |
-| 20.10.–28.10. | Analyse I und **Power BI** | 63 | **Stages 4–5** in parallel; intermediate and marts, star schema standing, `exports/` Parquet folder, Power BI page 1. |
-| 29.10.–09.11. | Machine-Learning-Modelle | 72 | Baseline **first** — seasonal naive, same weekday last week. Then the price-spread forecast. If the model loses to the baseline, document that. |
-| 10.11.–13.11. | Analyse II, DAX und APIs | 36 | DAX measures, Power BI pages 2 and 3. Measures in DAX, not precomputed in Power Query. |
-| 16.11.–17.11. | Allgemeine Themen | 18 | **Stage 7.** README, lineage screenshot, `BENCHMARKS.md`. |
-| 18.11.–20.11. | Nachhaltigkeit in der IT | 27 | The marginal-versus-average intensity section. This is the limitation an experienced interviewer opens first. |
-| 23.11.–26.11. | Praxistage | 36 | **Stage 8.** Monte Carlo and Sobol, reproducible with a fixed seed. |
-| **27.11.–04.12.** | **Abschlussprojekt** | 54 | Consolidation, submission, presentation. Six working days. The capstone must already be built when this opens. |
-| **05.12.–05.01.** | **Modul IV** | 135 | PSM I and **Praktikumsgespräche**. Stages 9–10 fit in the margin. |
+| | Maßnahmebogen | Curriculum |
+|---|---|---|
+| Final project | Abschlussprojekt 27.11.–04.12., 54 UE | Modul 10, 01.–11.12., 9 teaching days, 81 hours |
+| Modul II ends | 04.12.2026 | 11.12.2026 |
+| Modul IV | 05.12.2026–05.01.2027, 135 UE | 14.12.2026–06.01.2027, 16 teaching days |
+| Machine Learning | 29.10.–09.11. | 09.–18.11. |
+
+The right-hand column below is what exists in the repository at the end of
+each block.
+
+| When | Course alongside | Runbook work |
+|---|---|---|
+| WE 2, 17./18.10. | Modul 4a, SQL | **Stage 3.** Backfill DE-LU and FR, coverage checked per year |
+| WE 3, 24./25.10. | Modul 4b, Tableau | **Stage 4.** Every factor checked by hand against AR5 Table A.III.2. Repository public |
+| WE 4, 31.10./01.11. | Modul 5a, Tableau LOD | **Stage 5.** The deterministic intensity on the backfill; Checkpoint 5 |
+| WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt |
+| WE 6, 14./15.11. | Modul 6, Machine Learning | **Stage 6.** The intensity fact with a first Monte Carlo interval: the first defensible number |
+| WE 7, 21./22.11. | Modul 7, DAX and APIs | One Power BI page showing that number, read from the `exports/` Parquet; README draft |
+| WE 8, 28./29.11. | Modul 9, Green IT | Buffer. The marginal-versus-average intensity section, the limitation an experienced interviewer opens first. A one-page work plan for Modul 10 |
+| **01.–11.12.** | **Modul 10, final project** | **Stages 7 and 8.** Every dbt test green on the backfill; the decision model with Monte Carlo and Sobol, reproducible with a fixed seed; the ML part on this data, baseline **first** (seasonal naive, same weekday last week; if the model loses to it, document that), then the price-spread forecast; Power BI pages 2 and 3, measures in DAX rather than precomputed in Power Query; README, lineage screenshot, `BENCHMARKS.md`. Submission |
+| 12./13.12. | — | All repositories public; README and lineage checked |
+| **14.12.–06.01.** | **Modul IV** — PSM I, Praktikumsgespräche | **Stages 9 and 10** in the margin; PL-300 between 14 and 23 December |
 
 ### The gate
 
-**Stages 1–8 complete by 26 November.** The Abschlussprojekt block is 54 UE of
-consolidation and presentation, not build time. Arriving at 27 November with
-ingestion unfinished means submitting a project that does not yet compute
-anything.
+**By 26 November: Stages 1–6 standing and the first defensible number.** On
+1 December the data must be in, the parser running and the dbt project
+standing, so that Modul 10's 81 hours go to analysis rather than setup. Until
+17 October 2026 this runbook put Stages 1–8 before 26 November, because the
+Maßnahmebogen has no Modul 10 and treats 27.11.–04.12. as consolidation. The
+curriculum gives the final project nine teaching days of its own.
 
-**Stages 9 and 10 have no course slot.** Orchestration and publication happen in
-Modul IV alongside PSM I and the placement interviews. Budget for that
-now rather than discovering it in December.
+**Stages 7 and 8 belong to Modul 10**, and the capstone is submitted at its
+end, 11 December.
+
+**Stages 9 and 10 have no course slot.** Orchestration and publication happen
+in Modul IV alongside PSM I and the placement interviews, and 21–24 and 28–31
+December are teaching days: there is no Christmas window. Budget for that now
+rather than discovering it in December.
 
 **DP-600 and the Azure excursion are dropped.** Fabric requires a work or school tenant, and the certification targets platform operations rather than inference. The hours go to the causal module and the GenAI extraction artifact instead.
 
-### Why 26 November is earlier than it looks
+### Why the gate stays at 26 November
 
-Praktikumsgespräche begin **5 December**. The portfolio has to be presentable
-then, not in January. A placement conversation is the earliest live application
-channel available, it arrives ten weeks from now, and it is the one where a
-working public repository does the most work per minute of conversation.
+Modul 10 only works if it starts sharp on 1 December. Nine supervised days are
+enough to finish an analysis, not to build ingestion. The weekends to
+22 November carry the setup, and WE 8 is buffer: if two weekends are lost, the
+plan still holds.
 
-Power BI teaching starts **20 October**. PL-300 in November is supported by the
-course, not left to self-study.
+The portfolio has to be presentable by mid-December, when Modul IV and the
+placement conversations begin. Their exact window is still to be confirmed
+against the curriculum.
+
+PL-300 moved to 14–23 December 2026: DAX is taught into late November.
 
 Reliable Power BI path: dbt writes the mart tables to `exports/` as Parquet and
 Power BI Desktop reads that folder. The DuckDB ODBC route works but carries a
 risk on a submission day that nobody needs.
 
-Learn in the Greenbootcamps Azure tenant. **Build in your own subscription.**
-Their access ends with the course, which is the month you start applying.
+Build on your own machine and accounts, not the school's: its access ends with
+the course.
 
 ## Honesty rules for this repo
 

@@ -146,7 +146,8 @@ src/ingest/       API clients → raw/ + manifest.csv
 src/transform/    parsers, derivations, uncertainty
 src/checks/       stage checkpoint functions, importable and testable
 models/           dbt project: staging / intermediate / marts
-sql/              hand-written DDL and DQ views (portability evidence)
+sql/              hand-written DDL and DQ views, only where a second warehouse
+                  needs them (Project A's went with the Azure excursion)
 raw/              immutable landing, git-ignored
 curated/          Parquet outputs, committed when small
 docs/             METHODOLOGY.md — the assurance document
@@ -223,29 +224,9 @@ takes a Parquet extract and is refreshed by hand when the data materially change
 
 ## The bounded Azure excursion
 
-*Dropped from Project A in October 2026 (RUNBOOK, The gate). Kept as the
-procedure if it is ever run.*
-
-Run **once**, at the end, for about a week, on Project A only:
-
-1. Set the €30 budget alert while the subscription is still empty.
-2. Create the database under the **Azure SQL Database free offer** — free for
-   the lifetime of the subscription, with **"Behavior when free limit reached"
-   left on auto-pause**, the default. The other option, *Continue using database
-   for additional charges*, cannot be reverted to auto-pause once chosen
-   (Microsoft Learn, checked 17.10.2026).
-3. Point the same dbt project at it as a second target. Run `sql/01_schema.sql`
-   and `sql/02_dq_checks.sql`.
-4. Build the `.pbix` on top. Screenshot everything.
-5. Commit `.pbix` and a `.bacpac`. Let the database auto-pause permanently.
-
-Do **not** build on the 12-month free-services tier: it expires around
-September 2027 and resources are then billed silently rather than paused.
-
-What this earns, honestly stated: *dbt project with two warehouse targets
-(DuckDB and Azure SQL); CI runs `dbt build` on every pull request; Power BI
-semantic model committed as `.pbix`.* Stronger than either stack alone, with
-zero ongoing exposure.
+*Dropped from Project A in October 2026 (RUNBOOK, The gate) and archived,
+with the T-SQL it would have run, in
+[`archive/azure-excursion/`](../archive/azure-excursion/README.md).*
 
 ---
 

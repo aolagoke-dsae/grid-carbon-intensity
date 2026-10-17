@@ -15,12 +15,12 @@ Companion to [`ARCHITECTURE.md`](ARCHITECTURE.md) and `RUNBOOK.md`.
 
 | Resource | What it gives you | When |
 |---|---|---|
-| [dbt Core quickstart with DuckDB](https://docs.getdbt.com/guides/duckdb) | The official walkthrough: install, `profiles.yml`, first models. Start here. | Stage 6 · w/c 08.10. |
-| [dbt on DuckDB — thomassie.me](https://thomassie.me/2026-04-04-dbt-on-duckdb/) | Sources over Parquet, staging → marts, generic tests, `dbt docs generate`. Two to three hours. Follow it with **your** Stage 3 Parquet, not its customer tables. | Stage 6 · w/c 08.10. |
+| [dbt Core quickstart with DuckDB](https://docs.getdbt.com/guides/duckdb) | The official walkthrough: install, `profiles.yml`, first models. Start here. | Stage 6 · WE 5–6, by 15.11. |
+| [dbt on DuckDB — thomassie.me](https://thomassie.me/2026-04-04-dbt-on-duckdb/) | Sources over Parquet, staging → marts, generic tests, `dbt docs generate`. Two to three hours. Follow it with **your** Stage 3 Parquet, not its customer tables. | Stage 6 · WE 5–6, by 15.11. |
 | [DuckDB spatial extension](https://duckdb.org/docs/lts/core_extensions/spatial/overview) | Geometry types, GeoParquet, GDAL formats. The piece that lets Project B share this warehouse. | Project B |
 | [Quarto → GitHub Pages](https://quarto.org/docs/publishing/github-pages.html) | Publishing the report site. You already know Quarto; this is only the deploy step. | Stage 10 |
 | [GitHub Actions billing](https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions) | Confirms free, uncapped minutes on public repos with standard runners. | Stage 9 |
-| [Azure SQL Database free offer](https://learn.microsoft.com/en-us/azure/azure-sql/database/free-offer?view=azuresql) | Lifetime-free tier, auto-pause behaviour, the irreversible setting. | Stage 6b |
+| [Azure SQL Database free offer](https://learn.microsoft.com/en-us/azure/azure-sql/database/free-offer?view=azuresql) | Lifetime-free tier, auto-pause behaviour, the irreversible setting. | Stage 6b, dropped and archived in `archive/azure-excursion/` |
 
 ---
 

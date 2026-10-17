@@ -1,7 +1,8 @@
 """Daylight-saving regression tests.
 
-The DST handling already existed in `validate.expected_steps` and in
-`sql/02_dq_checks.sql`, but nothing proved it. Since a local calendar day has
+The DST handling already existed in `validate.expected_steps` and in the
+T-SQL DQ views (now archived in `archive/azure-excursion/`), but nothing
+proved it. Since a local calendar day has
 23, 24 or 25 hours -- 92, 96 or 100 steps at PT15M -- a hard-coded "= 96" rule
 reports two false failures a year AND hides real gaps on those same two days.
 That is the bug these tests exist to prevent.

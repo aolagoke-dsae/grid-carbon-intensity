@@ -47,8 +47,9 @@ declared exemptions and recorded gaps, none after.
   the same file `intensity.py` reads, so the SQL join and the Python interval
   cannot drift apart. `dim_zone` and the coverage test read `config/` the same
   way.
-- **`sql/01_schema.sql`.** Untouched. RUNBOOK keeps it as portability evidence
-  and the second dbt target at Stage 6b.
+- **`sql/01_schema.sql`.** The T-SQL schema of the Azure excursion. Archived
+  on 17 October 2026 in `archive/azure-excursion/`, with the excursion it was
+  written for: DuckDB cannot run it.
 
 ## Disabled
 
@@ -76,10 +77,9 @@ python -m src.transform.xml_to_parquet          # lands raw/ into raw/parquet/
 cp dbt/profiles.example.yml dbt/profiles.yml
 mkdir -p warehouse
 
-cd dbt && dbt build --profiles-dir .            # from dbt/, GRID_ROOT defaults to ..
-# or from the root:
-GRID_ROOT=. dbt build --project-dir dbt --profiles-dir dbt
+GRID_ROOT=. dbt build --project-dir dbt --profiles-dir dbt     # from the repository root
 # PowerShell:  $env:GRID_ROOT = "."; dbt build --project-dir dbt --profiles-dir dbt
+# or from dbt/, where GRID_ROOT defaults to "..":  dbt build --profiles-dir .
 ```
 
 No `dbt deps`: the project uses no packages. `dbt_utils` was declared and
