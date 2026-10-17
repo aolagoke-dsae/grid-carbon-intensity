@@ -11,6 +11,11 @@ zones:
     name: France
     country: FR
     tz: Europe/Paris
+    # RTE publishes these only while a unit runs: in the 2025 A75 pull hard
+    # coal (B05) is absent on 307 days and battery storage (B25) on 121. A
+    # missing quarter-hour in them is zero output, not a gap. Decided
+    # 17.10.2026; the coverage check reads this list.
+    reported_only_while_running: [B05, B25]
   - key: NL
     eic: 10YNL----------L
     name: Netherlands

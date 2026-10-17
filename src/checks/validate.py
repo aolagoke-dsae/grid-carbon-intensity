@@ -75,37 +75,103 @@ def check_stage2_direction(rows) -> tuple[bool, str]:
     return True, f"B10 present and directionally split: {sorted(found)}"
 
 
-def check_stage3_coverage(rows, tz: str) -> tuple[bool, str]:
-    """Per local day, per series: does the step count match the calendar?"""
+def find_gaps(rows, tz: str, sparse=frozenset()) -> tuple[list, int, list, int]:
+    """Every (zone, local day, psr) whose step count differs from the calendar.
+
+    Each series is checked on every day of its zone's span, so a day with no
+    rows at all counts as a gap. Until 17.10.2026 only days holding at least
+    one row were looked at, and a whole missing day passed unseen.
+
+    Returns (gaps, checked, dst_days, exempt): gaps as
+    (zone, day, psr, got, expected); exempt counts the day-series of `sparse`
+    series, {(zone, psr)} that a zone publishes only while a unit runs, where
+    a missing step is zero output rather than a gap.
+    """
     import zoneinfo
     z = zoneinfo.ZoneInfo(tz)
-    by_day = defaultdict(set)
-    steps = {}
+    stamps = defaultdict(set)
+    step_of_day, step_of_series = {}, {}
+    span, series = {}, defaultdict(set)
     for r in rows:
         if r["direction"] != "generation":
             continue
-        local = r["ts_utc"].astimezone(z).date()
         # Zone belongs in the key. Without it two zones with the same
         # timestamps collapse into one set, and a zone missing a whole day is
         # invisible as long as another zone has it.
-        k = (r.get("zone"), local, r["psr"])
-        by_day[k].add(r["ts_utc"])
-        steps[k] = r["step_hours"]
-    problems, dst = [], []
-    for (zone, day, psr), tss in sorted(by_day.items(), key=lambda kv: (str(kv[0][0]), kv[0][1], kv[0][2])):
-        k = (zone, day, psr)
-        exp = expected_steps(day, tz, steps[k])
-        got = len(tss)
-        if got != exp:
-            problems.append(f"{zone} {day} {psr}: {got}/{exp}")
-        elif exp != int(round(24 / steps[k])):
-            dst.append(f"{day} ({exp} steps)")
-    msg = f"{len(by_day)} day-series checked"
+        zone, psr = r.get("zone"), r["psr"]
+        day = r["ts_utc"].astimezone(z).date()
+        stamps[(zone, day, psr)].add(r["ts_utc"])
+        step_of_day[(zone, day, psr)] = r["step_hours"]
+        step_of_series[(zone, psr)] = r["step_hours"]
+        lo, hi = span.get(zone, (day, day))
+        span[zone] = (min(lo, day), max(hi, day))
+        series[zone].add(psr)
+    gaps, dst, checked, exempt = [], set(), 0, 0
+    for zone in sorted(span, key=str):
+        lo, hi = span[zone]
+        days = [lo + dt.timedelta(days=n) for n in range((hi - lo).days + 1)]
+        for psr in sorted(series[zone]):
+            for day in days:
+                checked += 1
+                step = step_of_day.get((zone, day, psr), step_of_series[(zone, psr)])
+                exp = expected_steps(day, tz, step)
+                got = len(stamps.get((zone, day, psr), ()))
+                if got == exp:
+                    if exp != int(round(24 / step)):
+                        dst.add(f"{day} ({exp} steps)")
+                elif got < exp and (zone, psr) in sparse:
+                    exempt += 1
+                else:
+                    gaps.append((zone, day, psr, got, exp))
+    return gaps, checked, sorted(dst), exempt
+
+
+def check_stage3_coverage(rows, tz: str, sparse=frozenset(), known=None) -> tuple[bool, str]:
+    """Per local day, per series: does the step count match the calendar?
+
+    `sparse`: {(zone, psr)} series published only while a unit runs (declared
+    in config/zones.yml); a missing step there is zero output.
+    `known`: {(zone, local_date, psr): missing_steps}, source gaps recorded in
+    config/source_gaps.csv after inspection. A gap of exactly the recorded
+    size is reported, not failed. Any other gap fails, including a recorded
+    one whose size has changed.
+    """
+    known = known or {}
+    gaps, checked, dst, exempt = find_gaps(rows, tz, sparse)
+    recorded = [g for g in gaps if g[3] < g[4] and known.get((g[0], g[1], g[2])) == g[4] - g[3]]
+    problems = [f"{zone} {day} {psr}: {got}/{exp}" for zone, day, psr, got, exp in gaps
+                if (zone, day, psr, got, exp) not in recorded]
+    msg = f"{checked} day-series checked"
     if dst:
-        msg += f"; DST days handled correctly: {sorted(set(dst))}"
+        msg += f"; DST days handled correctly: {dst}"
+    if exempt:
+        msg += f"; {exempt} day-series short in series reported only while running (zero output)"
+    if recorded:
+        msg += f"; {len(recorded)} recorded source gaps ({sum(g[4] - g[3] for g in recorded)} steps)"
     if problems:
-        return False, msg + f"; MISMATCHES: {problems[:10]}"
+        return False, msg + f"; MISMATCHES ({len(problems)}): {problems[:10]}"
     return True, msg
+
+
+def load_coverage_policy(zones_yml=None, gaps_csv=None) -> tuple[frozenset, dict]:
+    """(sparse, known) for check_stage3_coverage, from the two config files.
+
+    sparse: series a zone publishes only while a unit runs, from
+        `reported_only_while_running` in config/zones.yml.
+    known: recorded source gaps, from config/source_gaps.csv.
+    """
+    import csv
+    from pathlib import Path
+    import yaml
+    config = Path(__file__).resolve().parents[2] / "config"
+    zones = yaml.safe_load(Path(zones_yml or config / "zones.yml").read_text(encoding="utf-8"))["zones"]
+    sparse = frozenset((z["eic"], psr) for z in zones for psr in z.get("reported_only_while_running", []))
+    known = {}
+    with Path(gaps_csv or config / "source_gaps.csv").open(newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            key = (row["zone_eic"], dt.date.fromisoformat(row["local_date"]), row["psr"])
+            known[key] = int(row["missing_steps"])
+    return sparse, known
 
 
 def check_stage4_factors(rows, factors: dict) -> tuple[bool, str]:

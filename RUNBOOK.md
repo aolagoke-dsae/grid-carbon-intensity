@@ -235,11 +235,20 @@ since one DE-LU year is about 75 MB. Verify every EIC in
 **Checkpoint 3**
 
 ```python
-from src.checks.validate import check_stage3_coverage
-print(check_stage3_coverage(rows, "Europe/Berlin"))
+from src.checks.validate import check_stage3_coverage, load_coverage_policy
+sparse, known = load_coverage_policy()
+print(check_stage3_coverage(rows, "Europe/Berlin", sparse, known))
 ```
 
-- Returns `True`
+- Returns `True`. Every series is checked on every day, so a day with no rows
+  at all is a gap too. A gap passes only if its series is declared in
+  `config/zones.yml` as reported only while running (French coal and battery
+  storage, where a missing quarter-hour is zero output), or if
+  `config/source_gaps.csv` records it with the same size. The 2025 pulls carry
+  11 recorded gaps (37 quarter-hours) for DE-LU and 58 (531) for France, most
+  of them one offshore-wind series and two publication outages. A new gap, or
+  a recorded one that changed size, fails: inspect it, then update the register
+  in a commit of its own.
 - The message names the DST days and shows them as **92 and 100 steps**, not as failures
 - Every year present in `manifest.csv` with `rejected` 0
 
