@@ -25,18 +25,18 @@ has been pulled.*
 
 | | Written | Unit-tested | Run against real data |
 |---|---|---|---|
-| Ingestion client (ENTSO-E) | yes | token redaction and the append-only raw store, since 10.10. | **A44 only** — two pulls, 06.10.2026; A75 and A65 not yet fetched |
+| Ingestion client (ENTSO-E) | yes | token redaction, the append-only raw store, local-year windows | **A44 and A75** — A44 06.10.2026; A75 for DE-LU and FR, 2025, 17.10.2026; A65 not yet fetched |
 | Ingestion client (SMARD) | yes | — | **yes** — 06.10.2026 |
-| Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **not yet** — no A75 payload |
+| Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **yes** — DE-LU and FR 2025, 17.10.2026 |
 | Parser, A44 prices (trap 5) | yes | yes | **yes** — the 2025 DE-LU payload |
-| Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | **not yet** — needs A75 |
-| Stage checks (2, 3, 4, 5) | yes | yes, since 07.10. | **not yet** |
+| Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | **not yet** — the A75 data is in; the fact table is not built |
+| Stage checks (2, 3, 4, 5) | yes | yes, since 07.10. | **2, 3 and 4** on the 2025 A75 pulls, 17.10.2026; 5 waits for the intensity |
 | SQL schema + DQ views | yes | — | **not yet** |
 | dbt models | yes — 10 models, 6 singular tests (1 disabled) | `dbt parse` in CI | `stg_entsoe__prices` and its two tests, 10.10.2026 |
 | CI | yes, `.github/workflows/pipeline.yml` | — | **yes**, green on 3.11 and 3.14 |
 | Version control | yes — MIT; public from WE 3, 24./25.10.2026 | — | — |
 
-`raw/` holds one ENTSO-E payload and one SMARD week, both in `manifest.csv`.
+`raw/` holds the A44 and A75 payloads and one SMARD week, all in `manifest.csv`.
 `curated/` is still empty. `docs/` holds ARCHITECTURE.md and RESOURCES.md.
 
 Three of the stage checkpoints could not pass on real data until 7 October:
@@ -128,8 +128,8 @@ git init && git add . && git commit -m "scaffold: ingestion, parser, intensity, 
 python3 -c "from dotenv import load_dotenv; import os; load_dotenv(); \
 t=os.getenv('ENTSOE_TOKEN'); print('token loaded:', bool(t), '| length:', len(t or ''))"
 git status --porcelain | grep -c '\.env$'    # must print 0
-pytest -q                                     # 101 tests (84 functions), all green
-                                              # (97 + 4 skipped where raw/ is absent)
+pytest -q                                     # 111 tests (92 functions), all green
+                                              # (107 + 4 skipped where raw/ is absent)
 ```
 
 - Token loads, and `.env` does **not** appear in git status

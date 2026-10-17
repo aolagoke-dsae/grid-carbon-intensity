@@ -17,10 +17,11 @@ not built yet. See **What is not built** below.
 
 ## Hypothesis
 
-*Recorded on 10 October 2026, before any generation data was pulled. At this
-commit `raw/manifest.csv` lists day-ahead prices (A44) and SMARD rows only —
-there is no A75 generation for either zone — so no result yet exists that this
-could have been fitted to. The commit timestamp is the record.*
+*Recorded on 10 October 2026 in commit `e0102a0`, before any generation data
+was pulled. At that commit `raw/manifest.csv` listed day-ahead prices (A44) and
+SMARD rows only — no A75 generation for either zone. The first A75 pulls
+followed on 17 October 2026, so no result existed that this could have been
+fitted to. The commit timestamps are the record.*
 
 The zone comparison tests a hypothesis rather than asserting one. France's
 generation mix barely changes across the day; Germany's (DE-LU) changes a great
@@ -48,10 +49,12 @@ are plain Python — NumPy, no modelling framework — in
 What has run on real data and what has run only on test fixtures is kept
 apart throughout. The ingestion clients, both parsers, the uncertainty module
 and CI are written and unit-tested. Of the live sources, ENTSO-E day-ahead
-prices (A44) and SMARD have been pulled and landed; generation (A75) and load
-(A65) have not been fetched yet, so everything that depends on them has run
-only on fixtures. The dbt project has 10 models, and `stg_entsoe__prices` with
-its two tests has run on the real A44 payload. The report is not started.
+prices (A44) and SMARD were pulled on 6 October 2026, and generation per type
+(A75) for DE-LU and FR, 2025, on 17 October 2026; load (A65) has not been
+fetched. The A75 parser and the stage 2–4 checks have run on the real 2025
+pulls. Landing them, the dbt models that use them and the intensity on real
+data have not run yet. The dbt project has 10 models, and `stg_entsoe__prices`
+with its two tests has run on the real A44 payload. The report is not started.
 **What is not built** has the detail.
 
 The acceptance criterion that governs the whole build: **the deterministic
@@ -77,7 +80,7 @@ Named here rather than left for a reader to discover.
 
 | | Status |
 |---|---|
-| dbt models | **CORRECTION, 08.10.2026, made precise 10.10.2026.** An earlier version of this row said "no models written". That was wrong. The 10 models arrived on 5 October in commit `1c21970` (a second root, merged in `9f60b2f`); today they run to 314 lines, including the 08.10 rewrite of `stg_entsoe__prices.sql`. `stg_entsoe__prices` and its two tests were built and run against the real A44 payload on 10.10.2026. Everything that depends on A75 is unexecuted, because no A75 payload exists yet. |
+| dbt models | **CORRECTION, 08.10.2026, made precise 10.10.2026.** An earlier version of this row said "no models written". That was wrong. The 10 models arrived on 5 October in commit `1c21970` (a second root, merged in `9f60b2f`); today they run to 314 lines, including the 08.10 rewrite of `stg_entsoe__prices.sql`. `stg_entsoe__prices` and its two tests were built and run against the real A44 payload on 10.10.2026. Everything that depends on A75 is unexecuted: the payloads arrived on 17.10.2026 and have not been landed or built yet. |
 | `curated/sample/` | **absent**, so `dbt build` from a clean clone does not run |
 | Load-shifting decision model | **not started** — the question the project exists to answer |
 | Quarto report, GitHub Pages | **not started** |
@@ -88,7 +91,7 @@ Named here rather than left for a reader to discover.
 
 What *is* built: ingestion with a redacting manifest, run for A44 and SMARD;
 the A75 parser with its four traps, tested on fixtures including both
-daylight-saving transition days; the A44 price parser with the fifth, run on
+daylight-saving transition days and run on the real 2025 pulls for DE-LU and FR; the A44 price parser with the fifth, run on
 the real 2025 payload; the raw parquet landing; Monte Carlo uncertainty with
 the sensitivity shares; the stage checkpoints; and CI across Python 3.11 and
 3.14.
@@ -114,7 +117,9 @@ and shared with the Sentinel-2 biomass MRV and German data-role market projects.
 | IPCC AR5 WG3 Annex III | Lifecycle emission factors with published ranges | `config/ipcc_ar5_factors.csv` |
 
 A fetcher exists for each ENTSO-E and SMARD row above. The A44 and SMARD
-fetchers have been run (6 October 2026); A75 and A65 have not. Cross-border
+fetchers ran on 6 October 2026, the A75 fetcher on 17 October 2026 (DE-LU and
+FR, 2025); A65 has not run. Each yearly request covers the zone's local
+calendar year, so consecutive years meet at local midnight. Cross-border
 flows (A11), DWD temperature and EEA verified emissions are candidates for
 later work and have no fetcher, so they are not listed as sources.
 
@@ -156,6 +161,30 @@ raw file: that is stable across retrievals and moves only when the numbers do.
 The file hash is still worth recording. It answers a different and narrower
 question — whether the bytes on this disk are the bytes that arrived — which is
 what a provenance record is for.
+
+### Missing data in the 2025 generation pulls
+
+The A75 pulls of 17 October 2026 are not complete, and the coverage check says
+so rather than smoothing it over (`check_stage3_coverage` in
+`src/checks/validate.py`):
+
+- **France's hard coal (B05) and battery storage (B25) series are present
+  only intermittently.** Coal is absent on 307 days of 2025 and storage on 121;
+  when coal is present, its median is 524 MW, the output of running plants.
+  These two series are read as published only while units run, so a missing
+  quarter-hour counts as zero output. That assumption is declared per zone in
+  `config/zones.yml`.
+- **Every other gap is a recorded source gap,** listed with its size in
+  `config/source_gaps.csv`: 37 quarter-hours in DE-LU (one quarter-hour on
+  9 July across seven fuels, the rest in hydro reservoir and waste) and 531 in
+  France (two publication outages across eleven series, the rest mostly
+  offshore wind). They are not filled in. A timestamp that is missing a fuel
+  will be marked incomplete when the intensity is computed.
+- The check fails on any gap that is neither declared nor recorded, including a
+  recorded one whose size changes in a later pull.
+
+Battery storage (B25) is unpriced, like pumped storage (B10): its emissions
+belong to whatever charged it.
 
 ## What is non-obvious in this data
 
@@ -267,10 +296,10 @@ supplies 3% of the energy, 23% of the variance and 13% of the interval width.
 
 ## Tests
 
-`pytest` — 101 tests, all green: 84 test functions, some parametrised. Four
+`pytest` — 111 tests, all green: 92 test functions, some parametrised. Four
 of them read the real 7.5 MB A44 payload and **skip in CI**, because `raw/*` is
-gitignored; CI therefore reports 97 passed, 4 skipped, and a local run with
-`raw/` populated reports 101 passed.
+gitignored; CI therefore reports 107 passed, 4 skipped, and a local run with
+`raw/` populated reports 111 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
@@ -284,8 +313,8 @@ broken reference fails at push time rather than at build time.
 | `src/transform/test_prices_parse.py` | 21 | Trap 5 and the A44 parser, including 4 transition-day cases and the 4 real-payload checks |
 | `src/transform/test_dst.py` | 13 | Daylight-saving arithmetic of the validation calendar, `validate.expected_steps` |
 | `src/transform/test_intensity.py` | 29 | The uncertainty propagation, the factor handling and the sensitivity shares |
-| `src/checks/test_validate.py` | 6 | The stage checkpoints |
-| `src/ingest/test_entsoe_client.py` | 3 | Token redaction in exceptions and the manifest |
+| `src/checks/test_validate.py` | 10 | The stage checkpoints, including whole missing days and the coverage policy |
+| `src/ingest/test_entsoe_client.py` | 9 | Token redaction in exceptions and the manifest; yearly requests that cover the local year |
 | `src/ingest/test_raw_store.py` | 12 | `raw/` is append-only: a failed pull never replaces data, every retrieval is kept, the smoke scripts report the status they actually got |
 | `src/transform/test_xml_to_parquet.py` | 1 | The landing reads only the newest accepted retrieval of each year |
 
