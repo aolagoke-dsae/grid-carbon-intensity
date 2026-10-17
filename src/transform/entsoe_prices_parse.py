@@ -11,9 +11,11 @@ different namespace, and four of its field names differ from A75:
     quantity_Measure_Unit.name         price_Measure_Unit.name + currency_Unit.name
     MktPSRType/psrType                 (absent - prices have no fuel)
 
-Pointing the A75 parser at an A44 payload therefore does not raise. It returns
-zero rows, because findall() on the wrong namespace matches nothing. A silent
-empty frame is the failure mode this module exists to prevent.
+Until 17.10.2026, pointing the A75 parser at an A44 payload did not raise: it
+returned zero rows, because findall() on the wrong namespace matches nothing. A
+silent empty frame is the failure mode this module exists to prevent. Both
+parsers now check the document before reading it and refuse an Acknowledgement,
+a document of the wrong kind or one without TimeSeries (audit A13).
 
 TRAP 5, the one that is specific to A44 and the reason this parser carries a
 field the others do not:
@@ -91,17 +93,39 @@ def _ns_of(root) -> dict:
     return {"g": uri}
 
 
+def _check_document(root, ns: dict) -> None:
+    """Refuse anything that is not a publication document.
+
+    ENTSO-E answers a query it cannot serve with HTTP 200 and an
+    Acknowledgement_MarketDocument, which has no TimeSeries; this parser used
+    to return [] for it.
+    """
+    local = root.tag.rsplit("}", 1)[-1]
+    if local == "Acknowledgement_MarketDocument":
+        reason = root.findtext("g:Reason/g:text", default="", namespaces=ns).strip()
+        raise ValueError(
+            "an Acknowledgement document, not data: " + (reason or "no reason stated")
+        )
+    if local != "Publication_MarketDocument":
+        raise ValueError(
+            f"parse_prices reads A44 Publication_MarketDocument; got {local}. "
+            "A75 generation belongs in entsoe_parse.parse()."
+        )
+
+
 def parse_prices(xml_text: str) -> list[dict]:
     """A44 XML -> one row per expanded step.
 
     Expansion follows the A75 parser: curveType A03 is a step curve whose
-    omitted positions repeat the last stated value, and a dense A01 expands the
-    same way, so both are handled by one loop.
+    omitted positions repeat the last stated value. A01 states every position,
+    so a missing one stays None rather than being carried forward (audit A6).
+    Any other curve type is refused.
     """
     # strip anything a browser extension injected before parsing
     xml_text = re.sub(r"<script[^>]*/>|<script.*?</script>", "", xml_text, flags=re.S)
     root = ET.fromstring(xml_text)
     ns = _ns_of(root)
+    _check_document(root, ns)
 
     doc_type = root.findtext("g:type", default=None, namespaces=ns)
     if doc_type and doc_type != "A44":
@@ -111,8 +135,12 @@ def parse_prices(xml_text: str) -> list[dict]:
         )
     revision = root.findtext("g:revisionNumber", default=None, namespaces=ns)
 
+    series_elements = root.findall("g:TimeSeries", ns)
+    if not series_elements:
+        raise ValueError("an A44 document with no TimeSeries: nothing to parse")
+
     rows: list[dict] = []
-    for ts in root.findall("g:TimeSeries", ns):
+    for ts in series_elements:
         series_mrid = ts.findtext("g:mRID", default=None, namespaces=ns)
         in_z = ts.findtext("g:in_Domain.mRID", default=None, namespaces=ns)
         out_z = ts.findtext("g:out_Domain.mRID", default=None, namespaces=ns)
@@ -131,6 +159,11 @@ def parse_prices(xml_text: str) -> list[dict]:
         classification_sequence = int(cs_raw) if cs_raw is not None else None
 
         curve = ts.findtext("g:curveType", default=None, namespaces=ns)
+        if curve not in ("A01", "A03"):
+            raise ValueError(
+                f"TimeSeries {series_mrid}: curveType {curve!r} is neither A01 nor "
+                "A03; how its omitted positions read is unknown, so it is not guessed"
+            )
         currency = ts.findtext("g:currency_Unit.name", default=None, namespaces=ns)
         unit = ts.findtext("g:price_Measure_Unit.name", default=None, namespaces=ns)
         auction = ts.findtext("g:auction.type", default=None, namespaces=ns)
@@ -157,21 +190,25 @@ def parse_prices(xml_text: str) -> list[dict]:
                 for p in per.findall("g:Point", ns)
             }
 
-            # A step curve has nothing to carry forward from before its first
-            # point. Starting the series late would shift every timestamp in
-            # it, so refuse instead.
-            if 1 not in pts:
-                raise ValueError(
-                    f"TimeSeries {series_mrid} {start:%Y-%m-%d}: no point at "
-                    "position 1; a curveType A03 series cannot be expanded "
-                    "from a gap"
-                )
-
-            last, series = None, []
-            for pos in range(1, n_steps + 1):
-                if pos in pts:
-                    last = pts[pos]
-                series.append((pos, last))
+            if curve == "A03":
+                # A step curve has nothing to carry forward from before its
+                # first point. Starting the series late would shift every
+                # timestamp in it, so refuse instead.
+                if 1 not in pts:
+                    raise ValueError(
+                        f"TimeSeries {series_mrid} {start:%Y-%m-%d}: no point at "
+                        "position 1; a curveType A03 series cannot be expanded "
+                        "from a gap"
+                    )
+                last, series = None, []
+                for pos in range(1, n_steps + 1):
+                    if pos in pts:
+                        last = pts[pos]
+                    series.append((pos, last))
+            else:
+                # A01: every position is stated, so a missing one is a missing
+                # price. A carried-forward price would be an invented one.
+                series = [(pos, pts.get(pos)) for pos in range(1, n_steps + 1)]
 
             for pos, price in series:
                 rows.append(

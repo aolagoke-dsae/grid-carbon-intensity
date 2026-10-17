@@ -42,6 +42,7 @@ def _series(
     resolution: str = "PT60M",
     in_z: str = ZONE,
     out_z: str = ZONE,
+    curve: str = "A03",
 ) -> str:
     cs_el = f"<{CS_FIELD}>{cs}</{CS_FIELD}>" if cs is not None else ""
     return (
@@ -52,7 +53,7 @@ def _series(
         f"<contract_MarketAgreement.type>A01</contract_MarketAgreement.type>"
         f"<currency_Unit.name>EUR</currency_Unit.name>"
         f"<price_Measure_Unit.name>MWH</price_Measure_Unit.name>"
-        f"{cs_el}<curveType>A03</curveType>"
+        f"{cs_el}<curveType>{curve}</curveType>"
         f"<Period><timeInterval><start>{start}</start><end>{end}</end></timeInterval>"
         f"<resolution>{resolution}</resolution>{points}</Period></TimeSeries>"
     )
@@ -113,16 +114,36 @@ def test_a_single_curve_zone_yields_none_not_a_defaulted_one():
 # Why this module exists at all
 # --------------------------------------------------------------------------
 
-def test_the_a75_parser_returns_silence_on_an_a44_payload():
+def test_the_a75_parser_refuses_an_a44_payload():
     """Prevents: reusing entsoe_parse.parse() for prices and getting zero rows.
 
-    Different namespace, so findall() matches nothing. No exception, no warning,
-    an empty frame -- and an empty frame looks like 'no data for that day'.
-    This is the failure that made a separate parser necessary.
+    Different namespace, so findall() matches nothing. Until 17.10.2026 that
+    meant no exception, no warning, an empty frame -- and an empty frame looks
+    like 'no data for that day'. That silence is what made a separate parser
+    necessary. The A75 parser now checks the document first (audit A13).
     """
     xml = _doc(_series("1", "1", _pt(1, 42.0)))
-    assert parse_generation(xml) == []
+    with pytest.raises(ValueError, match="GL_MarketDocument"):
+        parse_generation(xml)
     assert len(parse_prices(xml)) == 24
+
+
+ACK = """<?xml version="1.0" encoding="UTF-8"?>
+<Acknowledgement_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-1:acknowledgementdocument:7:0">
+<mRID>4f1c</mRID><createdDateTime>2026-10-17T21:00:00Z</createdDateTime>
+<Reason><code>999</code><text>No matching data found for Data item DAY_AHEAD_PRICES [12.1.D]</text></Reason>
+</Acknowledgement_MarketDocument>"""
+
+
+def test_an_acknowledgement_is_refused_with_its_reason():
+    """Prevents: a rejected query returning [] -- the silent empty frame (audit A13)."""
+    with pytest.raises(ValueError, match="Acknowledgement.*No matching data found"):
+        parse_prices(ACK)
+
+
+def test_a_document_without_timeseries_is_refused():
+    with pytest.raises(ValueError, match="no TimeSeries"):
+        parse_prices(_doc(""))
 
 
 def test_price_amount_is_read_not_quantity():
@@ -171,6 +192,22 @@ def test_a03_omitted_positions_carry_the_last_value_forward():
     assert [r["price_eur_mwh"] for r in rows[19:24]] == [30.0] * 5
     assert rows[0]["n_points_stated"] == 3
     assert rows[0]["n_steps_expanded"] == 24
+
+
+def test_a01_missing_positions_are_not_carried_forward():
+    """Prevents: a missing A01 price being filled with the previous one (audit A6).
+
+    A01 states every position. A carried-forward price would be an invented one.
+    """
+    rows = parse_prices(
+        _doc(_series("1", "1", _pt(1, 10.0) + _pt(3, 30.0), end="2025-06-02T01:00Z", curve="A01"))
+    )
+    assert [r["price_eur_mwh"] for r in rows] == [10.0, None, 30.0]
+
+
+def test_an_unknown_curve_type_is_refused():
+    with pytest.raises(ValueError, match="curveType 'A02'"):
+        parse_prices(_doc(_series("1", "1", _pt(1, 10.0), curve="A02")))
 
 
 def test_a_gap_at_position_one_is_refused_not_silently_shifted():
