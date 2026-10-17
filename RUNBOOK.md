@@ -160,6 +160,10 @@ print(row)
 - The new file in `raw/A75/10Y1001A1001A82H/2025/` is **more than 1 MB**
 - Its `raw/manifest.csv` row has `http_status` 200, `rejected` 0 and a `revision`
 - The `url` column contains `***REDACTED***` and not your token
+- The first step is local midnight: for DE-LU 2025, 2024-12-31 23:00 UTC, and
+  the last is 2025-12-31 22:45 UTC. Until 17 October 2026 the client asked for
+  a UTC year, which cut the first hour off local 1 January (audit A5); the
+  coverage check in Stage 3 flagged it as 92 of 96 steps
 - Re-run it. The `sha256` WILL differ, and that is not a defect: ENTSO-E stamps every response with a fresh `mRID` and `createdDateTime`, so the manifest hash identifies the retrieval, not the data. Measured on 06.10.2026: two pulls of the identical query, 7,544,161 bytes both times, different hashes. What must be identical is the byte count and the point count; what signals an upstream revision is `revisionNumber`. See the README's provenance section.
 
 **If it fails:** a row with `rejected` 1 points into the `_failed/` folder, and
@@ -204,8 +208,9 @@ print(check_stage2_direction(rows))
 
 ## Stage 3 — Backfill and coverage
 
-**Needs:** Stage 2. Five zones × six years = **30 requests**, because A75
-permits a one-year range.
+**Needs:** Stage 2. Two zones (DE-LU and FR) × six years = **12 requests**,
+because A75 permits a one-year range. Each request covers one *local* calendar
+year, so consecutive years meet at local midnight and no hour arrives twice.
 
 > Do **not** use documentType 16.1.A. That is per generation *unit* and limited
 > to one day, which turns 30 requests into roughly 11,000.
@@ -217,11 +222,14 @@ from src.ingest.entsoe_client import generation_per_type
 load_dotenv()
 cfg = yaml.safe_load(open("config/zones.yml"))
 for z in cfg["zones"]:
+    if z["key"] not in ("DE_LU", "FR"):      # the analysis covers two zones
+        continue
     for year in range(2021, 2027):
         generation_per_type(z["eic"], year, os.environ["ENTSOE_TOKEN"])
 ```
 
-At 1.5s between calls the whole backfill is **45 seconds**. Verify every EIC in
+The pauses between calls add 18 seconds; the downloads take most of the time,
+since one DE-LU year is about 75 MB. Verify every EIC in
 `config/zones.yml` against the Transparency Platform Area List before trusting it.
 
 **Checkpoint 3**

@@ -1,4 +1,4 @@
-"""Token redaction regression tests.
+"""Token redaction and request-window tests.
 
 The ENTSO-E security token travels in the query string, and requests puts the
 full URL into its exception text. Unredacted, a failed connection printed the
@@ -62,3 +62,47 @@ def test_the_manifest_row_never_carries_the_token(monkeypatch, tmp_path):
 def test_redaction_leaves_text_alone_when_there_is_no_token():
     """Prevents: an empty token splicing the marker between every character."""
     assert C._redact("https://x/api?a=1", "") == "https://x/api?a=1"
+
+
+# --------------------------------------------------------------------------
+# Request windows (audit A5, seen in the first A75 pull on 17.10.2026)
+# --------------------------------------------------------------------------
+def _capture(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(C, "fetch", lambda params, token, out: seen.update(params) or {})
+    return seen
+
+
+@pytest.mark.parametrize(
+    "fn, doc",
+    [(C.generation_per_type, "A75"), (C.day_ahead_prices, "A44"), (C.actual_load, "A65")],
+)
+def test_a_yearly_request_covers_the_local_year_not_the_utc_year(monkeypatch, fn, doc):
+    """Prevents: local 1 January losing its first hour (92 of 96 steps in the
+    first DE-LU pull) and the next year's first hour arriving twice."""
+    seen = _capture(monkeypatch)
+    fn("10Y1001A1001A82H", 2025, TOKEN)
+    assert seen["documentType"] == doc
+    assert (seen["periodStart"], seen["periodEnd"]) == ("202412312300", "202512312300")
+
+
+def test_each_zone_gets_its_own_local_midnight(monkeypatch):
+    """IE-SEM keeps GMT in winter, so its year starts at 00:00 UTC."""
+    seen = _capture(monkeypatch)
+    C.generation_per_type("10Y1001A1001A59C", 2025, TOKEN)
+    assert (seen["periodStart"], seen["periodEnd"]) == ("202501010000", "202601010000")
+
+
+def test_consecutive_years_meet_without_overlapping(monkeypatch):
+    seen = _capture(monkeypatch)
+    C.generation_per_type("10YFR-RTE------C", 2025, TOKEN)
+    end_2025 = seen["periodEnd"]
+    C.generation_per_type("10YFR-RTE------C", 2026, TOKEN)
+    assert seen["periodStart"] == end_2025
+
+
+def test_an_unknown_zone_is_refused_before_any_request(monkeypatch):
+    seen = _capture(monkeypatch)
+    with pytest.raises(ValueError, match="zones.yml"):
+        C.generation_per_type("10YXX-UNKNOWN--1", 2025, TOKEN)
+    assert not seen

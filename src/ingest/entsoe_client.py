@@ -14,10 +14,11 @@ Design notes that matter for the assurance story:
     https://transparencyplatform.zendesk.com/hc/en-us/articles/15854536354964
 """
 from __future__ import annotations
-import hashlib, re, time, urllib.parse, datetime as dt
+import hashlib, re, time, urllib.parse, zoneinfo, datetime as dt
 import xml.etree.ElementTree as ET
 from pathlib import Path
 import requests
+import yaml
 
 try:                        # run as a module from the repository root
     from src.ingest import raw_store
@@ -27,6 +28,7 @@ except ImportError:         # imported with src/ingest on sys.path (pytest)
 BASE = "https://web-api.tp.entsoe.eu/api"
 RAW = Path("raw")
 MANIFEST = RAW / "manifest.csv"
+ZONES = Path(__file__).resolve().parents[2] / "config" / "zones.yml"
 
 # Conservative default. Check the published rate limit before raising it:
 # https://transparencyplatform.zendesk.com/hc/en-us/articles/12783148966036
@@ -36,6 +38,31 @@ MAX_RETRIES = 4
 
 def _fmt(d: dt.date | dt.datetime) -> str:
     return d.strftime("%Y%m%d%H%M")
+
+
+def _zone_tz(zone_eic: str) -> str:
+    """The bidding zone's IANA time zone, from config/zones.yml."""
+    for z in yaml.safe_load(ZONES.read_text(encoding="utf-8"))["zones"]:
+        if z["eic"] == zone_eic:
+            return z["tz"]
+    raise ValueError(f"{zone_eic} is not in config/zones.yml; add it with its time zone first")
+
+
+def _local_year(zone_eic: str, year: int) -> tuple[dt.datetime, dt.datetime]:
+    """UTC bounds of the zone's local calendar year, for periodStart/periodEnd.
+
+    ENTSO-E reads both bounds as UTC and clips the answer to them. A UTC
+    calendar year is not a delivery year: for DE-LU it cut the first hour off
+    local 1 January 2025 (92 of 96 steps) and took the first hour of
+    1 January 2026 -- found in the first A75 pull, 17.10.2026 (audit A5).
+    Consecutive yearly pulls would then hold that hour twice. Local midnight to
+    local midnight, converted to UTC, gives whole delivery days and years that
+    meet without overlapping.
+    """
+    tz = zoneinfo.ZoneInfo(_zone_tz(zone_eic))
+    start = dt.datetime(year, 1, 1, tzinfo=tz).astimezone(dt.timezone.utc)
+    end = dt.datetime(year + 1, 1, 1, tzinfo=tz).astimezone(dt.timezone.utc)
+    return start, end
 
 
 def _redact(text: str, token: str) -> str:
@@ -121,9 +148,8 @@ def fetch(params: dict, token: str, out_path: Path) -> dict:
 
 
 def generation_per_type(zone_eic: str, year: int, token: str) -> dict:
-    """A75 / processType A16, one calendar year (within the documented limit)."""
-    start = dt.datetime(year, 1, 1)
-    end = dt.datetime(year + 1, 1, 1)
+    """A75 / processType A16, one local calendar year (the documented limit)."""
+    start, end = _local_year(zone_eic, year)
     params = {
         "documentType": "A75",
         "processType": "A16",
@@ -136,26 +162,28 @@ def generation_per_type(zone_eic: str, year: int, token: str) -> dict:
 
 
 def day_ahead_prices(zone_eic: str, year: int, token: str) -> dict:
-    """A44, one calendar year."""
+    """A44, one local calendar year."""
+    start, end = _local_year(zone_eic, year)
     params = {
         "documentType": "A44",
         "in_Domain": zone_eic,
         "out_Domain": zone_eic,
-        "periodStart": _fmt(dt.datetime(year, 1, 1)),
-        "periodEnd": _fmt(dt.datetime(year + 1, 1, 1)),
+        "periodStart": _fmt(start),
+        "periodEnd": _fmt(end),
     }
     out = RAW / "A44" / zone_eic / f"{year}.xml"
     return fetch(params, token, out)
 
 
 def actual_load(zone_eic: str, year: int, token: str) -> dict:
-    """A65 / processType A16, one calendar year."""
+    """A65 / processType A16, one local calendar year."""
+    start, end = _local_year(zone_eic, year)
     params = {
         "documentType": "A65",
         "processType": "A16",
         "outBiddingZone_Domain": zone_eic,
-        "periodStart": _fmt(dt.datetime(year, 1, 1)),
-        "periodEnd": _fmt(dt.datetime(year + 1, 1, 1)),
+        "periodStart": _fmt(start),
+        "periodEnd": _fmt(end),
     }
     out = RAW / "A65" / zone_eic / f"{year}.xml"
     return fetch(params, token, out)
