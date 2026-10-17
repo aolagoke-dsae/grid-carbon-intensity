@@ -106,7 +106,9 @@ def test_dtypes_and_naive_utc_timestamps(a75):
     assert str(df["classification_sequence"].dtype) == "Int64"
     assert df["classification_sequence"].isna().all(), "A75 has no curve id"
     assert str(df["position"].dtype) == "int64" and str(df["quantity"].dtype) == "float64"
-    assert str(df["period_start_utc"].dtype) == "datetime64[ns]"
+    # Fixed, not inferred: pandas 2 inferred nanoseconds, pandas 3 microseconds.
+    assert str(df["period_start_utc"].dtype) == "datetime64[us]"
+    assert str(df["period_end_utc"].dtype) == "datetime64[us]"
     assert df["period_start_utc"].iat[0] == pd.Timestamp("2026-08-01 00:00")
 
 

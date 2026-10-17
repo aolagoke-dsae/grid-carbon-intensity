@@ -52,6 +52,11 @@ STORED_NAME = re.compile(r"^\d{8}T\d{6}Z_([0-9a-f]{8})\.xml$")
 
 DTYPES = {
     "classification_sequence": "Int64",   # nullable: None where a zone has one curve
+    # Microseconds, the resolution of DuckDB's TIMESTAMP. Left to inference,
+    # pandas 2 picked nanoseconds and pandas 3 picks microseconds, so the
+    # parquet schema depended on the pandas version installed.
+    "period_start_utc": "datetime64[us]",
+    "period_end_utc": "datetime64[us]",
     "step_hours": "float64",
     "n_steps": "int64",
     "position": "int64",
