@@ -35,7 +35,7 @@ GO
 
 CREATE TABLE dim_production_type (
     prod_type_key        INT IDENTITY PRIMARY KEY,
-    psr_type             CHAR(3)       NOT NULL UNIQUE,   -- B01..B20
+    psr_type             CHAR(3)       NOT NULL UNIQUE,   -- B01..B25
     fuel_name            NVARCHAR(60)  NOT NULL,
     ef_median_g_kwh      DECIMAL(8,2)      NULL,          -- NULL = deliberately unpriced
     ef_min_g_kwh         DECIMAL(8,2)      NULL,

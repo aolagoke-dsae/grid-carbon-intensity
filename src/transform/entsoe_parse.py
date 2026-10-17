@@ -17,7 +17,8 @@ PSR = {  # ENTSO-E PsrType -> readable
  "B04":"Fossil Gas","B05":"Fossil Hard coal","B06":"Fossil Oil","B09":"Geothermal",
  "B10":"Hydro Pumped Storage","B11":"Hydro Run-of-river","B12":"Hydro Water Reservoir",
  "B14":"Nuclear","B15":"Other renewable","B16":"Solar","B17":"Waste",
- "B18":"Wind Offshore","B19":"Wind Onshore","B20":"Other"}
+ "B18":"Wind Offshore","B19":"Wind Onshore","B20":"Other",
+ "B25":"Energy storage"}
 
 def _iso(s):
     """ENTSO-E time interval -> tz-aware UTC datetime.

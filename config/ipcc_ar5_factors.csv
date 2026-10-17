@@ -16,3 +16,4 @@ B17,Waste,,,,unknown,Biogenic/fossil split undisclosed; contested methodology - 
 B18,Wind Offshore,12,8,35,high,IPCC AR5 WG3 Annex III Table A.III.2
 B19,Wind Onshore,11,7,56,high,IPCC AR5 WG3 Annex III Table A.III.2
 B20,Other,,,,unknown,Composition not disclosed by ENTSO-E - REVIEW
+B25,Energy storage,,,,excluded,"Storage, not generation (batteries). Emissions derive from charging mix - handled separately"

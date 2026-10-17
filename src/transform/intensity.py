@@ -16,7 +16,7 @@ For one timestamp, intensity is the energy-weighted mean of the fuel factors:
     I = sum_f (MWh_f * EF_f) / sum_f MWh_f          [gCO2e/kWh]
 
 restricted to fuels that carry a factor. Fuels deliberately left unpriced
-(B10 storage, B15/B17/B20 undisclosed composition) are excluded from BOTH
+(B10 and B25 storage, B15/B17/B20 undisclosed composition) are excluded from BOTH
 sides, and the share of energy that was priced is reported as `coverage_pct`
 so a thin hour is visible rather than silently averaged away.
 

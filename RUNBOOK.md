@@ -262,9 +262,11 @@ dashboard on this data. A supplied training set produces a screenshot nobody cli
 ## Stage 4 — Emission factors and coverage
 
 **Needs:** Stage 3. `config/ipcc_ar5_factors.csv` carries median, min, max, a
-confidence flag and a citation per `psrType`. Four rows are deliberately
-**unpriced**: B10 (storage, not generation), B15 and B20 (composition
-undisclosed by ENTSO-E), B17 (waste, contested biogenic/fossil split). Two more
+confidence flag and a citation per `psrType`. Five rows are deliberately
+**unpriced**: B10 and B25 (pumped and battery storage, not generation), B15 and
+B20 (composition undisclosed by ENTSO-E), B17 (waste, contested biogenic/fossil
+split). B25 joined on 17 October 2026, when the first French A75 pull reported
+battery storage and the stage 4 check failed on a fuel with no row. Two more
 — B03 and B06 — are marked `low` because they are proxies rather than published
 AR5 rows.
 
@@ -380,7 +382,7 @@ every grain, plus four singular tests that encode the domain:
 - `OK` dominates the coverage status; `OK_DST_SPRING_FORWARD` and
   `OK_DST_FALL_BACK` appear once per year per zone; `MISSING_STEPS` and
   `DUPLICATE_STEPS` are zero
-- Unmapped fuels returns only the four deliberately unpriced categories
+- Unmapped fuels returns only the five deliberately unpriced categories
 - **Break one on purpose.** Delete a day from a staging model and confirm the
   coverage test fails loudly. A test you have not seen fail is a test you do
   not know works.
@@ -466,7 +468,7 @@ Tableau module, on this data rather than a supplied training set.
 - README opens with a **screenshot**, not a folder tree
 - `docs/METHODOLOGY.md` written: sources, factor table with citations, the
   A03/DST/direction handling, the sampling-rule decision, the uncertainty
-  method, and the known limitations (no import adjustment yet, four unpriced
+  method, and the known limitations (no import adjustment yet, five unpriced
   fuel categories)
 - Once you have 30+ consecutive green scheduled runs, screenshot the Actions
   history and put it near the top of the README. That image is worth more than

@@ -49,7 +49,7 @@ def test_every_factor_row_carries_a_source(factors):
 
 
 def test_unpriced_fuels_are_flagged_not_missing(factors):
-    for psr in ("B10", "B15", "B17", "B20"):
+    for psr in ("B10", "B15", "B17", "B20", "B25"):
         assert psr in factors, f"{psr} must exist as an explicit row"
         assert not factors[psr].priced, f"{psr} must be deliberately unpriced"
         assert factors[psr].confidence in {"excluded", "unknown"}
