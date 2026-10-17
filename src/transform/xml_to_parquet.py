@@ -14,10 +14,21 @@ be here because it is the only field separating the two complete, disagreeing
 day-ahead price curves a single A44 payload contains. See TRAP 5 in
 entsoe_prices_parse.py. Dropping it is not a simplification - it makes the
 payload unusable downstream.
+
+Both domains are landed, as in_domain_eic and out_domain_eic. A cross-border
+flow (A11) is defined by the pair, and until 17.10.2026 only one of them
+survived (audit A9). zone_eic is the in-domain where there is one, else the
+out-domain: a convenience for the single-zone documents.
+
+Every row carries its provenance: source_file and source_sha256, the SHA-256
+of the stored bytes, which is the key of that retrieval's row in
+raw/manifest.csv (audit B6). land_tree refuses a file whose bytes no longer
+match the digest in its name.
 """
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -33,6 +44,17 @@ CS_FIELD = "classificationSequence_AttributeInstanceComponent.position"
 # Reading only 'quantity' made float(None) raise on every A44 point, which
 # land_tree then printed as "! skipped" and walked past.
 VALUE_ELEMENTS = ("quantity", "price.amount")
+
+# raw_store names every retrieval <UTC time>_<first 8 hex digits of sha256>.
+STORED_NAME = re.compile(r"^\d{8}T\d{6}Z_([0-9a-f]{8})\.xml$")
+
+DTYPES = {
+    "classification_sequence": "Int64",   # nullable: None where a zone has one curve
+    "step_hours": "float64",
+    "n_steps": "int64",
+    "position": "int64",
+    "quantity": "float64",
+}
 
 
 def _iso(s: str) -> dt.datetime:
@@ -75,12 +97,19 @@ def _point_value(pt, ns) -> float:
 
 
 def land(xml_path: Path, out_path: Path | None = None) -> pd.DataFrame:
+    body = xml_path.read_bytes()
+    sha256 = hashlib.sha256(body).hexdigest()
     text = re.sub(
-        r"<script[^>]*/>|<script.*?</script>", "",
-        xml_path.read_text(encoding="utf-8"), flags=re.S,
+        r"<script[^>]*/>|<script.*?</script>", "", body.decode("utf-8"), flags=re.S,
     )
     root = ET.fromstring(text)
     ns = _ns_of(root)
+    if root.tag.endswith("Acknowledgement_MarketDocument"):
+        reason = root.findtext("g:Reason/g:text", default="", namespaces=ns).strip()
+        raise ValueError(
+            f"{xml_path.name}: an Acknowledgement document, not data: "
+            + (reason or "no reason stated")
+        )
     doc_type = root.findtext("g:type", default="", namespaces=ns) or ""
     revision = root.findtext("g:revisionNumber", default=None, namespaces=ns)
     rows = []
@@ -100,13 +129,14 @@ def land(xml_path: Path, out_path: Path | None = None) -> pd.DataFrame:
             direction = "consumption"
         else:
             direction = None
-        zone_el = inz if inz is not None else outz
-        if zone_el is None:
-            # A44/A11 name the domains without the BiddingZone_ prefix.
-            zone_el = ts.find("g:in_Domain.mRID", ns)
-        if zone_el is None:
-            zone_el = ts.find("g:out_Domain.mRID", ns)
-        zone = zone_el.text if zone_el is not None else None
+        # A44 and A11 name their domains without the BiddingZone_ prefix.
+        # Both are kept: an A11 flow runs from out_Domain to in_Domain, and a
+        # single zone column loses the border (audit A9).
+        in_domain = (ts.findtext("g:inBiddingZone_Domain.mRID", default=None, namespaces=ns)
+                     or ts.findtext("g:in_Domain.mRID", default=None, namespaces=ns))
+        out_domain = (ts.findtext("g:outBiddingZone_Domain.mRID", default=None, namespaces=ns)
+                      or ts.findtext("g:out_Domain.mRID", default=None, namespaces=ns))
+        zone = in_domain or out_domain
         curve = ts.findtext("g:curveType", default=None, namespaces=ns)
         # A75 states the unit as quantity_..., A44 as price_... . Keep one
         # column so the raw layer stays document-type agnostic.
@@ -133,7 +163,10 @@ def land(xml_path: Path, out_path: Path | None = None) -> pd.DataFrame:
                     "revision_number": revision,
                     # which retrieval this row came from: raw/ keeps every one
                     "source_file": xml_path.as_posix(),
+                    "source_sha256": sha256,
                     "zone_eic": zone,
+                    "in_domain_eic": in_domain,
+                    "out_domain_eic": out_domain,
                     "psr_type": psr,
                     "direction": direction,
                     "classification_sequence": classification_sequence,
@@ -156,7 +189,7 @@ def land(xml_path: Path, out_path: Path | None = None) -> pd.DataFrame:
             f"{xml_path.name}: parsed 0 points. Root is {root.tag!r}; "
             "check the namespace and the Point value element."
         )
-    df = pd.DataFrame(rows)
+    df = pd.DataFrame(rows).astype(DTYPES)
     # out_path is optional: land_tree concatenates in memory and writes once per
     # document type. It previously passed a scratch '_tmp.parquet' and deleted
     # it afterwards, which wrote and removed one file per payload for nothing.
@@ -183,6 +216,23 @@ def current_payloads(doc_dir: Path) -> list[Path]:
     return [max(files) for _, files in sorted(groups.items())]
 
 
+def _check_stored_name(xml: Path, frame: pd.DataFrame) -> None:
+    """The bytes must still hash to the digest raw_store put in the name.
+
+    A file edited after it was stored, or copied in by hand, would otherwise
+    land under a provenance it no longer has.
+    """
+    m = STORED_NAME.match(xml.name)
+    if m is None:
+        raise ValueError(f"{xml.name}: not a raw_store name (<UTC time>_<sha8>.xml)")
+    digest = frame["source_sha256"].iat[0]
+    if not digest.startswith(m.group(1)):
+        raise ValueError(
+            f"{xml.name}: its bytes hash to {digest[:8]}, not to the digest in its "
+            "name; the file changed after it was stored"
+        )
+
+
 def land_tree(raw_root: Path, parquet_root: Path, strict: bool = True) -> dict:
     """Land the newest accepted retrieval of every raw/<DOCTYPE>/<EIC>/<year>/
     item into raw/parquet/<doctype>.parquet.
@@ -202,7 +252,9 @@ def land_tree(raw_root: Path, parquet_root: Path, strict: bool = True) -> dict:
         xmls = current_payloads(doc_dir)
         for xml in xmls:
             try:
-                frames.append(land(xml))
+                frame = land(xml)
+                _check_stored_name(xml, frame)
+                frames.append(frame)
             except Exception as e:  # noqa: BLE001
                 print(f"  ! {xml}: {e}")
                 failures.append((xml, e))
