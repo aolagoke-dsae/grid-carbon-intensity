@@ -191,14 +191,19 @@ from src.transform.entsoe_parse import parse
 from src.checks.validate import check_stage2_parse, check_stage2_direction
 from pathlib import Path
 newest = sorted(Path("raw/A75/10Y1001A1001A82H/2025").glob("*.xml"))[-1]   # latest retrieval
-rows = parse(newest.read_text(encoding="utf-8"))
+xml = newest.read_text(encoding="utf-8")
+rows = parse(xml)
 print(check_stage2_parse(rows))
-print(check_stage2_direction(rows))
+print(check_stage2_direction(rows, xml))
 ```
 
 **Checkpoint 2**
 
-- Both checks return `True`
+- Both checks return `True`. The direction check reads the XML a second time
+  and compares, per zone, fuel and direction, the steps the elements declare
+  with the rows. Expect consumption legs beyond pumped storage: the 2025 pulls
+  carry B10, B16 and B19 consumption for DE-LU, and B05, B06, B10, B18, B19 and
+  B25 for France
 - Hand-verify one A03 series: pick a `psr` with few stated points and confirm
   the value holds from its position until the next stated one
 - `sum(r["mwh"] for r in rows if r["direction"]=="generation")` for one day
@@ -316,11 +321,21 @@ say so in the README rather than leaving it implied.
 **Checkpoint 5**
 
 ```python
-from src.checks.validate import check_stage5_plausibility
-print(check_stage5_plausibility(values))
+from src.checks.validate import check_stage5_intensity, incomplete_steps, load_coverage_policy
+from src.transform.intensity import deterministic_intensity, energy_by_fuel, load_factors
+factors = load_factors("config/ipcc_ar5_factors.csv")
+sparse, _ = load_coverage_policy()
+partial = incomplete_steps(rows, sparse)        # a series missing: withhold the step
+values = {k: None if k in partial else deterministic_intensity(mix, factors)
+          for k, mix in energy_by_fuel(rows).items()}
+print(check_stage5_intensity(rows, factors, values, sparse))
 ```
 
-- Returns `True`; range roughly **50–700 gCO2e/kWh** for DE-LU across a year
+- Returns `True`. The check recomputes every step from the rows and the median
+  factors, so MWh on one side of the ratio and MW on the other fails, and so
+  does a value reported from a partial mix. Its predecessor bounded the values
+  to 0–1000, which no units error leaves
+- Range roughly **50–700 gCO2e/kWh** for DE-LU across a year
 - Plot one week and look at it. Sunny summer midday low, still winter evening
   high. An inverted shape means a join error.
 - Cross-check a handful of hours against an independent published series

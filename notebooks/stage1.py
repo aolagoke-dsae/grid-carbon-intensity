@@ -88,10 +88,11 @@ print("same data in both pulls:", same, "| revisions:", row["revision"], row2["r
 from src.transform.entsoe_parse import parse
 from src.checks.validate import check_stage2_parse, check_stage2_direction
 
-parsed = parse(xml_path.read_text(encoding="utf-8"))
+xml_text = xml_path.read_text(encoding="utf-8")
+parsed = parse(xml_text)
 print("rows parsed:", len(parsed))
 print(check_stage2_parse(parsed))
-print(check_stage2_direction(parsed))
+print(check_stage2_direction(parsed, xml_text))   # reads the XML a second time
 
 # %% [markdown]
 # Sanity on magnitude: one day of DE-LU generation should land in the low

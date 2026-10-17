@@ -98,8 +98,22 @@ def test_in_bidding_zone_is_classified_as_generation(rows):
 
 def test_direction_check_accepts_a_pump_only_window(rows):
     """Regression: the old check demanded BOTH directions and failed here."""
-    ok, msg = check_stage2_direction(rows)
+    ok, msg = check_stage2_direction(rows, SAMPLE)
     assert ok, msg
+    assert "consumption legs: 10Y1001A1001A82H B10" in msg, msg
+
+
+def test_direction_check_fails_when_pumping_is_counted_as_generation(rows):
+    """The check reads the XML itself, so a mislabelled leg cannot pass.
+    Until 17.10.2026 it accepted any B10 row labelled either way (audit A10)."""
+    relabelled = [{**r, "direction": "generation"} for r in rows]
+    ok, msg = check_stage2_direction(relabelled, SAMPLE)
+    assert not ok and "B10" in msg, msg
+
+
+def test_direction_check_fails_when_the_consumption_leg_is_dropped(rows):
+    ok, msg = check_stage2_direction([r for r in rows if r["direction"] == "generation"], SAMPLE)
+    assert not ok and "B10 consumption" in msg, msg
 
 
 # --------------------------------------------------------------------------

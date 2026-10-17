@@ -2,10 +2,19 @@
 
 The point of these is that you never build stage N+1 on an unproven stage N.
 Run the relevant check, read the message, only then move on.
+
+Each check has a test that makes it fail. A checkpoint that cannot fail is
+worse than none: until 17.10.2026 the stage 2 direction check and the stage 5
+bounds could not (audit A10).
 """
 from __future__ import annotations
 import datetime as dt
+import math
+import re
+import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
+
+RES_HOURS = {"PT15M": 0.25, "PT30M": 0.5, "PT60M": 1.0, "PT1H": 1.0}
 
 # Expected steps in a LOCAL day, by resolution. DST days are the interesting ones.
 def expected_steps(local_date, tz, step_hours: float) -> int:
@@ -42,11 +51,13 @@ def check_stage2_parse(rows) -> tuple[bool, str]:
     # The key must include the period. A yearly payload carries one Period per
     # day, so keying on the series alone compares 365 days of rows against one
     # day's step count and fails on every correct parse. Fixtures are single-
-    # period, which is why the tests never caught it.
+    # period, which is why the tests never caught it. It must include the zone
+    # too: two zones checked together share psr and period, and their rows
+    # were counted against one zone's step count (audit A10).
     per_series = defaultdict(int)
     stated = {}
     for r in rows:
-        k = (r["psr"], r["direction"], r.get("period_start_utc"))
+        k = (r.get("zone"), r["psr"], r["direction"], r.get("period_start_utc"))
         per_series[k] += 1
         stated[k] = r["n_steps_expanded"]
     wrong = {k: v for k, v in per_series.items() if v != stated[k]}
@@ -55,24 +66,60 @@ def check_stage2_parse(rows) -> tuple[bool, str]:
     return True, f"{len(rows)} rows across {len(per_series)} series, all fully expanded"
 
 
-def check_stage2_direction(rows) -> tuple[bool, str]:
-    """Pumped storage must be carried with an explicit direction.
+def _xml_steps(start: str, end: str, resolution: str) -> int:
+    """Steps in one Period, from its interval: 92, 96 or 100 at PT15M."""
+    def utc(s):
+        s = s.strip()
+        return dt.datetime.fromisoformat(s[:-1] + "+00:00" if s.endswith("Z") else s)
+    hours = (utc(end) - utc(start)).total_seconds() / 3600
+    return round(hours / RES_HOURS[resolution])
 
-    Earlier versions demanded BOTH directions be present and failed otherwise.
-    That is wrong for any window in which the unit only pumps (or only
-    generates) -- a common overnight payload -- and it produced a false
-    failure on the very sample in test_parse.py. What actually matters is
-    that every B10 row is classified, so the consumption leg can be excluded
-    from the generation mix rather than silently summed into it.
+
+def check_stage2_direction(rows, xml_text: str) -> tuple[bool, str]:
+    """Does every row carry the direction of the element its series came from?
+
+    Read straight from the XML: a series named by inBiddingZone_Domain is
+    generation, one named by outBiddingZone_Domain is consumption (pumping,
+    battery charging). Per (zone, psr, direction), the steps its Periods
+    declare must equal the parsed rows. A parser that summed a consumption
+    leg into generation, dropped one, or swapped the two fails here.
+
+    Until 17.10.2026 this checked only that B10 rows carried one of the two
+    labels, which the parser could not fail to emit (audit A10). Before that
+    it demanded both directions for B10, which a pump-only window does not
+    have.
     """
-    dirs = {(r["psr"], r["direction"]) for r in rows}
-    if "B10" not in {p for (p, _) in dirs}:
-        return True, "no B10 in this payload (fine)"
-    found = {d for (p, d) in dirs if p == "B10"}
-    unexpected = found - {"generation", "consumption"}
-    if unexpected:
-        return False, f"B10 rows with unclassified direction: {sorted(unexpected)}"
-    return True, f"B10 present and directionally split: {sorted(found)}"
+    root = ET.fromstring(re.sub(r"<script[^>]*/>|<script.*?</script>", "", xml_text, flags=re.S))
+    uri = root.tag[1:].partition("}")[0] if root.tag.startswith("{") else ""
+
+    def q(*names):
+        return "/".join(f"{{{uri}}}{n}" for n in names)
+
+    expected = Counter()
+    for ts in root.findall(q("TimeSeries")):
+        psr = ts.findtext(q("MktPSRType", "psrType"))
+        inz = ts.findtext(q("inBiddingZone_Domain.mRID"))
+        outz = ts.findtext(q("outBiddingZone_Domain.mRID"))
+        if (inz is None) == (outz is None):
+            return False, f"{psr}: a series must name exactly one of in/outBiddingZone_Domain"
+        key = (inz, psr, "generation") if inz is not None else (outz, psr, "consumption")
+        for per in ts.findall(q("Period")):
+            res = per.findtext(q("resolution"))
+            if res not in RES_HOURS:
+                return False, f"{psr}: unknown resolution {res!r} in the XML"
+            expected[key] += _xml_steps(per.findtext(q("timeInterval", "start")),
+                                        per.findtext(q("timeInterval", "end")), res)
+    if not expected:
+        return False, "the XML holds no TimeSeries"
+    got = Counter((r.get("zone"), r["psr"], r["direction"]) for r in rows)
+    if got != expected:
+        diff = {f"{z} {p} {d}": f"{got.get((z, p, d), 0)} rows, XML {expected.get((z, p, d), 0)}"
+                for (z, p, d) in sorted(set(got) | set(expected), key=str)
+                if got.get((z, p, d), 0) != expected.get((z, p, d), 0)}
+        return False, f"rows by direction differ from the XML elements: {diff}"
+    legs = sorted(f"{z} {p}" for (z, p, d) in expected if d == "consumption")
+    return True, (f"{len(expected)} series match the XML by direction; "
+                  f"consumption legs: {', '.join(legs) or 'none'}")
 
 
 def find_gaps(rows, tz: str, sparse=frozenset()) -> tuple[list, int, list, int]:
@@ -189,14 +236,103 @@ def check_stage4_factors(rows, factors: dict) -> tuple[bool, str]:
                   f"{len(unpriced)} deliberately unpriced and flagged: {unpriced}")
 
 
-def check_stage5_plausibility(intensity_g_kwh) -> tuple[bool, str]:
-    """Sanity bounds. Anything outside these means a units or join error."""
-    vals = [v for v in intensity_g_kwh if v is not None]
-    if not vals:
-        return False, "no intensity values"
-    lo, hi = min(vals), max(vals)
-    if lo < 0:
-        return False, f"negative intensity ({lo:.1f}) - check the consumption filter"
-    if hi > 1000:
-        return False, f"intensity {hi:.1f} exceeds the dirtiest single fuel - check MWh weighting"
-    return True, f"range {lo:.0f}-{hi:.0f} gCO2e/kWh across {len(vals)} steps - plausible"
+def incomplete_steps(rows, sparse=frozenset()) -> set:
+    """(zone, ts_utc) steps at which a series the zone publishes is missing.
+
+    A series counts once it appears anywhere in the rows. Series in `sparse`,
+    published only while a unit runs, are exempt, as in stage 3: their absence
+    is zero output. At any other missing series the mix is partial -- a
+    recorded source gap, say -- and an intensity computed from it is biased by
+    whatever is absent, so it is withheld.
+    """
+    present, series = defaultdict(set), defaultdict(set)
+    for r in rows:
+        if r["direction"] != "generation":
+            continue
+        present[(r.get("zone"), r["ts_utc"])].add(r["psr"])
+        series[r.get("zone")].add(r["psr"])
+    need = {z: {p for p in ps if (z, p) not in sparse} for z, ps in series.items()}
+    return {k for k, ps in present.items() if not need[k[0]] <= ps}
+
+
+def check_stage5_intensity(rows, factors: dict, values: dict,
+                           sparse=frozenset(), rel_tol: float = 1e-9) -> tuple[bool, str]:
+    """Is every reported intensity the energy-weighted mean of a complete mix?
+
+    values: {(zone, ts_utc): gCO2e/kWh, or None where withheld}, one entry per
+    generation step of `rows`. The check recomputes each step here, from the
+    rows and the median factors, and fails on
+      - a step without an entry, or an entry without a step;
+      - a reported value at an incomplete step (see incomplete_steps), or a
+        withheld value at a complete step with priced energy;
+      - a value that differs from the recomputed mean: MWh on one side of
+        the ratio and MW on the other, a consumption leg in the mix, a
+        factor other than the median;
+      - negative or missing generation energy, and series at different
+        resolutions sharing a step, where a per-step mix would put a whole
+        hour of energy into one quarter-hour.
+
+    It replaces check_stage5_plausibility. Its 0-1000 bounds could not see a
+    units error: a weighted mean is unchanged when every weight is scaled,
+    and MWh on one side only scales the result by the step length, which at
+    PT15M lands well inside 0-1000 (audit A10).
+    """
+    mixes, steps, bad_energy = defaultdict(dict), defaultdict(set), 0
+    for r in rows:
+        if r["direction"] != "generation":
+            continue
+        if r["mwh"] is None or r["mwh"] < 0:
+            bad_energy += 1
+            continue
+        k = (r.get("zone"), r["ts_utc"])
+        mixes[k][r["psr"]] = mixes[k].get(r["psr"], 0.0) + r["mwh"]
+        steps[k].add(r["step_hours"])
+    problems = []
+    if bad_energy:
+        problems.append(f"{bad_energy} generation rows with negative or missing energy")
+    mixed = sorted(k for k, s in steps.items() if len(s) > 1)
+    if mixed:
+        problems.append(f"{len(mixed)} steps where series of different resolution meet, "
+                        f"first {mixed[0]}; resample before mixing")
+    missing = sorted(set(mixes) - set(values))
+    extra = sorted(set(values) - set(mixes))
+    if missing:
+        problems.append(f"{len(missing)} steps without a value, first {missing[0]}")
+    if extra:
+        problems.append(f"{len(extra)} values for steps the rows do not have, first {extra[0]}")
+
+    partial = incomplete_steps(rows, sparse)
+    reported_partial = sorted(k for k in partial if values.get(k) is not None)
+    if reported_partial:
+        problems.append(f"{len(reported_partial)} values reported from a partial mix, "
+                        f"first {reported_partial[0]}; withhold them")
+    wrong, withheld, priced_tot, energy_tot = [], [], defaultdict(float), defaultdict(float)
+    for k in sorted(set(mixes) & set(values)):
+        mix = mixes[k]
+        priced = {p: e for p, e in mix.items() if p in factors and factors[p].priced}
+        energy_tot[k[0]] += sum(mix.values())
+        priced_tot[k[0]] += sum(priced.values())
+        if k in partial:
+            continue
+        tot = sum(priced.values())
+        want = sum(e * factors[p].median for p, e in priced.items()) / tot if tot > 0 else None
+        got = values[k]
+        if want is None and got is not None:
+            wrong.append((k, got, "no priced energy"))
+        elif want is not None and got is None:
+            withheld.append(k)
+        elif want is not None and not math.isclose(got, want, rel_tol=rel_tol, abs_tol=1e-9):
+            wrong.append((k, got, round(want, 3)))
+    if withheld:
+        problems.append(f"{len(withheld)} complete steps withheld, first {withheld[0]}")
+    if wrong:
+        problems.append(f"{len(wrong)} values differ from the median-factor mean of their mix, "
+                        f"first {wrong[0]} (got, expected)")
+    if problems:
+        return False, "; ".join(problems)
+    shown = [v for v in values.values() if v is not None]
+    share = ", ".join(f"{z} {priced_tot[z] / energy_tot[z]:.1%}" for z in sorted(energy_tot, key=str)
+                      if energy_tot[z] > 0)
+    rng = f"range {min(shown):.0f}-{max(shown):.0f} gCO2e/kWh; " if shown else ""
+    return True, (f"{len(shown)} steps equal the median-factor mean of a complete mix; "
+                  f"{len(partial)} withheld from a partial mix; {rng}priced share of energy: {share}")

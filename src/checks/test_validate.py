@@ -7,11 +7,15 @@ sends you debugging a parser that works.
 """
 import datetime as dt
 
+import pytest
+
 from intensity import Factor
 from validate import (
     check_stage2_parse,
     check_stage3_coverage,
     check_stage4_factors,
+    check_stage5_intensity,
+    incomplete_steps,
     load_coverage_policy,
 )
 
@@ -41,6 +45,15 @@ def test_stage2_accepts_a_series_spanning_many_periods():
     ok, msg = check_stage2_parse(_rows(days=(1, 2, 3)))
     assert ok, msg
     assert "3 series" in msg
+
+
+def test_stage2_does_not_merge_zones():
+    """Two zones checked together share psr and period. Keyed without the
+    zone, both zones' rows were counted against one step count, and a
+    correct parse failed (audit A10)."""
+    ok, msg = check_stage2_parse(_rows(zone="DE", days=(1,)) + _rows(zone="FR", days=(1,)))
+    assert ok, msg
+    assert "2 series" in msg, msg
 
 
 def test_stage2_still_catches_a_short_period():
@@ -120,6 +133,107 @@ def test_stage4_accepts_factor_dataclasses():
     ok, msg = check_stage4_factors(rows, factors)
     assert ok, msg
     assert "B15" in msg
+
+
+# --------------------------------------------------------------------------
+# Stage 5. The old check bounded the values to 0-1000 and could not fail on
+# a units error (audit A10). This one recomputes every step.
+# --------------------------------------------------------------------------
+FACTORS = {
+    "B04": Factor(psr_type="B04", fuel="Gas", median=490, lo=410, hi=650,
+                  confidence="high", source="AR5"),
+    "B19": Factor(psr_type="B19", fuel="Wind Onshore", median=11, lo=7, hi=56,
+                  confidence="high", source="AR5"),
+    "B10": Factor(psr_type="B10", fuel="Hydro Pumped Storage", median=None, lo=None,
+                  hi=None, confidence="excluded", source="storage"),
+}
+
+
+def _mix_rows(steps=4, step_h=0.25, drop=()):
+    """Gas 300 MW, wind 900 MW and pumped storage 50 MW, quarter-hourly.
+    `drop` removes (psr, step) rows to make a step incomplete."""
+    out, start = [], dt.datetime(2026, 1, 5, tzinfo=UTC)
+    for i in range(steps):
+        for psr, mw in (("B04", 300.0), ("B19", 900.0), ("B10", 50.0)):
+            if (psr, i) in drop:
+                continue
+            out.append({"zone": "DE", "psr": psr, "direction": "generation",
+                        "ts_utc": start + dt.timedelta(hours=step_h * i),
+                        "step_hours": step_h, "mw": mw, "mwh": mw * step_h})
+    return out
+
+
+def _values(rows, numerator="mwh", denominator="mwh", skip=frozenset()):
+    """What a pipeline would report: the median-factor mean per step."""
+    num, den = {}, {}
+    for r in rows:
+        k = (r["zone"], r["ts_utc"])
+        f = FACTORS[r["psr"]]
+        if f.priced:
+            num[k] = num.get(k, 0.0) + r[numerator] * f.median
+            den[k] = den.get(k, 0.0) + r[denominator]
+    return {k: None if k in skip else num[k] / den[k] for k in num}
+
+
+def test_stage5_accepts_the_median_factor_mean():
+    """(300 x 490 + 900 x 11) / 1200 = 130.75; storage is 50 of 1250 MW unpriced."""
+    rows = _mix_rows()
+    ok, msg = check_stage5_intensity(rows, FACTORS, _values(rows))
+    assert ok, msg
+    assert "4 steps equal the median-factor mean" in msg and "DE 96.0%" in msg, msg
+
+
+def test_stage5_catches_mwh_on_one_side_of_the_ratio():
+    """MW in the denominator scales every value by the step length. The
+    result, a quarter of the true intensity, stays inside the old 0-1000."""
+    rows = _mix_rows()
+    scaled = _values(rows, denominator="mw")
+    assert all(0 <= v <= 1000 for v in scaled.values())
+    ok, msg = check_stage5_intensity(rows, FACTORS, scaled)
+    assert not ok and "differ from the median-factor mean" in msg, msg
+
+
+def test_stage5_requires_a_partial_mix_to_be_withheld():
+    """Wind missing at one step: the mean of what is left is gas-heavy and wrong."""
+    rows = _mix_rows(drop={("B19", 2)})
+    gap = (("DE", dt.datetime(2026, 1, 5, 0, 30, tzinfo=UTC)),)
+    assert incomplete_steps(rows) == set(gap)
+    ok, msg = check_stage5_intensity(rows, FACTORS, _values(rows))
+    assert not ok and "partial mix" in msg, msg
+    ok, msg = check_stage5_intensity(rows, FACTORS, _values(rows, skip=set(gap)))
+    assert ok and "1 withheld" in msg, msg
+
+
+def test_stage5_exempts_a_series_reported_only_while_running():
+    rows = _mix_rows(drop={("B10", 1)})
+    assert incomplete_steps(rows, sparse={("DE", "B10")}) == set()
+    ok, msg = check_stage5_intensity(rows, FACTORS, _values(rows), sparse={("DE", "B10")})
+    assert ok, msg
+
+
+@pytest.mark.parametrize("change", ["missing", "extra", "withheld"])
+def test_stage5_accounts_for_every_step(change):
+    rows = _mix_rows()
+    values = _values(rows)
+    first = min(values)
+    if change == "missing":
+        del values[first]
+    elif change == "extra":
+        values[("FR", first[1])] = 50.0
+    else:
+        values[first] = None
+    ok, msg = check_stage5_intensity(rows, FACTORS, values)
+    assert not ok, msg
+
+
+def test_stage5_refuses_resolutions_meeting_at_one_step():
+    """An hourly series beside quarter-hours would put an hour of energy into
+    the first quarter-hour of the per-step mix."""
+    rows = _mix_rows(steps=4) + [{"zone": "DE", "psr": "B04", "direction": "generation",
+                                  "ts_utc": dt.datetime(2026, 1, 5, tzinfo=UTC),
+                                  "step_hours": 1.0, "mw": 10.0, "mwh": 10.0}]
+    ok, msg = check_stage5_intensity(rows, FACTORS, _values(rows))
+    assert not ok and "different resolution" in msg, msg
 
 
 def test_stage4_still_fails_on_a_fuel_with_no_row_at_all():
