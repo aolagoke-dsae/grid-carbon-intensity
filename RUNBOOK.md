@@ -1,7 +1,7 @@
 # Project A — Build Runbook
 
 **Grid Carbon Intensity & Load-Shift Optimiser**
-Dr. Adewole Olagoke · started 7 August 2026 · runbook revised 25 September 2026
+Dr. Adewole Olagoke · started 7 August 2026 · runbook revised 17 October 2026
 Gate: Stages 1–8 complete by **26 November 2026** (Abschlussprojekt opens 27.11.)
 Target: Stage 10 public during Modul IV, before **5 January 2027**
 
@@ -10,7 +10,8 @@ The checkpoints exist because every stage here is one where a silent error
 produces plausible-looking numbers rather than a crash.
 
 The stack is defined once in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-and shared with Projects B and C. This runbook is its instantiation for Project A.
+and shared with the Sentinel-2 biomass MRV and the German data-role market
+projects. This runbook is its instantiation for Project A.
 
 ---
 
@@ -18,19 +19,22 @@ and shared with Projects B and C. This runbook is its instantiation for Project 
 
 *Revised 7 October 2026. The table below used to say no git repository, empty
 directories and nothing against the live API. All three were true on
-25 September and none is true now.*
+25 September and none is true now. Updated 17 October 2026: the dbt row said
+"no" while ten models existed, and the ENTSO-E row did not say that only A44
+has been pulled.*
 
 | | Written | Unit-tested | Run against real data |
 |---|---|---|---|
-| Ingestion client (ENTSO-E) | yes | yes | **yes** — two A44 pulls, 06.10.2026 |
+| Ingestion client (ENTSO-E) | yes | token redaction and the append-only raw store, since 10.10. | **A44 only** — two pulls, 06.10.2026; A75 and A65 not yet fetched |
 | Ingestion client (SMARD) | yes | — | **yes** — 06.10.2026 |
-| Parser (A03, direction, DST, MAW) | yes | yes | **not yet** — WE 2, 17./18.10. |
-| Intensity + uncertainty | yes | yes | **not yet** |
+| Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **not yet** — no A75 payload |
+| Parser, A44 prices (trap 5) | yes | yes | **yes** — the 2025 DE-LU payload |
+| Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | **not yet** — needs A75 |
 | Stage checks (2, 3, 4, 5) | yes | yes, since 07.10. | **not yet** |
 | SQL schema + DQ views | yes | — | **not yet** |
-| dbt models | **no** — project and sources only | — | — |
+| dbt models | yes — 10 models, 6 singular tests (1 disabled) | `dbt parse` in CI | `stg_entsoe__prices` and its two tests, 10.10.2026 |
 | CI | yes, `.github/workflows/pipeline.yml` | — | **yes**, green on 3.11 and 3.14 |
-| Version control | yes — public, MIT | — | — |
+| Version control | yes — MIT; public from WE 3, 24./25.10.2026 | — | — |
 
 `raw/` holds one ENTSO-E payload and one SMARD week, both in `manifest.csv`.
 `curated/` is still empty. `docs/` holds ARCHITECTURE.md and RESOURCES.md.
@@ -72,12 +76,13 @@ defaults to 1.5s — that is 40/minute, ten times under the limit. Leave it alon
 | Transformation | **dbt-duckdb** — sources, staging, marts, tests, docs | €0 | none |
 | Orchestration | **GitHub Actions** — free and uncapped on public repos | €0 | none |
 | Publication | **Quarto → GitHub Pages** (static, permanent) | €0 | none |
-| Uncertainty | R + `sensitivity`, locally | €0 | none |
+| Uncertainty | **NumPy**, in `src/transform/intensity.py`, tested in CI | €0 | none |
 | Environment | **VS Code** + dbt / Quarto extensions; `duckdb -ui` to inspect | €0 | none |
-| *Optional* | Azure SQL (free offer) + Power BI `.pbix` — Stage 6b | ~€0 | auto-paused |
+| *Dropped* | Azure SQL (free offer), Stage 6b — see **The gate**. Power BI is built on the exported Parquet instead | €0 | none |
 
 Defined once in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and shared with
-Projects B and C. Tutorials, reference repositories and data sources for each
+the Sentinel-2 biomass MRV and the German data-role market projects. Tutorials,
+reference repositories and data sources for each
 layer are listed in [`docs/RESOURCES.md`](docs/RESOURCES.md), each tagged with
 the stage it belongs to.
 
@@ -90,19 +95,18 @@ the stage it belongs to.
 | 0 | Environment, secrets, git | first commit | €0 | **today** |
 | 1 | First raw pull with manifest | `raw/A75/<eic>/2025/` | €0 | **this weekend** |
 | 2 | Parse: A03, direction, DST, MAW | parsed rows in memory | €0 | w/c 28 Sept |
-| 3 | Backfill and coverage | 5 zones × 6 years in `raw/` | €0 | w/c 5 Oct |
+| 3 | Backfill and coverage | DE-LU and FR × 6 years in `raw/` | €0 | w/c 5 Oct |
 | 4 | Emission factors verified | audited `ipcc_ar5_factors.csv` | €0 | w/c 12–19 Oct |
 | 5 | Deterministic intensity | a defensible number | €0 | by 1 Nov |
 | 6 | DuckDB warehouse + dbt | tested marts, lineage docs | €0 | w/c 2 Nov |
 | 7 | Quality gate | dbt tests + DQ views green | €0 | w/c 16 Nov |
-| 8 | Monte Carlo and Sobol | 90% interval + drivers | €0 | w/c 30 Nov |
+| 8 | Monte Carlo and Sobol | 90% interval + drivers | €0 | w/c 23 Nov |
 | 9 | Orchestration (GitHub Actions) | unattended daily runs | €0 | w/c 7 Dec |
 | 10 | Publication (Quarto → Pages) | public URL + methodology | €0 | by 19 Dec |
-| 6b | *Optional* Azure + Power BI excursion | `.pbix`, `.bacpac`, screenshots | ~€0 | one week, any time after 7 |
+| 6b | *Dropped:* Azure excursion | — | — | see **The gate** |
 
-**Stages 0–9 are local and free.** Azure is now an optional, bounded excursion
-(Stage 6b), not the spine of the project. You have a subscription, which makes
-provisioning easy to do early and expensive to do early. Do not.
+**Stages 0–9 are local and free.** The Azure excursion (Stage 6b) was dropped
+in October 2026; its procedure is kept below for reference.
 
 ---
 
@@ -124,8 +128,8 @@ git init && git add . && git commit -m "scaffold: ingestion, parser, intensity, 
 python3 -c "from dotenv import load_dotenv; import os; load_dotenv(); \
 t=os.getenv('ENTSOE_TOKEN'); print('token loaded:', bool(t), '| length:', len(t or ''))"
 git status --porcelain | grep -c '\.env$'    # must print 0
-pytest -q                                     # 86 tests (73 functions), all green
-                                              # (82 + 4 skipped where raw/ is absent)
+pytest -q                                     # 101 tests (84 functions), all green
+                                              # (97 + 4 skipped where raw/ is absent)
 ```
 
 - Token loads, and `.env` does **not** appear in git status
@@ -133,7 +137,8 @@ pytest -q                                     # 86 tests (73 functions), all gre
   runs on fixtures, which is why they were written that way.
 
 **What it unlocks:** a real repository at `github.com/aolagoke-dsae`. Push it.
-Right now that profile holds one tutorial repo and this holds 1,354 lines.
+Since 6 October 2026 the profile holds the public EUDR validator; this
+repository joins it at WE 3.
 
 ---
 
@@ -377,27 +382,32 @@ every grain, plus four singular tests that encode the domain:
 ## Stage 8 — Monte Carlo and Sobol
 
 **Needs:** Stage 7. **Cost: €0.** 10,000 draws per step, sampling each fuel's
-factor across its published range. Do this in **R** (`sensitivity`) — it is
-where you are strongest, and it reads as statistical seriousness.
+factor across its published range. The propagation and the first-order shares
+already exist in NumPy (`src/transform/intensity.py`) and run in CI with
+everything else. What this stage adds is the Sobol analysis of the saving
+itself, where load, price and intensity interact.
 
-The sampling rule is already implemented and worth stating in interviews.
-Three-point information normally implies a **triangular** distribution. That is
-wrong for hydropower: AR5 gives 1 / 24 / 2200 gCO₂e/kWh, where 2200 comes from a
-few tropical reservoir studies. A triangular over that range has its median near
-**653** — dirtier than gas — because the mode sits at the 1st percentile. So any
-fuel whose maximum exceeds its median by more than 10× is fitted to a
-**lognormal** keeping the published median and treating the published maximum as
-the 95th percentile. The heavy tail survives; the central estimate does not move.
-`describe_sampling()` reports which rule fired for which fuel and why.
+The sampling rule is implemented and worth stating in interviews. AR5 gives
+min / median / max per fuel, and most bands reach much further above the median
+than below it (nuclear 3.7 / 12 / 110, hydropower 1 / 24 / 2200). Each factor
+is sampled from a **two-piece lognormal**: the published median stays the
+median, min and max sit at the 2.5th and 97.5th percentiles, and every draw
+stays inside the band. A triangular with the median as its mode — the default
+until 17 October 2026 — moves the median of a skewed band (nuclear's to 37.7)
+and pushed the deterministic point outside its interval on nuclear-heavy mixes.
+`describe_sampling()` lists the fitted spreads per fuel.
 
 **Checkpoint 8**
 
-- The Stage 5 deterministic median falls **inside** the resulting 90% interval.
-  If it does not, the sampling is biased.
+- The deterministic point (every fuel at its median factor) falls **inside**
+  the resulting 90% interval. If it does not, the sampling is biased.
 - Re-run with 20,000 draws: interval bounds move less than 1%. That is
   convergence and you should be able to state it.
-- Sobol indices sum to approximately 1 and name a dominant driver. For DE-LU
-  expect lignite and hard coal — largest volumes and widest published ranges.
+- Sobol indices sum to approximately 1 and name a dominant driver. Do not
+  expect it to be coal: coal's AR5 band (740–910) is the narrowest of any fuel.
+  A fuel's share grows with its energy share squared and with its band's
+  spread, so gas, biomass or even a small hydro share can lead. Read the width
+  share beside the variance share before naming the driver.
 
 ---
 
@@ -406,7 +416,8 @@ the 95th percentile. The heavy tail survives; the central estimate does not move
 **Needs:** Stage 8. **Cost: €0** — Actions is free with no minute cap on public
 repositories using standard runners.
 
-Two workflows:
+Today `pipeline.yml` runs `pytest` on Python 3.11 and 3.14 and `dbt parse`, on
+every push and weekly. This stage turns it into two workflows:
 
 - **`ci.yml`** — on every pull request: `pytest`, then `dbt build`. The green
   check on the repository page is evidence nobody can fabricate.
@@ -455,7 +466,10 @@ Tableau module, on this data rather than a supplied training set.
 
 ---
 
-## Stage 6b — Optional: Azure and Power BI excursion
+## Stage 6b — Azure and Power BI excursion (dropped)
+
+*Dropped from the capstone in October 2026 — see **The gate**. Kept as the
+procedure if it is ever run; Power BI is built on the exported Parquet instead.*
 
 **Needs:** Stage 7. **Bounded to about one week. Run once, then stop.**
 
@@ -464,9 +478,10 @@ making Azure the spine of the project.
 
 1. **Set the €30 budget alert first**, while the subscription is still empty.
 2. Create the database under the **Azure SQL Database free offer**: free for the
-   lifetime of the subscription, 100,000 vCore-seconds and 32 GB a month. Set
-   **"Behavior when free limit reached" to auto-pause** — that choice **cannot
-   be reverted**.
+   lifetime of the subscription, 100,000 vCore-seconds and 32 GB a month. Leave
+   **"Behavior when free limit reached" on auto-pause**, the default. The other
+   option, *Continue using database for additional charges*, is the one that
+   **cannot be reverted** to auto-pause (Microsoft Learn, checked 17.10.2026).
 3. Do **not** use the 12-month free-services tier. It expires around September
    2027 and then bills silently rather than pausing.
 4. Add `azuresql` as a second dbt target. Run `sql/01_schema.sql`, load, run
@@ -492,7 +507,9 @@ semantic model committed as `.pbix`.*
 ## Schedule against the Maßnahmebogen
 
 Course blocks are taken from the Maßnahmebogen. The right-hand column is what
-exists in the repository at the end of that block.
+exists in the repository at the end of that block. Where the curriculum, which
+is what is actually taught, differs from the Maßnahmebogen, the curriculum
+governs: Modul IV runs 14.12.2026–06.01.2027.
 
 | Dates | Course block | UE | Runbook work |
 |---|---|---|---|
@@ -504,7 +521,7 @@ exists in the repository at the end of that block.
 | 16.11.–17.11. | Allgemeine Themen | 18 | **Stage 7.** README, lineage screenshot, `BENCHMARKS.md`. |
 | 18.11.–20.11. | Nachhaltigkeit in der IT | 27 | The marginal-versus-average intensity section. This is the limitation an experienced interviewer opens first. |
 | 23.11.–26.11. | Praxistage | 36 | **Stage 8.** Monte Carlo and Sobol, reproducible with a fixed seed. |
-| **27.11.–04.12.** | **Abschlussprojekt** | 54 | Consolidation, submission, presentation. Eight working days. The capstone must already be built when this opens. |
+| **27.11.–04.12.** | **Abschlussprojekt** | 54 | Consolidation, submission, presentation. Six working days. The capstone must already be built when this opens. |
 | **05.12.–05.01.** | **Modul IV** | 135 | PSM I and **Praktikumsgespräche**. Stages 9–10 fit in the margin. |
 
 ### The gate
@@ -519,9 +536,6 @@ Modul IV alongside PSM I and the placement interviews. Budget for that
 now rather than discovering it in December.
 
 **DP-600 and the Azure excursion are dropped.** Fabric requires a work or school tenant, and the certification targets platform operations rather than inference. The hours go to the causal module and the GenAI extraction artifact instead.
-and Azure hands-on regardless, so the Azure excursion and the exam practice are
-the same hours pointed at two outputs — the same trick that makes the Python
-module carry Stages 1–3.
 
 ### Why 26 November is earlier than it looks
 

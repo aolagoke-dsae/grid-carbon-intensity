@@ -1,6 +1,6 @@
 # Resources
 
-Dr. Adewole Olagoke · 25 September 2026
+Dr. Adewole Olagoke · 25 September 2026 · revised 17 October 2026
 
 Companion to [`ARCHITECTURE.md`](ARCHITECTURE.md) and `RUNBOOK.md`.
 
@@ -55,7 +55,7 @@ Study how these are *organised*. Do not copy their content.
 | [Transparency Platform area list](https://transparencyplatform.zendesk.com/hc/en-us/articles/15885757676308) | Verify every EIC in `config/zones.yml` against this before trusting it. |
 | [EnergieID/entsoe-py](https://github.com/EnergieID/entsoe-py) | **Do not switch to it.** See the note below. Use it as an independent cross-check. |
 | IPCC AR5 WG3 Annex III, Table A.III.2 | The factor source. Stage 4 requires verifying every row of `config/ipcc_ar5_factors.csv` against it by hand. |
-| Electricity Maps (free tier) | Independent published intensity series for the Stage 5 cross-check. Expect a few percent difference; lifecycle versus combustion factors. |
+| Electricity Maps (free tier) | Independent published intensity series for the Stage 5 cross-check. Its default figures are life-cycle intensities of the consumed, flow-traced mix, so expect differences from imports and from the factor sets, not from lifecycle versus combustion. |
 | SMARD (Bundesnetzagentur) | German generation and load, as a second opinion when ENTSO-E looks wrong. |
 
 ### The entsoe-py question, and how to answer it
@@ -169,10 +169,11 @@ The distinction matters and is worth being able to state in an interview:
   a stranger with `git clone`, and cost nothing to keep online. Those are the
   properties being demonstrated.
 
-Choosing a heavier platform for a five-zone, few-million-row dataset would
-demonstrate the opposite of judgement. Stage 6b exists so the Microsoft-stack
-evidence is present without the architecture depending on it.
+Choosing a heavier platform for a two-zone, few-million-row dataset would
+demonstrate the opposite of judgement. Power BI on the exported Parquet carries
+the Microsoft-stack evidence without the architecture depending on it; the
+Azure excursion (Stage 6b) was dropped in October 2026.
 
 What stays off the list: generic "data analyst portfolio" roundups. Your
 differentiator is a domain nobody else in the cohort has and a parser handling
-four documented pathologies. Generic portfolio advice pulls the other way.
+five documented pathologies. Generic portfolio advice pulls the other way.

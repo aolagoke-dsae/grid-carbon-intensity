@@ -41,13 +41,18 @@ shift, and the two can differ substantially.
 Open-access end to end, by design. Python ingestion → immutable raw layer with a
 SHA-256 manifest → Parquet → **DuckDB** warehouse → **dbt** (sources, staging,
 intermediate, marts, tests, lineage), with **GitHub Actions** for CI and a
-**Quarto** report to follow. Uncertainty propagation and the sensitivity index
+**Quarto** report to follow. Uncertainty propagation and the sensitivity shares
 are plain Python — NumPy, no modelling framework — in
 `src/transform/intensity.py`.
 
-The ingestion, parsing, uncertainty and CI layers are written, tested and
-running. The dbt models and the report are specified in `RUNBOOK.md` and not
-yet built — the Layout and **What is not built** mark which is which.
+What has run on real data and what has run only on test fixtures is kept
+apart throughout. The ingestion clients, both parsers, the uncertainty module
+and CI are written and unit-tested. Of the live sources, ENTSO-E day-ahead
+prices (A44) and SMARD have been pulled and landed; generation (A75) and load
+(A65) have not been fetched yet, so everything that depends on them has run
+only on fixtures. The dbt project has 10 models, and `stg_entsoe__prices` with
+its two tests has run on the real A44 payload. The report is not started.
+**What is not built** has the detail.
 
 The acceptance criterion that governs the whole build: **the deterministic
 point estimate must fall inside the sampled 90% interval.** The deterministic
@@ -59,6 +64,12 @@ is published.
 > Corrected 7 October 2026. The test behind this criterion used to compare the
 > sampled median against the sampled percentiles, which is true by definition
 > and could never fail. The headline control was vacuous for seven weeks.
+>
+> Corrected 17 October 2026. Once the test was real, it held for coal- and
+> gas-heavy mixes and failed for nuclear-heavy French ones, because the sampler
+> moved the median of every skewed factor band. The sampler now keeps each
+> published median, and the criterion holds on all of 729 French-like test
+> mixes (see **The interval is the deliverable**).
 
 ## What is not built
 
@@ -70,15 +81,17 @@ Named here rather than left for a reader to discover.
 | `curated/sample/` | **absent**, so `dbt build` from a clean clone does not run |
 | Load-shifting decision model | **not started** — the question the project exists to answer |
 | Quarto report, GitHub Pages | **not started** |
-| Power BI / Azure portability excursion | **not started**; no `.pbix` or `.bacpac` exists |
-| Global (Sobol) sensitivity | **not built**. What exists is a first-order index, `variance_contribution()` |
+| Power BI dashboard | **not started**; it will read the exported Parquet. The Azure portability excursion was dropped in October 2026 |
+| Sobol sensitivity of the saving | **not built**. For the intensity alone, `variance_contribution()` reports first-order variance shares — for this linear model, its first-order Sobol indices — and each fuel's share of the 90% interval width |
 | Cross-border flow (A11) import adjustment | **not built**; intensity is average, not marginal |
 | Trap 5, the two competing A44 price curves | **handled** 08.10.2026 — `entsoe_prices_parse.py`, `xml_to_parquet.py` and the curve filter in `stg_entsoe__prices.sql`. What stays open is *which* curve is authoritative: that needs SMARD filter 4169 for the 2025 weeks, which has not been pulled |
 
-What *is* built and running: ingestion with a redacting manifest, the A75
-parser with its four traps, the A44 price parser with the fifth, the raw
-parquet landing, Monte Carlo uncertainty with the first-order index, the stage
-checkpoints, and CI across Python 3.11 and 3.14.
+What *is* built: ingestion with a redacting manifest, run for A44 and SMARD;
+the A75 parser with its four traps, tested on fixtures including both
+daylight-saving transition days; the A44 price parser with the fifth, run on
+the real 2025 payload; the raw parquet landing; Monte Carlo uncertainty with
+the sensitivity shares; the stage checkpoints; and CI across Python 3.11 and
+3.14.
 
 `config/zones.yml` carries five zones; the analysis covers two. The other three
 are configuration kept for later, not results.
@@ -86,8 +99,8 @@ are configuration kept for later, not results.
 No subscription, no licence and no free tier is required to run any of it.
 `git clone` then `pytest` works today. `dbt build` from a clean clone is the
 goal and does not work yet: it needs `curated/sample/`, which is not committed,
-and the dbt models, which are not written. Stated here rather than discovered
-after cloning.
+and A75 data for every model except `stg_entsoe__prices`. Stated here rather
+than discovered after cloning.
 
 The architecture is defined once in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 and shared with the Sentinel-2 biomass MRV and German data-role market projects.
@@ -97,12 +110,13 @@ and shared with the Sentinel-2 biomass MRV and German data-role market projects.
 | Source | Used for | Access |
 |---|---|---|
 | ENTSO-E Transparency Platform | Generation per production type (A75), day-ahead prices (A44), actual load (A65) | REST API, token |
-| SMARD (Bundesnetzagentur) | Independent second source for the reconciliation test | REST, no key |
+| SMARD (Bundesnetzagentur) | Independent second source; the reconciliation test against it is planned, not written | REST, no key |
 | IPCC AR5 WG3 Annex III | Lifecycle emission factors with published ranges | `config/ipcc_ar5_factors.csv` |
 
-A fetcher exists for each row above and has been run. Cross-border flows (A11),
-DWD temperature and EEA verified emissions are candidates for later work and
-have no fetcher, so they are not listed as sources.
+A fetcher exists for each ENTSO-E and SMARD row above. The A44 and SMARD
+fetchers have been run (6 October 2026); A75 and A65 have not. Cross-border
+flows (A11), DWD temperature and EEA verified emissions are candidates for
+later work and have no fetcher, so they are not listed as sources.
 
 All grid, price and factor data are real and cited. Any facility load profile
 used later in the decision model will be **illustrative and labelled as such**.
@@ -222,27 +236,41 @@ asserted in `test_prices_parse.py`, and enforced in SQL by the curve filter in
 A carbon intensity quoted as a single number is a number nobody can audit.
 AR5 publishes a *range* per fuel, so `src/transform/intensity.py` samples each
 factor and reports the median with a 90% interval, the share of the hour's
-energy that carried a factor at all, and a first-order sensitivity index
-saying which fuel the interval is actually made of.
+energy that carried a factor at all, and how much of the interval each fuel's
+factor accounts for.
 
-One methodological decision worth stating plainly, because it changes the
-answer by a factor of twenty-seven. Three-point information normally implies a
-**triangular** distribution, and that is the default here. It is wrong for
-hydropower: AR5 gives 1 / 24 / 2200 gCO₂e/kWh, where 2200 comes from a few
-tropical reservoir studies. A triangular over that range has its median near
-**653** gCO₂e/kWh — dirtier than gas — because the mode sits at the 1st
-percentile of the range. So any fuel whose maximum exceeds its median by more
-than 10× is instead fitted to a **lognormal** that keeps the published median
-and treats the published maximum as the 95th percentile. The heavy tail
-survives; the central estimate does not move. `describe_sampling()` reports
-which rule fired for which fuel and why.
+One methodological decision worth stating plainly, because it decides whether
+low-carbon hours come out right. AR5 gives three numbers per fuel — min,
+median, max — and most bands reach much further above the median than below
+it: nuclear 3.7 / 12 / 110, hydropower 1 / 24 / 2200 gCO₂e/kWh. Each factor is
+sampled from a **two-piece lognormal**: the published median is its median, the
+published min and max sit at its 2.5th and 97.5th percentiles, each side of
+the median takes its own spread, and every draw stays inside the published
+band. `describe_sampling()` lists the fitted spreads per fuel.
+
+> Changed 17 October 2026 (method 2.0.0). Until then the default was a
+> triangular with the published median as its mode. For a skewed band that
+> moves the median — nuclear's came out at 37.7 instead of 12 — so French,
+> nuclear-heavy hours came out too dirty and their deterministic point fell
+> outside its own interval. Hydro already had a lognormal, but with an open
+> upper tail that ran past AR5's maximum. A triangular over the hydro range
+> would put the median near 650 gCO₂e/kWh, dirtier than gas.
+
+The sensitivity shares reuse one set of draws for every fuel (common random
+numbers), so they cannot depend on the order in which a mix is written down;
+until 17 October they did. Intensity is linear in independent factors, so the
+variance shares are first-order Sobol indices and sum to one, up to Monte
+Carlo error. The
+interval-width shares are reported beside them because a heavy tail can lead
+the variance without leading the interval: in a nuclear-heavy test mix, hydro
+supplies 3% of the energy, 23% of the variance and 13% of the interval width.
 
 ## Tests
 
-`pytest` — 86 tests, all green: 73 test functions, some parametrised. Four of
-them read the real 7.5 MB A44 payload and **skip in CI**, because `raw/*` is
-gitignored; CI therefore reports 82 passed, 4 skipped, and a local run with
-`raw/` populated reports 86 passed.
+`pytest` — 101 tests, all green: 84 test functions, some parametrised. Four
+of them read the real 7.5 MB A44 payload and **skip in CI**, because `raw/*` is
+gitignored; CI therefore reports 97 passed, 4 skipped, and a local run with
+`raw/` populated reports 101 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
@@ -252,10 +280,10 @@ broken reference fails at push time rather than at build time.
 
 | File | Tests | What they pin |
 |---|---|---|
-| `src/transform/test_parse.py` | 10 | Traps 1–4 in the A75 parser, on fixtures |
+| `src/transform/test_parse.py` | 16 | Traps 1–4 in the A75 parser, on fixtures, including both transition days at PT15M and PT60M |
 | `src/transform/test_prices_parse.py` | 21 | Trap 5 and the A44 parser, including 4 transition-day cases and the 4 real-payload checks |
 | `src/transform/test_dst.py` | 13 | Daylight-saving arithmetic of the validation calendar, `validate.expected_steps` |
-| `src/transform/test_intensity.py` | 20 | The uncertainty propagation and factor handling |
+| `src/transform/test_intensity.py` | 29 | The uncertainty propagation, the factor handling and the sensitivity shares |
 | `src/checks/test_validate.py` | 6 | The stage checkpoints |
 | `src/ingest/test_entsoe_client.py` | 3 | Token redaction in exceptions and the manifest |
 | `src/ingest/test_raw_store.py` | 12 | `raw/` is append-only: a failed pull never replaces data, every retrieval is kept, the smoke scripts report the status they actually got |
@@ -263,14 +291,15 @@ broken reference fails at push time rather than at build time.
 
 The test that matters most: **the deterministic point estimate must fall
 inside the Monte Carlo interval built around it.** If it falls outside, the
-propagation is wrong and every downstream figure is decoration. It currently
-holds for the test mix, which is coal- and gas-heavy, and fails for
-nuclear-heavy French mixes, because the triangular sampler takes the published
-median as the mode of a right-skewed band. That is the next fix.
+propagation is wrong and every downstream figure is decoration. It is tested on
+a coal- and gas-heavy mix, on two French mixes and on a sweep of 729 French-like
+mixes. The sampler before 17 October 2026 failed 720 of those 729; the current
+one fails none.
 
-Not yet covered: the A75 parser on the transition days themselves. Its fixtures
-are 24-hour days, and its step count can be hard-coded to 24 hours without a
-single test failing.
+The A75 parser's daylight-saving arithmetic is tested on both 2026 transition
+days, at PT15M (92 and 100 steps) and at PT60M (23 and 25). Hard-coding a
+24-hour day now fails four tests, and computing energy with a fixed
+quarter-hour fails four more.
 
 > **Fixed 2026-09-17.** `validate.expected_steps` returned 24 hours for every
 > day of the year, including both transition days. Python subtracts two aware
@@ -287,8 +316,9 @@ src/transform/      A75 parser, A44 price parser, parquet landing, intensity,
                     uncertainty
 src/checks/         stage checkpoint functions, importable and testable
 sql/                hand-written schema + DQ views
-dbt/                10 models and six singular tests, written and parsing;
-                    never executed — see What is not built
+dbt/                10 models and six singular tests, one disabled until its
+                    fact exists; all parse in CI, and stg_entsoe__prices with
+                    its two tests has run on real data — see What is not built
 docs/               ARCHITECTURE.md — the standard shared across projects
 .github/workflows/  pipeline.yml — pytest on 3.11 and 3.14, dbt parse, weekly
 raw/                append-only landing, git-ignored: one folder per document,

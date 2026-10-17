@@ -1,6 +1,6 @@
 # Portfolio Architecture Standard
 
-Dr. Adewole Olagoke · 25 September 2026
+Dr. Adewole Olagoke · 25 September 2026 · revised 17 October 2026
 
 One architecture, three projects. Each project is an **instantiation** of this
 standard, not a fresh design. That is deliberate: two projects sharing an
@@ -51,7 +51,7 @@ be shaped. Go to the plan when the question is *when* rather than *what*.
 | Code tests | `pytest` | Parser and maths correctness on fixtures |
 | Data tests | dbt tests + SQL views | Assertions on data in flight |
 | Orchestration | **GitHub Actions** | Free and unlimited on public repos, standard runners |
-| Uncertainty | **R** (`sensitivity`) | Monte Carlo + Sobol; play to strength |
+| Uncertainty | **NumPy** (Project A: `src/transform/intensity.py`) | Monte Carlo and first-order shares, tested in CI with the rest; a project whose analysis lives in R uses `sensitivity` |
 | Publication | **Quarto → GitHub Pages** | Static, permanent, no licence, no expiry |
 | Secondary front-ends | Power BI `.pbix` (committed), Tableau Public | Evidence for Microsoft-stack employers; a linkable visual |
 
@@ -223,12 +223,17 @@ takes a Parquet extract and is refreshed by hand when the data materially change
 
 ## The bounded Azure excursion
 
+*Dropped from Project A in October 2026 (RUNBOOK, The gate). Kept as the
+procedure if it is ever run.*
+
 Run **once**, at the end, for about a week, on Project A only:
 
 1. Set the €30 budget alert while the subscription is still empty.
 2. Create the database under the **Azure SQL Database free offer** — free for
    the lifetime of the subscription, with **"Behavior when free limit reached"
-   set to auto-pause**. That choice cannot be reverted.
+   left on auto-pause**, the default. The other option, *Continue using database
+   for additional charges*, cannot be reverted to auto-pause once chosen
+   (Microsoft Learn, checked 17.10.2026).
 3. Point the same dbt project at it as a second target. Run `sql/01_schema.sql`
    and `sql/02_dq_checks.sql`.
 4. Build the `.pbix` on top. Screenshot everything.
