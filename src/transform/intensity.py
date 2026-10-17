@@ -25,26 +25,48 @@ draw samples EF_f and the spread of I across draws is the interval.
 
 Choice of sampling distribution
 -------------------------------
-Three-point information (min, median, max) normally implies a triangular
-distribution. That is the default here, but it is wrong for hydropower:
-AR5 gives 1 / 24 / 2200 gCO2e/kWh, where the 2200 comes from a handful of
-tropical reservoir studies with large methane fluxes. A triangular over that
-range has mean (1 + 24 + 2200)/3 = 742 gCO2e/kWh -- thirty times the median,
-and it would make a hydro-heavy hour look dirtier than lignite.
+Revised 2026-10-17, method 2.0.0. Every priced fuel is sampled from a
+two-piece lognormal built on its published min / median / max:
 
-So for any fuel whose max exceeds its median by more than
-SKEW_RATIO_LOGNORMAL, this module fits a lognormal that keeps the stated
-median as the median and treats the stated max as the 95th percentile. The
-heavy tail survives, the central estimate does not move, and the mean stops
-being nonsense. Which rule fired for which fuel is reported, not hidden --
-see `describe_sampling()`.
+    EF = median * exp(sigma_lo * z)    for z < 0
+    EF = median * exp(sigma_hi * z)    for z >= 0
+
+    sigma_lo = ln(median / min) / Z_BAND,  sigma_hi = ln(max / median) / Z_BAND
+
+where z is a standard-normal score truncated to [-Z_BAND, Z_BAND] and
+Z_BAND = 1.96. Three properties follow, and each is tested:
+
+- The published median is the median of the distribution: half the scores
+  fall on each side of zero.
+- The published min and max sit where the 2.5th and 97.5th percentiles of
+  the untruncated distribution would be. Truncating the scores, rather than
+  clipping the factors, keeps every draw inside the published band without
+  piling mass on its edges, and it takes equal probability from both tails,
+  so the median does not move.
+- The skew comes from the band itself. Each side of the median has its own
+  spread, so hydro (1 / 24 / 2200) keeps its long right side and coal
+  (740 / 820 / 910) stays almost symmetric.
+
+Why not a triangular with the median as its mode, which 1.0.0 used for every
+band less than 10x skewed: for a skewed band the median of that triangular is
+not the published median. Nuclear (3.7 / 12 / 110) came out at 37.7, wind
+onshore (7 / 11 / 56) at 22.8, solar (18 / 48 / 180) at 76.6, so low-carbon
+mixes were overstated, and on nuclear-heavy French mixes the deterministic
+point fell outside its own 90% interval (test_intensity.py, the sweep test).
+With min and max fixed, no triangular can even reach a median that close to
+the floor. 1.0.0's lognormal for hydro kept the median but treated the max as
+the 95th percentile with an open tail, so 5% of hydro draws exceeded the
+largest value AR5 reports.
 
 Sensitivity
 -----------
-`variance_contribution()` freezes one fuel at its median, recomputes the
-spread, and reports how much of the variance disappears. That is a
-first-order sensitivity index: it answers "which factor is the interval
-actually made of", which is the question a reviewer asks next.
+`variance_contribution()` draws every factor once and reuses the same draws
+for each fuel it pins at its median (common random numbers), so the result
+cannot depend on the order of the mix. Intensity is linear in independent
+factors, so the variance shares are first-order Sobol indices and sum to 1
+up to Monte Carlo error. Because the reported quantity is the 90% interval,
+not the variance, each fuel's share of the p05-p95 width is reported as well;
+those shares need not sum to 1.
 """
 from __future__ import annotations
 
@@ -55,16 +77,12 @@ from pathlib import Path
 
 import numpy as np
 
-# A max more than this many times the median means the published range is a
-# skewed tail, not symmetric uncertainty. Hydro (2200/24 = 92) trips it;
-# coal (910/820 = 1.1) does not.
-SKEW_RATIO_LOGNORMAL = 10.0
+# The published min and max are read as the 2.5th and 97.5th percentiles of
+# the fitted two-piece lognormal, and draws are confined between them.
+BAND_TAIL = 0.025
+Z_BAND = 1.959963984540054  # standard normal quantile at 1 - BAND_TAIL
 
-# Standard normal quantile at 0.95, used to map a stated max onto the 95th
-# percentile of the fitted lognormal.
-Z95 = 1.6448536269514722
-
-METHOD_VERSION = "intensity-1.0.0"
+METHOD_VERSION = "intensity-2.0.0"
 
 
 @dataclass(frozen=True)
@@ -83,14 +101,27 @@ class Factor:
         return self.median is not None and self.lo is not None and self.hi is not None
 
     @property
-    def skewed(self) -> bool:
-        return self.priced and self.hi > self.median * SKEW_RATIO_LOGNORMAL
+    def sigma_lo(self) -> float:
+        """Log-scale spread below the median; the min sits at z = -Z_BAND."""
+        return math.log(self.median / self.lo) / Z_BAND
+
+    @property
+    def sigma_hi(self) -> float:
+        """Log-scale spread above the median; the max sits at z = +Z_BAND."""
+        return math.log(self.hi / self.median) / Z_BAND
 
     @property
     def distribution(self) -> str:
         if not self.priced:
             return "none"
-        return "lognormal" if self.skewed else "triangular"
+        if self.lo == self.hi:
+            return "point"
+        return "two-piece lognormal"
+
+    def quantile(self, z: np.ndarray) -> np.ndarray:
+        """Factor value for standard-normal scores z in [-Z_BAND, Z_BAND]."""
+        z = np.asarray(z, dtype=float)
+        return self.median * np.exp(np.where(z < 0, self.sigma_lo, self.sigma_hi) * z)
 
 
 def _maybe_float(s: str) -> float | None:
@@ -127,9 +158,30 @@ def load_factors(path: str | Path) -> dict[str, Factor]:
                 )
             if f.priced and not (f.lo <= f.median <= f.hi):
                 raise ValueError(f"{psr}: band {f.lo}/{f.median}/{f.hi} is not ordered")
+            if f.priced and f.lo <= 0:
+                raise ValueError(
+                    f"{psr}: band floor {f.lo} must be positive -- the factor is "
+                    "sampled on a log scale"
+                )
             if not f.source:
                 raise ValueError(f"{psr}: no source citation (provenance is a control)")
             out[psr] = f
+    return out
+
+
+def band_scores(n_draws: int, n_cols: int, rng: np.random.Generator) -> np.ndarray:
+    """Standard-normal scores truncated to [-Z_BAND, Z_BAND], shape (n_draws, n_cols).
+
+    Drawn by rejection: about 5% of scores fall outside and are redrawn.
+    Columns are filled in order, so a fixed seed gives fixed draws.
+    """
+    out = np.empty((n_draws, n_cols), dtype=float)
+    for j in range(n_cols):
+        kept = np.empty(0, dtype=float)
+        while kept.size < n_draws:
+            z = rng.standard_normal(n_draws)
+            kept = np.concatenate([kept, z[np.abs(z) <= Z_BAND]])
+        out[:, j] = kept[:n_draws]
     return out
 
 
@@ -137,15 +189,15 @@ def sample_factor(f: Factor, n_draws: int, rng: np.random.Generator) -> np.ndarr
     """n_draws samples of one fuel's emission factor, in gCO2e/kWh."""
     if not f.priced:
         raise ValueError(f"{f.psr_type} is unpriced and must be excluded, not sampled")
-    if f.lo == f.hi:
-        return np.full(n_draws, f.median, dtype=float)
-    if f.skewed:
-        mu = math.log(f.median)
-        sigma = (math.log(f.hi) - mu) / Z95
-        draws = rng.lognormal(mean=mu, sigma=sigma, size=n_draws)
-        # The fitted tail is unbounded; the published floor still applies.
-        return np.clip(draws, f.lo, None)
-    return rng.triangular(left=f.lo, mode=f.median, right=f.hi, size=n_draws)
+    return f.quantile(band_scores(n_draws, 1, rng)[:, 0])
+
+
+def factor_matrix(
+    psrs: list[str], factors: dict[str, Factor], n_draws: int, rng: np.random.Generator
+) -> np.ndarray:
+    """Factor draws for several fuels, one column each, shape (n_draws, len(psrs))."""
+    z = band_scores(n_draws, len(psrs), rng)
+    return np.column_stack([factors[p].quantile(z[:, j]) for j, p in enumerate(psrs)])
 
 
 def describe_sampling(factors: dict[str, Factor]) -> list[dict]:
@@ -161,14 +213,16 @@ def describe_sampling(factors: dict[str, Factor]) -> list[dict]:
                 "lo": f.lo,
                 "hi": f.hi,
                 "hi_over_median": round(f.hi / f.median, 1) if f.priced else None,
+                "sigma_lo": round(f.sigma_lo, 4) if f.priced else None,
+                "sigma_hi": round(f.sigma_hi, 4) if f.priced else None,
                 "confidence": f.confidence,
                 "reason": (
                     "unpriced -- excluded from numerator and denominator"
                     if not f.priced
-                    else "published range is right-skewed; lognormal keeps the median "
-                    "and treats max as p95"
-                    if f.skewed
-                    else "three-point band, symmetric enough for a triangular"
+                    else "no published spread -- every draw is the median"
+                    if f.lo == f.hi
+                    else "two-piece lognormal: published median kept, min and max at "
+                    "the 2.5th and 97.5th percentiles, every draw inside the band"
                 ),
             }
         )
@@ -192,33 +246,29 @@ def energy_by_fuel(rows: list[dict]) -> dict[tuple, dict[str, float]]:
     return out
 
 
+def _priced_fuels(mix: dict[str, float], factors: dict[str, Factor]) -> list[str]:
+    """The priced fuels of a mix, sorted, so no result depends on dict order."""
+    return sorted(p for p in mix if p in factors and factors[p].priced)
+
+
 def intensity_draws(
     mix: dict[str, float],
     factors: dict[str, Factor],
     n_draws: int,
     rng: np.random.Generator,
-    _frozen: str | None = None,
 ) -> tuple[np.ndarray, float, float]:
     """Intensity distribution for one timestamp.
 
     Returns (draws [gCO2e/kWh], total_mwh, priced_mwh).
-    `_frozen` pins one fuel at its median, for the sensitivity analysis.
     """
     total = sum(mix.values())
-    priced = {p: e for p, e in mix.items() if p in factors and factors[p].priced}
-    priced_mwh = sum(priced.values())
+    psrs = _priced_fuels(mix, factors)
+    weights = np.array([mix[p] for p in psrs], dtype=float)
+    priced_mwh = float(weights.sum())
     if priced_mwh <= 0:
         return np.full(n_draws, np.nan), total, 0.0
-
-    numerator = np.zeros(n_draws, dtype=float)
-    for psr, mwh in priced.items():
-        f = factors[psr]
-        if psr == _frozen:
-            ef = np.full(n_draws, f.median, dtype=float)
-        else:
-            ef = sample_factor(f, n_draws, rng)
-        numerator += mwh * ef
-    return numerator / priced_mwh, total, priced_mwh
+    ef = factor_matrix(psrs, factors, n_draws, rng)
+    return ef @ weights / priced_mwh, total, priced_mwh
 
 
 def deterministic_intensity(
@@ -228,11 +278,11 @@ def deterministic_intensity(
 
     Energy-weighted mean over the priced fuels, each at its MEDIAN factor --
     no sampling. It exists so the acceptance criterion can be checked:
-    this point must fall inside the Monte Carlo 90% interval. Comparing the
-    two is also the cheapest detector of a skewed propagation, because the
-    bands are not symmetric: lo-to-median is narrower than median-to-hi for
-    most AR5 fuels, so the sampled median sits above this point by design,
-    and a large gap means the lognormal fit is doing more than intended.
+    this point must fall inside the Monte Carlo 90% interval. Every factor's
+    draws keep the published median, so the point can differ from the median
+    of the draws only because the bands are asymmetric -- most AR5 bands reach
+    further above the median than below it -- and never because the sampler
+    moved a fuel's centre, which is what 1.0.0 did.
     """
     priced = {p: e for p, e in mix.items() if p in factors and factors[p].priced}
     tot = sum(priced.values())
@@ -283,26 +333,47 @@ def variance_contribution(
 ) -> list[dict]:
     """First-order sensitivity: which fuel's factor the interval is made of.
 
-    Freeze one fuel at its median, recompute the variance, and report the
-    fraction of variance that disappeared. Shares are reported raw -- they do
-    not sum to exactly 1 because factor draws interact through the weighting.
+    Every factor is drawn once. Each fuel is then pinned at its median while
+    all other fuels keep exactly the same draws (common random numbers), so no
+    share can change with the order of the mix. Until 2.0.0 each pinned run
+    drew a fresh random stream: the same mix gave shares summing to 1.0 with
+    hydro listed first and 4.5 with hydro listed last (see the test).
+
+    Two shares per fuel, both floored at zero:
+
+    - `variance_share`: the fraction of the variance that disappears. The
+      intensity is linear in independent factors, so these are the first-order
+      Sobol indices, and they sum to 1 up to Monte Carlo error.
+    - `width_share`: the fraction of the p05-p95 width that disappears. The
+      interval is what gets reported, and a heavy tail can own most of the
+      variance while moving the interval far less. These need not sum to 1.
+
+    Returns [] when nothing varies.
     """
-    base = intensity_draws(mix, factors, n_draws, np.random.default_rng(seed))[0]
-    var_full = float(np.var(base))
+    psrs = _priced_fuels(mix, factors)
+    weights = np.array([mix[p] for p in psrs], dtype=float)
+    total = float(weights.sum())
+    if total <= 0:
+        return []
+    ef = factor_matrix(psrs, factors, n_draws, np.random.default_rng(seed))
+    full = ef @ weights / total
+    var_full = float(np.var(full))
     if var_full == 0 or not np.isfinite(var_full):
         return []
+    p05, p95 = np.percentile(full, [5, 95])
+    width_full = float(p95 - p05)
     out = []
-    for psr in sorted(p for p in mix if p in factors and factors[p].priced):
-        frozen = intensity_draws(
-            mix, factors, n_draws, np.random.default_rng(seed), _frozen=psr
-        )[0]
-        share = 1.0 - float(np.var(frozen)) / var_full
+    for j, psr in enumerate(psrs):
+        pinned = full - weights[j] * (ef[:, j] - factors[psr].median) / total
+        q05, q95 = np.percentile(pinned, [5, 95])
+        width_share = 1.0 - float(q95 - q05) / width_full if width_full > 0 else 0.0
         out.append(
             {
                 "psr_type": psr,
                 "fuel": factors[psr].fuel,
                 "mwh": mix[psr],
-                "variance_share": round(max(share, 0.0), 4),
+                "variance_share": round(max(1.0 - float(np.var(pinned)) / var_full, 0.0), 4),
+                "width_share": round(max(width_share, 0.0), 4),
             }
         )
     return sorted(out, key=lambda r: -r["variance_share"])
