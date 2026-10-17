@@ -9,13 +9,16 @@ reason they are worth testing at all.
 Sample is lifted from a real DE-LU A75 payload (2026-08-07):
   TS 11 (B15, Other renewable): 5 stated points across 96 steps
   TS 17 (B10 as outBiddingZone): pumped-storage CONSUMPTION, not generation
+
+The transition-day and PT60M fixtures further down are synthetic: one series
+at constant power, so every expected count and total can be worked out by hand.
 """
 import datetime as dt
 
 import pytest
 
 from entsoe_parse import parse
-from validate import check_stage2_direction, check_stage2_parse
+from validate import check_stage2_direction, check_stage2_parse, check_stage3_coverage
 
 SAMPLE = """<?xml version="1.0" encoding="UTF-8"?>
 <GL_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-6:generationloaddocument:3:0">
@@ -112,6 +115,84 @@ def test_energy_is_power_times_step_hours(rows):
     true_energy = sum(r["mwh"] for r in b15)
     assert true_energy == pytest.approx(naive_sum_of_mw * 0.25)
     assert true_energy == pytest.approx(1736.635, abs=1e-3)
+
+
+# --------------------------------------------------------------------------
+# TRAP 1 on the transition days, at the parser itself.
+# Prevents: a step count taken from a 24-hour day. Until 17.10.2026 every A75
+# fixture was an ordinary day, so `n_steps = round(24 / step_h)` passed the
+# whole suite (audit A7). A Period covers one local delivery day, in UTC.
+# --------------------------------------------------------------------------
+TZ = "Europe/Berlin"
+NS_A75 = "urn:iec62325.351:tc57wg16:451-6:generationloaddocument:3:0"
+
+# 29 March 2026: clocks go forward, the local day has 23 hours.
+# 25 October 2026: clocks go back, the local day has 25 hours.
+SPRING_FORWARD = ("2026-03-28T23:00Z", "2026-03-29T22:00Z", 23)
+FALL_BACK = ("2026-10-24T22:00Z", "2026-10-25T23:00Z", 25)
+ORDINARY_DAY = ("2026-07-31T22:00Z", "2026-08-01T22:00Z", 24)
+
+
+def _a75_day(start, end, resolution, mw=1000.0, psr="B19"):
+    """One generation series stating a single A03 point: constant power all day."""
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<GL_MarketDocument xmlns="{NS_A75}">
+<TimeSeries><mRID>1</mRID>
+<inBiddingZone_Domain.mRID codingScheme="A01">10Y1001A1001A82H</inBiddingZone_Domain.mRID>
+<quantity_Measure_Unit.name>MAW</quantity_Measure_Unit.name><curveType>A03</curveType>
+<MktPSRType><psrType>{psr}</psrType></MktPSRType>
+<Period><timeInterval><start>{start}</start><end>{end}</end></timeInterval>
+<resolution>{resolution}</resolution>
+<Point><position>1</position><quantity>{mw}</quantity></Point>
+</Period></TimeSeries>
+</GL_MarketDocument>"""
+
+
+def _utc(s):
+    return dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+
+
+@pytest.mark.parametrize(
+    "day, resolution, steps",
+    [
+        (SPRING_FORWARD, "PT15M", 92),
+        (FALL_BACK, "PT15M", 100),
+        (SPRING_FORWARD, "PT60M", 23),
+        (FALL_BACK, "PT60M", 25),
+    ],
+    ids=["spring-PT15M", "fall-PT15M", "spring-PT60M", "fall-PT60M"],
+)
+def test_transition_day_expands_to_its_real_length(day, resolution, steps):
+    start, end, hours = day
+    rows = parse(_a75_day(start, end, resolution))
+    assert len(rows) == steps
+    assert {r["n_steps_expanded"] for r in rows} == {steps}
+    last_end = rows[-1]["ts_utc"] + dt.timedelta(hours=rows[-1]["step_hours"])
+    assert last_end == _utc(end), "the last step must end where the period ends"
+    assert sum(r["mwh"] for r in rows) == pytest.approx(1000.0 * hours)
+    ok, msg = check_stage3_coverage(rows, TZ)
+    assert ok, msg
+
+
+# --------------------------------------------------------------------------
+# TRAP 4 across resolutions.
+# Prevents: energy computed with a hard-coded quarter-hour. FR publishes at
+# PT60M. A day at a constant 1000 MW is 24,000 MWh at either resolution,
+# while the sum of the MW column differs fourfold.
+# --------------------------------------------------------------------------
+def test_energy_is_power_times_step_hours_at_pt60m():
+    rows = parse(_a75_day(*ORDINARY_DAY[:2], "PT60M"))
+    assert len(rows) == 24
+    assert {r["step_hours"] for r in rows} == {1.0}
+    assert all(r["mwh"] == pytest.approx(r["mw"]) for r in rows)
+
+
+def test_energy_agrees_across_resolutions_where_power_sums_do_not():
+    quarter = parse(_a75_day(*ORDINARY_DAY[:2], "PT15M"))
+    hourly = parse(_a75_day(*ORDINARY_DAY[:2], "PT60M"))
+    assert sum(r["mwh"] for r in quarter) == pytest.approx(24_000.0)
+    assert sum(r["mwh"] for r in hourly) == pytest.approx(24_000.0)
+    assert sum(r["mw"] for r in quarter) == pytest.approx(4 * sum(r["mw"] for r in hourly))
 
 
 # --------------------------------------------------------------------------
