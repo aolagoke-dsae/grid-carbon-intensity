@@ -329,8 +329,10 @@ and committed as Parquet; the scheduled workflow only processes new acquisitions
 
 Study area: **Lahn-Dill-Bergland and Vogelsberg forest districts, Hessen**,
 roughly 30 km from Pohlheim, with the 2018–2022 spruce dieback as an
-independently verifiable disturbance signal validated against HessenForst's
-published mortality figures.
+independently verifiable disturbance signal, compared against FNEWs, the
+national Sentinel-2 forest-damage product, and against the Hessen
+Waldzustandsbericht (Hessisches Ministerium / NW-FVA). Neither is ground truth,
+and HessenForst publishes neither.
 
 The EUDR module is DuckDB `spatial` work end to end: plot polygons as GeoJSON,
 tested against forest loss since the 31 December 2020 cut-off, emitting a
