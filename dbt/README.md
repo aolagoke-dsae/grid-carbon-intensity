@@ -20,17 +20,19 @@ As of 17 October 2026:
 `xml_to_parquet.py`, builds every enabled model on them and compares the SQL
 with `entsoe_parse.parse()` step by step: carry-forward, both transition days
 (92 steps at PT15M, 25 at PT60M), a pump-only series, a series published only
-while a unit runs, and both A44 curves. A second build deletes one day and
+while a unit runs, and both A44 curves; since 18 October 2026 also a series
+stated net, one leg per hour, a day that changes resolution, and a series
+exempt inside a window only. A second build deletes one day and
 leaves one A01 position empty, and the coverage test and the `not_null` test
 on `mw` must fail. CI runs it in the dbt job. Until 17 October 2026 the only
 check was a manual one against the five-point B15 series of the
 `test_parse.py` fixture, which had been described as the real DE-LU series.
 
-On the real 2025 A75 pulls for DE-LU and France, with the 2025 DE-LU A44
-pull, `dbt build` is green: 23 nodes, every test passing. The SQL coverage
-test and the Python `check_stage3_coverage` agree exactly: 5,840 day-series
-checked for DE-LU and 4,745 for France, 11 and 518 short ones before the
-declared exemptions and recorded gaps, none after.
+On the real 2021–2025 A75 pulls for DE-LU and France, with the 2025 DE-LU A44
+pull, `dbt build` is green: 23 nodes, every test passing (18 October 2026).
+The SQL coverage test and the Python `check_stage3_coverage` agree exactly:
+with `config/source_gaps.csv` emptied, both report the same 101 short
+day-series, and none with it.
 
 ## What deliberately did not come across
 

@@ -26,14 +26,14 @@ has been pulled.*
 
 | | Written | Unit-tested | Run against real data |
 |---|---|---|---|
-| Ingestion client (ENTSO-E) | yes | token redaction, the append-only raw store, local-year windows | **A44 and A75** — A44 06.10.2026; A75 for DE-LU and FR, 2025, 17.10.2026; A65 not yet fetched |
+| Ingestion client (ENTSO-E) | yes | token redaction, the append-only raw store, local-year windows | **A44 and A75** — A44 06.10.2026; A75 for DE-LU and FR, 2025 on 17.10.2026 and 2021–2024 on 18.10.2026; A65 not yet fetched |
 | Ingestion client (SMARD) | yes | — | **yes** — 06.10.2026 |
-| Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **yes** — DE-LU and FR 2025, 17.10.2026 |
+| Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **yes** — DE-LU and FR 2021–2025, 17. and 18.10.2026 |
 | Parser, A44 prices (trap 5) | yes | yes | **yes** — the 2025 DE-LU payload |
-| Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2025 pulls, under the stage 5 check, 17.10.2026; the Monte Carlo interval and the fact table **not yet** |
-| Stage checks (2, 3, 4, 5) | yes; 2 and 5 rewritten 17.10. so they can fail | yes, each made to fail | **all four** on the 2025 A75 pulls, 17.10.2026 |
+| Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; the Monte Carlo interval and the fact table **not yet** |
+| Stage checks (2, 3, 4, 5) | yes; 2 and 5 rewritten 17.10. so they can fail; 3 counts either leg and measures time since 18.10. | yes, each made to fail | **all four** on the 2021–2025 A75 pulls, 18.10.2026 |
 | T-SQL schema + DQ views (Azure) | archived 17.10.2026 in `archive/azure-excursion/` | — | never: DuckDB cannot run them |
-| dbt models | yes — 10 models (8 enabled), 7 singular tests (1 disabled), 9 generic | built on fixtures in CI and compared with the Python parser | **yes** — the 2025 A75 and A44 data, 17.10.2026: 23 nodes green |
+| dbt models | yes — 10 models (8 enabled), 7 singular tests (1 disabled), 9 generic | built on fixtures in CI and compared with the Python parser | **yes** — the 2021–2025 A75 and 2025 A44 data, 18.10.2026: 23 nodes green |
 | CI | yes, `.github/workflows/pipeline.yml` | — | **yes**, green on 3.11 and 3.14 |
 | Version control | yes — MIT; public from WE 3, 24./25.10.2026 | — | — |
 
@@ -208,7 +208,9 @@ print(check_stage2_direction(rows, xml))
   and compares, per zone, fuel and direction, the steps the elements declare
   with the rows. Expect consumption legs beyond pumped storage: the 2025 pulls
   carry B10, B16 and B19 consumption for DE-LU, and B05, B06, B10, B18, B19 and
-  B25 for France
+  B25 for France. 2021–2024 add B06, B12 and B15 for DE-LU, and B12 for France,
+  where RTE's hourly data until 18.12.2024 states pumped storage, reservoir
+  hydro and coal net: one leg per hour, never both
 - Hand-verify one A03 series: pick a `psr` with few stated points and confirm
   the value holds from its position until the next stated one
 - `sum(r["mwh"] for r in rows if r["direction"]=="generation")` for one day
@@ -251,13 +253,17 @@ print(check_stage3_coverage(rows, "Europe/Berlin", sparse, known))
 ```
 
 - Returns `True`. Every series is checked on every day, so a day with no rows
-  at all is a gap too. A gap passes only if its series is declared in
-  `config/sparse_series.csv` as reported only while running (French coal and battery
-  storage, where a missing quarter-hour is zero output), or if
-  `config/source_gaps.csv` records it with the same size. The 2025 pulls carry
-  11 recorded gaps (37 quarter-hours) for DE-LU and 58 (531) for France, most
-  of them one offshore-wind series and two publication outages. A new gap, or
-  a recorded one that changed size, fails: inspect it, then update the register
+  at all is a gap too. A step counts if either leg reports it, and coverage is
+  measured in time, so the day France moved from hourly to quarter-hour data
+  (19.12.2024) is complete. A gap passes only if `config/sparse_series.csv`
+  exempts its series on that day — on every day for French coal and battery
+  storage, reported only while running; inside a window for German nuclear
+  after 15.04.2023, German coal-derived gas before 2023 and French offshore
+  wind before June 2023 — or if `config/source_gaps.csv` records it with the
+  same size. The register holds 101 gaps for 2021–2025: DE-LU 3 in 2024 and 11
+  in 2025; France 10 in 2022, 55 in 2023 (412 of their 454 hours in offshore
+  wind's first weeks) and 22 in 2025, publication outages for the rest. A new gap, or a
+  recorded one that changed size, fails: inspect it, then update the register
   in a commit of its own.
 - The message names the DST days and shows them as **92 and 100 steps**, not as failures
 - Every year present in `manifest.csv` with `rejected` 0
@@ -312,7 +318,9 @@ print(check_stage4_factors(rows, factors))
   unpriced categories are material and you must say so wherever intensity appears.
   Measured on the 2025 pulls (17.10.2026): **4.8% unpriced in DE-LU** (pumped
   storage 2.3, waste 1.3, oil 0.6, other 0.4, other renewable 0.2) and 2.3% in
-  France. The bar is not met; storage alone exceeds it.
+  France. On 2021–2024 (18.10.2026) DE-LU is 4.4–5.1% in every year and France
+  1.6–1.9%. The bar is not met in any year; from 2022 pumped storage alone
+  exceeds it.
 
 **What it unlocks:** the single strongest line for an MRV or assurance
 audience — every factor traced by hand to a named table in a named annex.
@@ -357,9 +365,13 @@ print(check_stage5_intensity(rows, factors, values, sparse))
   imports and from the factor sets. **Document the difference and explain it.**
   That explanation is the single most impressive paragraph in the methodology
   document.
-- Measured on the 2025 pulls (17.10.2026), at median factors: DE-LU 83–600 and
-  France 16–77 gCO2e/kWh per quarter-hour; 31 and 322 quarter-hours withheld,
-  every one at a recorded source gap.
+- Measured on the 2021–2025 pulls (18.10.2026), at median factors: DE-LU
+  83–622 gCO2e/kWh per quarter-hour, yearly medians 356, 378, 315, 310 and 309;
+  France 15–117 per step, medians 47, 70, 41, 28 and 27. Withheld, each at a
+  recorded source gap: 10 and 31 quarter-hours in DE-LU in 2024 and 2025, and
+  413 hours in France in 2023, most in offshore wind's first weeks. (The
+  322 French quarter-hours withheld in 2025 until 18.10. were steps with a
+  consumption leg only, counted as partial.)
 
 **This is the free/local gate.** Everything to here costs nothing. Nothing
 after it should start until this passes.
@@ -438,8 +450,9 @@ every grain, plus four singular tests that encode the domain:
 - All dbt tests pass
 - `assert_step_count_per_local_day` returns no rows, and `dim_date` marks one
   23-hour and one 25-hour day per year per zone (`is_dst_transition`). The test
-  reads the same exemptions as `check_stage3_coverage`, and on the 2025 pulls
-  the two agree day-series for day-series
+  reads the same exemptions as `check_stage3_coverage`, and on the 2021–2025
+  pulls the two agree exactly: with the register emptied, both report the same
+  101 gaps (18.10.2026)
 - Unmapped fuels returns only the six deliberately unpriced categories
 - **Break one on purpose.** Delete a day from a staging model and confirm the
   coverage test fails loudly. A test you have not seen fail is a test you do

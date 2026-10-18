@@ -50,11 +50,12 @@ What has run on real data and what has run only on test fixtures is kept
 apart throughout. The ingestion clients, both parsers, the uncertainty module
 and CI are written and unit-tested. Of the live sources, ENTSO-E day-ahead
 prices (A44) and SMARD were pulled on 6 October 2026, and generation per type
-(A75) for DE-LU and FR, 2025, on 17 October 2026; load (A65) has not been
-fetched. The A75 parser and the stage 2–5 checks have run on the real 2025
-pulls, stage 5 on the median-factor intensity. Landed, the 2025 A75 and A44
-data build green through the dbt project, 23 nodes on 17 October 2026, and CI
-builds every model on fixtures and checks it against the Python parser. The
+(A75) for DE-LU and FR, 2025 on 17 October 2026 and 2021–2024 on 18 October;
+load (A65) has not been fetched. The A75 parser and the stage 2–5 checks have
+run on all ten zone-years, stage 5 on the median-factor intensity. Landed, the
+2021–2025 A75 and the 2025 A44 data build green through the dbt project,
+23 nodes on 18 October 2026, and CI builds every model on fixtures and checks
+it against the Python parser. The
 fact tables, the Monte Carlo interval on real data and the report are not
 built. **What is not built** has the detail.
 
@@ -81,7 +82,7 @@ Named here rather than left for a reader to discover.
 
 | | Status |
 |---|---|
-| dbt facts | **not built.** Staging, the three intermediate models and the three dimensions stand: built green on the 2025 A75 and A44 data on 17.10.2026, and on fixtures in CI. `stg_entsoe__load` and `stg_entsoe__flows` are disabled until A65 and A11 are pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
+| dbt facts | **not built.** Staging, the three intermediate models and the three dimensions stand: built green on the 2021–2025 A75 and 2025 A44 data on 18.10.2026, and on fixtures in CI. `stg_entsoe__load` and `stg_entsoe__flows` are disabled until A65 and A11 are pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
 | `curated/sample/` | **absent.** From a clean clone, `dbt build` has no data to read; `pytest src/transform/test_dbt_models.py` builds the models on fixtures instead |
 | Load-shifting decision model | **not started** — the question the project exists to answer |
 | Quarto report, GitHub Pages | **not started** |
@@ -92,8 +93,8 @@ Named here rather than left for a reader to discover.
 
 What *is* built: ingestion with a redacting manifest, run for A44 and SMARD;
 the A75 parser with its four traps, tested on fixtures including both
-daylight-saving transition days and run on the real 2025 pulls for DE-LU and
-FR; the A44 price parser with the fifth, run on the real 2025 payload; the raw
+daylight-saving transition days and run on the real 2021–2025 pulls for DE-LU
+and FR; the A44 price parser with the fifth, run on the real 2025 payload; the raw
 parquet landing, with both domains and the source digest on every row; the dbt
 staging, intermediate and dimension models, checked against the Python parser;
 Monte Carlo uncertainty with the sensitivity shares; the stage checkpoints,
@@ -167,26 +168,47 @@ The file hash is still worth recording. It answers a different and narrower
 question — whether the bytes on this disk are the bytes that arrived — which is
 what a provenance record is for.
 
-### Missing data in the 2025 generation pulls
+### Missing data in the generation pulls, 2021–2025
 
-The A75 pulls of 17 October 2026 are not complete, and the coverage check says
-so rather than smoothing it over (`check_stage3_coverage` in
-`src/checks/validate.py`):
+The A75 pulls of 17 and 18 October 2026 are not complete, and the coverage
+check says so rather than smoothing it over (`check_stage3_coverage` in
+`src/checks/validate.py`, with `assert_step_count_per_local_day` as its SQL
+twin):
 
-- **France's hard coal (B05) and battery storage (B25) series are present
-  only intermittently.** Coal is absent on 307 days of 2025 and storage on 121;
-  when coal is present, its median is 524 MW, the output of running plants.
-  These two series are read as published only while units run, so a missing
-  quarter-hour counts as zero output. That assumption is declared per series
-  in `config/sparse_series.csv`.
+- **Two counting rules.** A step counts if either leg reports it: RTE's hourly
+  data, until 18 December 2024, states pumped storage, reservoir hydro and
+  coal net, one leg per hour, so a pumping hour has no generation row, and
+  wind farms drawing auxiliary power report a consumption leg only. And
+  coverage is measured in time, not by counting rows: France moved from hourly
+  to quarter-hour data on 19 December 2024, and that day has one hourly row and
+  92 quarter-hours.
+- **Declared exemptions,** in `config/sparse_series.csv`. France's hard coal
+  (B05) and battery storage (B25) are published only while units run: coal is
+  absent on 307 days of 2025, with a median of 524 MW when present, so a
+  missing quarter-hour is zero output. Three series are exempt inside a window
+  only: German nuclear (B14) from 16 April 2023, after the last reactors left
+  the grid; German coal-derived gas (B03) before 2023 and French offshore wind
+  (B18) before June 2023, when neither series existed yet.
 - **Every other gap is a recorded source gap,** listed with its size in
-  `config/source_gaps.csv`: 37 quarter-hours in DE-LU (one quarter-hour on
-  9 July across seven fuels, the rest in hydro reservoir and waste) and 531 in
-  France (two publication outages across eleven series, the rest mostly
-  offshore wind). They are not filled in. A timestamp that is missing a fuel
-  will be marked incomplete when the intensity is computed.
+  `config/source_gaps.csv`, 101 entries. DE-LU: 3 in 2024 (10 quarter-hours)
+  and 11 in 2025 (37, one quarter-hour on 9 July across seven fuels, the rest
+  in hydro reservoir and waste). France: one publication outage in 2022 (an
+  hour across ten series), three in 2023 plus the patchy first weeks of
+  offshore wind (55 entries, 454 hours), and two outages in 2025 (22 entries,
+  209 quarter-hours). 2021 is complete in both zones. Gaps are not filled in:
+  a step that is missing a fuel is withheld when the intensity is computed.
 - The check fails on any gap that is neither declared nor recorded, including a
   recorded one whose size changes in a later pull.
+- **One anomaly, listed rather than corrected.** On 18 April 2025, 14:15–17:15
+  local, RTE reports French onshore wind (B19) as consumption, 12 quarter-hours
+  at about 970 MW, and no generation leg: almost certainly generation filed
+  under the wrong direction. Those quarter-hours count as covered and carry no
+  onshore wind, so their intensity is overstated.
+
+*Corrected 18 October 2026: the 2025 register listed 58 French gaps,
+531 quarter-hours. 36 of them, 322 quarter-hours mostly in offshore wind, carry
+a consumption leg instead: generation in them was zero, not missing, except in
+the anomaly above.*
 
 Battery storage (B25) is unpriced, like pumped storage (B10): its emissions
 belong to whatever charged it. Oil (B06) is unpriced as well until a factor is

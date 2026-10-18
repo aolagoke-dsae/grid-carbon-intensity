@@ -1,3 +1,6 @@
 zone_eic,psr,from_date,to_date,decided,note
 10YFR-RTE------C,B05,,,2026-10-17,"RTE publishes hard coal only while a unit runs: absent on 307 days of the 2025 A75 pull, 524 MW median when present. A missing quarter-hour is zero output, not a gap."
 10YFR-RTE------C,B25,,,2026-10-17,"Battery storage, absent on 121 days of the 2025 A75 pull. A missing quarter-hour is zero output, not a gap."
+10Y1001A1001A82H,B03,,2022-12-31,2026-10-18,"Coal-derived gas is published from 1 January 2023: the 2021 and 2022 pulls have no B03 rows at all. Before that the series does not exist, so a missing quarter-hour is not a gap."
+10Y1001A1001A82H,B14,2023-04-16,,2026-10-18,"Nuclear ended when the last three German reactors left the grid on 15 April 2023; the last stated quarter-hour is 23:45 local that day. From 16 April 2023 a missing quarter-hour is zero output."
+10YFR-RTE------C,B18,,2023-05-31,2026-10-18,"Offshore wind is published from 1 June 2023 (first hour 00:00 local). Before that the series does not exist. Its patchy first weeks, June and July 2023, are recorded in source_gaps.csv, not exempted."

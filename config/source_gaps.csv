@@ -1,4 +1,7 @@
 zone_eic,local_date,psr,missing_steps,note
+10Y1001A1001A82H,2024-09-26,B12,4,"gap in this series only, 4 quarter-hours; A75 pull 20261018T001924Z"
+10Y1001A1001A82H,2024-11-21,B17,5,"gap in this series only, 5 quarter-hours; A75 pull 20261018T001924Z"
+10Y1001A1001A82H,2024-11-28,B17,1,"gap in this series only, 1 quarter-hour; A75 pull 20261018T001924Z"
 10Y1001A1001A82H,2025-07-09,B01,1,outage: 7 series miss the same 1 quarter-hours; A75 pull 20261017T212639Z
 10Y1001A1001A82H,2025-07-09,B04,1,outage: 7 series miss the same 1 quarter-hours; A75 pull 20261017T212639Z
 10Y1001A1001A82H,2025-07-09,B11,1,outage: 7 series miss the same 1 quarter-hours; A75 pull 20261017T212639Z
@@ -10,15 +13,76 @@ zone_eic,local_date,psr,missing_steps,note
 10Y1001A1001A82H,2025-10-09,B17,2,gap in this series only; A75 pull 20261017T212639Z
 10Y1001A1001A82H,2025-10-14,B17,3,gap in this series only; A75 pull 20261017T212639Z
 10Y1001A1001A82H,2025-07-09,B19,1,outage: 7 series miss the same 1 quarter-hours; A75 pull 20261017T212639Z
+10YFR-RTE------C,2022-04-16,B01,1,outage: 10 series miss the same hour; A75 pull 20261018T002043Z
+10YFR-RTE------C,2022-04-16,B04,1,outage: 10 series miss the same hour; A75 pull 20261018T002043Z
+10YFR-RTE------C,2022-04-16,B06,1,outage: 10 series miss the same hour; A75 pull 20261018T002043Z
+10YFR-RTE------C,2022-04-16,B10,1,outage: 10 series miss the same hour; A75 pull 20261018T002043Z
+10YFR-RTE------C,2022-04-16,B11,1,outage: 10 series miss the same hour; A75 pull 20261018T002043Z
+10YFR-RTE------C,2022-04-16,B12,1,outage: 10 series miss the same hour; A75 pull 20261018T002043Z
+10YFR-RTE------C,2022-04-16,B14,1,outage: 10 series miss the same hour; A75 pull 20261018T002043Z
+10YFR-RTE------C,2022-04-16,B16,1,outage: 10 series miss the same hour; A75 pull 20261018T002043Z
+10YFR-RTE------C,2022-04-16,B17,1,outage: 10 series miss the same hour; A75 pull 20261018T002043Z
+10YFR-RTE------C,2022-04-16,B19,1,outage: 10 series miss the same hour; A75 pull 20261018T002043Z
+10YFR-RTE------C,2023-05-20,B01,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-20,B04,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-20,B06,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-20,B10,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-20,B11,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-20,B12,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-20,B14,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-20,B16,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-20,B17,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-20,B19,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-27,B01,2,outage: 10 series miss the same 2 hours; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-27,B04,2,outage: 10 series miss the same 2 hours; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-27,B06,2,outage: 10 series miss the same 2 hours; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-27,B10,2,outage: 10 series miss the same 2 hours; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-27,B11,2,outage: 10 series miss the same 2 hours; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-27,B12,2,outage: 10 series miss the same 2 hours; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-27,B14,2,outage: 10 series miss the same 2 hours; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-27,B16,2,outage: 10 series miss the same 2 hours; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-27,B17,2,outage: 10 series miss the same 2 hours; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-05-27,B19,2,outage: 10 series miss the same 2 hours; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-06-02,B18,7,"offshore wind in its first weeks, 17 of 24 hours published; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-03,B18,17,"offshore wind in its first weeks, 7 of 24 hours published; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-04,B18,24,"offshore wind in its first weeks, no row that day; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-05,B18,14,"offshore wind in its first weeks, 10 of 24 hours published; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-06,B18,4,"offshore wind in its first weeks, 20 of 24 hours published; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-07,B18,24,"offshore wind in its first weeks, no row that day; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-08,B18,19,"offshore wind in its first weeks, 5 of 24 hours published; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-09,B18,23,"offshore wind in its first weeks, 1 of 24 hours published; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-10,B18,24,"offshore wind in its first weeks, no row that day; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-11,B18,24,"offshore wind in its first weeks, no row that day; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-12,B18,24,"offshore wind in its first weeks, no row that day; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-13,B18,23,"offshore wind in its first weeks, 1 of 24 hours published; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-14,B18,24,"offshore wind in its first weeks, no row that day; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-15,B18,24,"offshore wind in its first weeks, no row that day; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-16,B18,24,"offshore wind in its first weeks, no row that day; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-17,B18,24,"offshore wind in its first weeks, no row that day; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-18,B18,24,"offshore wind in its first weeks, no row that day; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-19,B18,21,"offshore wind in its first weeks, 3 of 24 hours published; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-06-20,B18,24,"offshore wind in its first weeks, no row that day; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-07-13,B18,14,"offshore wind in its first weeks, 10 of 24 hours published; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-07-17,B18,1,"offshore wind in its first weeks, 23 of 24 hours published; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-07-20,B01,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-07-20,B04,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-07-20,B06,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-07-20,B10,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-07-20,B11,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-07-20,B12,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-07-20,B14,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-07-20,B16,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-07-20,B17,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-07-20,B19,1,outage: 10 series miss the same hour; A75 pull 20261018T002051Z
+10YFR-RTE------C,2023-07-23,B12,2,"gap in this series only, 2 hours; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-07-23,B18,2,"offshore wind in its first weeks, 22 of 24 hours published; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-07-24,B18,1,"offshore wind in its first weeks, 23 of 24 hours published; A75 pull 20261018T002051Z"
+10YFR-RTE------C,2023-07-25,B18,2,"offshore wind in its first weeks, 22 of 24 hours published; A75 pull 20261018T002051Z"
 10YFR-RTE------C,2025-10-25,B01,4,outage: 11 series miss the same 4 quarter-hours; A75 pull 20261017T212949Z
 10YFR-RTE------C,2025-12-10,B01,15,outage: 11 series miss the same 15 quarter-hours; A75 pull 20261017T212949Z
 10YFR-RTE------C,2025-10-25,B04,4,outage: 11 series miss the same 4 quarter-hours; A75 pull 20261017T212949Z
 10YFR-RTE------C,2025-12-10,B04,15,outage: 11 series miss the same 15 quarter-hours; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-06-19,B06,2,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-08-21,B06,4,gap in this series only; A75 pull 20261017T212949Z
 10YFR-RTE------C,2025-10-25,B06,4,outage: 11 series miss the same 4 quarter-hours; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-10-31,B06,2,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-11-01,B06,2,gap in this series only; A75 pull 20261017T212949Z
 10YFR-RTE------C,2025-12-10,B06,15,outage: 11 series miss the same 15 quarter-hours; A75 pull 20261017T212949Z
 10YFR-RTE------C,2025-10-25,B10,4,outage: 11 series miss the same 4 quarter-hours; A75 pull 20261017T212949Z
 10YFR-RTE------C,2025-12-10,B10,15,outage: 11 series miss the same 15 quarter-hours; A75 pull 20261017T212949Z
@@ -32,39 +96,7 @@ zone_eic,local_date,psr,missing_steps,note
 10YFR-RTE------C,2025-12-10,B16,15,outage: 11 series miss the same 15 quarter-hours; A75 pull 20261017T212949Z
 10YFR-RTE------C,2025-10-25,B17,4,outage: 11 series miss the same 4 quarter-hours; A75 pull 20261017T212949Z
 10YFR-RTE------C,2025-12-10,B17,15,outage: 11 series miss the same 15 quarter-hours; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-01-17,B18,14,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-01-22,B18,8,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-03-10,B18,11,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-04-01,B18,4,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-04-05,B18,5,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-04-06,B18,4,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-04-08,B18,6,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-04-22,B18,3,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-04-27,B18,22,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-04-29,B18,6,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-05-09,B18,11,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-05-30,B18,5,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-05-31,B18,14,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-06-02,B18,7,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-06-09,B18,3,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-06-17,B18,15,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-06-18,B18,7,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-06-25,B18,10,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-08-06,B18,10,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-08-07,B18,10,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-08-13,B18,15,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-08-14,B18,1,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-08-23,B18,1,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-09-19,B18,7,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-09-20,B18,14,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-09-26,B18,11,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-09-30,B18,17,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-10-01,B18,5,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-10-07,B18,2,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-10-08,B18,6,gap in this series only; A75 pull 20261017T212949Z
 10YFR-RTE------C,2025-10-25,B18,4,outage: 11 series miss the same 4 quarter-hours; A75 pull 20261017T212949Z
 10YFR-RTE------C,2025-12-10,B18,15,outage: 11 series miss the same 15 quarter-hours; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-12-13,B18,46,gap in this series only; A75 pull 20261017T212949Z
-10YFR-RTE------C,2025-04-18,B19,12,gap in this series only; A75 pull 20261017T212949Z
 10YFR-RTE------C,2025-10-25,B19,4,outage: 11 series miss the same 4 quarter-hours; A75 pull 20261017T212949Z
 10YFR-RTE------C,2025-12-10,B19,15,outage: 11 series miss the same 15 quarter-hours; A75 pull 20261017T212949Z
