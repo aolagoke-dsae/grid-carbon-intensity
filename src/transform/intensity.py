@@ -45,7 +45,7 @@ Z_BAND = 1.96. Three properties follow, and each is tested:
   piling mass on its edges, and it takes equal probability from both tails,
   so the median does not move.
 - The skew comes from the band itself. Each side of the median has its own
-  spread, so hydro (1 / 24 / 2200) keeps its long right side and coal
+  spread, so reservoir hydro (1 / 24 / 2200) keeps its long right side and coal
   (740 / 820 / 910) stays almost symmetric.
 
 Why not a triangular with the median as its mode, which 1.0.0 used for every

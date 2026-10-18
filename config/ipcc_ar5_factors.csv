@@ -7,8 +7,8 @@ B05,Fossil Hard coal,820,740,910,high,IPCC AR5 WG3 Annex III Table A.III.2 (coal
 B06,Fossil Oil,,,,unknown,"No AR5 oil row. Unpriced until a cited source is found; until 17.10.2026 priced at 650 (510-840) from a placeholder - REVIEW"
 B09,Geothermal,38,6,79,high,IPCC AR5 WG3 Annex III Table A.III.2
 B10,Hydro Pumped Storage,,,,excluded,"Storage, not generation. Emissions derive from charging mix - handled separately"
-B11,Hydro Run-of-river,24,1,2200,medium,IPCC AR5 WG3 Annex III Table A.III.2 (hydropower; very wide range)
-B12,Hydro Water Reservoir,24,1,2200,medium,IPCC AR5 WG3 Annex III Table A.III.2 (hydropower; very wide range)
+B11,Hydro Run-of-river,24,1,24,medium,"IPCC AR5 WG3 Annex III Table A.III.2 (hydropower): min and median. Max set to the median on 18.10.2026: the row's upper end is reservoir methane (88 typical in the table's methane column), which a run-of-river plant has no reservoir to emit; LCAs give 2-5 for run-of-river against 11-20 for dam reservoirs (Turconi et al. 2013, RSER 28: 555-565). docs/FACTOR_CHECK.md, decision 2"
+B12,Hydro Water Reservoir,24,1,2200,medium,"IPCC AR5 WG3 Annex III Table A.III.2 (hydropower; very wide range, reservoir methane included: 88 typical)"
 B14,Nuclear,12,3.7,110,high,IPCC AR5 WG3 Annex III Table A.III.2
 B15,Other renewable,,,,unknown,Composition not disclosed by ENTSO-E - REVIEW
 B16,Solar,48,18,180,high,IPCC AR5 WG3 Annex III Table A.III.2 (utility PV)

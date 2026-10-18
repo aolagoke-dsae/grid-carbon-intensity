@@ -324,6 +324,14 @@ published min and max sit at its 2.5th and 97.5th percentiles, each side of
 the median takes its own spread, and every draw stays inside the published
 band. `describe_sampling()` lists the fitted spreads per fuel.
 
+One band is narrower than AR5's, decided 18 October 2026. AR5 has a single
+hydropower row, and its upper end is reservoir methane, which a run-of-river
+plant has no reservoir to emit. Run-of-river (B11) therefore keeps AR5's
+minimum and median and stops at the median, 1 / 24 / 24; reservoirs (B12)
+keep the full row. Under the full band, run-of-river accounted for 65–71% of
+France's interval variance in 2021–2025 at 7–9% of its generation. The point
+estimate does not change; France's interval narrows by 35–40%.
+
 > Changed 17 October 2026 (method 2.0.0). Until then the default was a
 > triangular with the published median as its mode. For a skewed band that
 > moves the median — nuclear's came out at 37.7 instead of 12 — so French,

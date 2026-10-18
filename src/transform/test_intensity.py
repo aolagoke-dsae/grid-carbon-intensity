@@ -27,9 +27,11 @@ from intensity import (
 
 FACTORS_CSV = Path(__file__).resolve().parents[2] / "config" / "ipcc_ar5_factors.csv"
 
-# A low-carbon mix with hydro in it, written down in two orders.
-HYDRO_FIRST = {"B11": 300.0, "B04": 2000.0, "B14": 6000.0, "B16": 800.0, "B19": 1200.0, "B18": 500.0}
-HYDRO_LAST = {k: HYDRO_FIRST[k] for k in ["B04", "B14", "B16", "B19", "B18", "B11"]}
+# A low-carbon mix with reservoir hydro in it, written down in two orders.
+# Reservoir (B12), not run-of-river: since 18.10.2026 only B12 carries
+# AR5's long hydropower tail, which is what makes the order bug visible.
+HYDRO_FIRST = {"B12": 300.0, "B04": 2000.0, "B14": 6000.0, "B16": 800.0, "B19": 1200.0, "B18": 500.0}
+HYDRO_LAST = {k: HYDRO_FIRST[k] for k in ["B04", "B14", "B16", "B19", "B18", "B12"]}
 
 
 @pytest.fixture(scope="module")
@@ -127,13 +129,13 @@ def test_the_score_range_maps_onto_the_published_band(factors):
 
 
 def test_the_skew_comes_from_the_band(factors):
-    """Hydro keeps its long right side; coal stays almost symmetric."""
+    """Reservoir hydro keeps its long right side; coal stays almost symmetric."""
 
     def right_over_left(d):
         m = np.median(d)
         return (np.percentile(d, 90) - m) / (m - np.percentile(d, 10))
 
-    hydro = sample_factor(factors["B11"], 100_000, np.random.default_rng(2))
+    hydro = sample_factor(factors["B12"], 100_000, np.random.default_rng(2))
     coal = sample_factor(factors["B05"], 100_000, np.random.default_rng(2))
     assert right_over_left(hydro) > 10
     assert right_over_left(coal) == pytest.approx(1.0, abs=0.15)
@@ -142,15 +144,29 @@ def test_the_skew_comes_from_the_band(factors):
 def test_a_triangular_over_the_hydro_range_would_wreck_the_median(factors):
     """Why no triangular is used anywhere.
 
-    AR5 hydro is 1 / 24 / 2200. A triangular over that has its median near
-    650 gCO2e/kWh -- comparable to gas -- because the mode sits at the 1st
-    percentile of the range.
+    AR5 hydro is 1 / 24 / 2200 (B12, reservoirs). A triangular over that has
+    its median near 650 gCO2e/kWh -- comparable to gas -- because the mode
+    sits at the 1st percentile of the range.
     """
-    f = factors["B11"]
+    f = factors["B12"]
     naive = np.median(np.random.default_rng(1).triangular(f.lo, f.median, f.hi, 20_000))
     fitted = np.median(sample_factor(f, 20_000, np.random.default_rng(1)))
     assert naive > 500, "sanity: the naive choice really is that bad"
     assert fitted == pytest.approx(f.median, rel=0.05)
+
+
+def test_run_of_river_carries_no_reservoir_tail(factors):
+    """Decided 18.10.2026 (docs/FACTOR_CHECK.md, decision 2). AR5 has one
+    hydropower row, and its upper end is reservoir methane. Run-of-river keeps
+    AR5's minimum and median and stops at the median; reservoirs keep the row.
+    Under the full band run-of-river owned 65-71% of France's interval
+    variance, 2021-2025."""
+    ror, res = factors["B11"], factors["B12"]
+    assert (ror.lo, ror.median, ror.hi) == (1.0, 24.0, 24.0)
+    assert (res.lo, res.median, res.hi) == (1.0, 24.0, 2200.0)
+    draws = sample_factor(ror, 50_000, np.random.default_rng(7))
+    assert draws.max() <= 24.0
+    assert np.median(draws) == pytest.approx(24.0, rel=0.02)
 
 
 def test_unpriced_fuel_cannot_be_sampled(factors):

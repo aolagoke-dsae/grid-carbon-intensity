@@ -322,7 +322,10 @@ no row. Two priced rows are proxies, marked `low`: B03 (coal-derived gas) and
 B02 (lignite), both on AR5's single coal row. Lignite plants generally emit
 more per kWh than hard-coal plants, so the B02 proxy probably understates
 DE-LU, where lignite was 15.3% of 2025 generation. `load_factors` refuses a
-priced row whose source is a placeholder.
+priced row whose source is a placeholder. Run-of-river (B11) keeps AR5's
+hydropower minimum and median and stops at the median, 1 / 24 / 24, decided
+18.10.2026 after the hand check: the row's upper end is reservoir methane,
+which B12 keeps (`docs/FACTOR_CHECK.md`, decision 2).
 
 > **This is the stage that carries the whole project's credibility.** Open IPCC
 > AR5 WG3 Annex III Table A.III.2 and verify every number in that CSV against
@@ -509,7 +512,10 @@ median, min and max sit at the 2.5th and 97.5th percentiles, and every draw
 stays inside the band. A triangular with the median as its mode — the default
 until 17 October 2026 — moves the median of a skewed band (nuclear's to 37.7)
 and pushed the deterministic point outside its interval on nuclear-heavy mixes.
-`describe_sampling()` lists the fitted spreads per fuel.
+`describe_sampling()` lists the fitted spreads per fuel. One band is narrower
+than AR5's: run-of-river (B11) stops at its median since 18.10.2026, because
+AR5's hydropower maximum is reservoir methane. Under the full band it owned
+65–71% of France's interval variance (Stage 4).
 
 **Checkpoint 8**
 
