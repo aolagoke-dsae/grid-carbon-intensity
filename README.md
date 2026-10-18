@@ -49,11 +49,12 @@ are plain Python — NumPy, no modelling framework — in
 What has run on real data and what has run only on test fixtures is kept
 apart throughout. The ingestion clients, both parsers, the uncertainty module
 and CI are written and unit-tested. Of the live sources, ENTSO-E day-ahead
-prices (A44) and SMARD were pulled on 6 October 2026, and generation per type
-(A75) for DE-LU and FR, 2025 on 17 October 2026 and 2021–2024 on 18 October;
-load (A65) has not been fetched. The A75 parser and the stage 2–5 checks have
+prices (A44) for DE-LU 2025 and SMARD were pulled on 6 October 2026,
+generation per type (A75) for DE-LU and FR, 2025 on 17 October 2026 and
+2021–2024 on 18 October, and the remaining prices for both zones, 2021–2025,
+on 18 October; load (A65) has not been fetched. The A75 parser and the stage 2–5 checks have
 run on all ten zone-years, stage 5 on the median-factor intensity. Landed, the
-2021–2025 A75 and the 2025 A44 data build green through the dbt project,
+2021–2025 A75 and A44 data build green through the dbt project,
 23 nodes on 18 October 2026, and CI builds every model on fixtures and checks
 it against the Python parser. The
 fact tables, the Monte Carlo interval on real data and the report are not
@@ -82,19 +83,19 @@ Named here rather than left for a reader to discover.
 
 | | Status |
 |---|---|
-| dbt facts | **not built.** Staging, the three intermediate models and the three dimensions stand: built green on the 2021–2025 A75 and 2025 A44 data on 18.10.2026, and on fixtures in CI. `stg_entsoe__load` and `stg_entsoe__flows` are disabled until A65 and A11 are pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
+| dbt facts | **not built.** Staging, the three intermediate models and the three dimensions stand: built green on the 2021–2025 A75 and A44 data on 18.10.2026, and on fixtures in CI. `stg_entsoe__load` and `stg_entsoe__flows` are disabled until A65 and A11 are pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
 | `curated/sample/` | **absent.** From a clean clone, `dbt build` has no data to read; `pytest src/transform/test_dbt_models.py` builds the models on fixtures instead |
 | Load-shifting decision model | **not started** — the question the project exists to answer |
 | Quarto report, GitHub Pages | **not started** |
 | Power BI dashboard | **not started**; it will read the exported Parquet. The Azure portability excursion was dropped in October 2026 and is archived in `archive/azure-excursion/` |
 | Sobol sensitivity of the saving | **not built**. For the intensity alone, `variance_contribution()` reports first-order variance shares — for this linear model, its first-order Sobol indices — and each fuel's share of the 90% interval width |
 | Cross-border flow (A11) import adjustment | **not built**; intensity is average, not marginal |
-| Trap 5, the two competing A44 price curves | **handled** 08.10.2026 — `entsoe_prices_parse.py`, `xml_to_parquet.py` and the curve filter in `stg_entsoe__prices.sql`. What stays open is *which* curve is authoritative: that needs SMARD filter 4169 for the 2025 weeks, which has not been pulled |
+| Trap 5, the two competing A44 price curves | **handled** 08.10.2026 — `entsoe_prices_parse.py`, `xml_to_parquet.py` and the curve filter in `stg_entsoe__prices.sql`. DE-LU carries both curves in every year from 2021, France one; the filter keeps every delivery period (18.10.2026). What stays open is *which* curve is authoritative: that needs SMARD filter 4169 for the 2025 weeks, which has not been pulled |
 
 What *is* built: ingestion with a redacting manifest, run for A44 and SMARD;
 the A75 parser with its four traps, tested on fixtures including both
 daylight-saving transition days and run on the real 2021–2025 pulls for DE-LU
-and FR; the A44 price parser with the fifth, run on the real 2025 payload; the raw
+and FR; the A44 price parser with the fifth, run on the real 2021–2025 payloads for both zones; the raw
 parquet landing, with both domains and the source digest on every row; the dbt
 staging, intermediate and dimension models, checked against the Python parser;
 Monte Carlo uncertainty with the sensitivity shares; the stage checkpoints,
@@ -242,8 +243,8 @@ asserted in `test_prices_parse.py`, and enforced in SQL by the curve filter in
    **92 and 100** steps, not 23 and 25.
 4. **The unit is MAW — power, not energy.** MWh = MW × step_hours, which matters
    as soon as zones at different resolutions are combined.
-5. **A44 returns two competing price curves for 2025, and only one field tells
-   them apart.** The full-year DE-LU day-ahead pull is 50,044 points — more than
+5. **A44 returns two competing price curves for DE-LU, and only one field tells
+   them apart.** The full-year 2025 DE-LU day-ahead pull is 50,044 points — more than
    a year holds at PT15M (35,040). The document carries 732 TimeSeries that are
    identical in `businessType` (A62), `contract_MarketAgreement.type` (A01),
    `auction.type` (A01), domain, currency and unit. The *only* discriminator is
@@ -261,6 +262,15 @@ asserted in `test_prices_parse.py`, and enforced in SQL by the curve filter in
    8,602 of them**: median difference +0.41 €/MWh, but the range runs from
    −198.37 to +278.69. The divergence is largest in exactly the scarcity and
    negative-price quarter-hours a load-shift study is about.
+
+   The earlier years, pulled on 18 October 2026, carry the same pair: in
+   2021–2024 position 1 runs at PT60M and position 2 at PT15M, every year, so a
+   15-minute curve exists from January 2021 at the latest, nearly five years
+   before the 15-minute MTU went live. That is further evidence, not proof,
+   that position 2 is not the binding day-ahead result. France publishes one
+   curve, hourly until delivery day 29 September 2025 and PT15M from 30
+   September, a day before DE-LU; on that first day it states one price per
+   hour, so its first 15-minute day still carries hourly prices.
 
    Key on `(resolution, classificationSequence…position, timestamp)`, never on
    timestamp alone. A parser that groups by timestamp silently turns the choice

@@ -261,6 +261,14 @@ Whether the earlier years carry one price curve or two, as 2025 does (trap 5),
 shows when they land: the curve filter in `stg_entsoe__prices.sql` counts the
 curves per delivery period, and its two tests fail on anything it cannot place.
 
+**Pulled and landed 18.10.2026.** Nine requests, all HTTP 200, none rejected.
+DE-LU carries two curves in every year, position 1 at PT60M and position 2 at
+PT15M throughout 2021–2024; France carries one, at PT15M from delivery day
+30 September 2025, a day before DE-LU. The filter keeps every delivery period,
+both price tests pass and `dbt build` is green, 23 of 23. Time-weighted yearly
+means of the filtered curve, €/MWh, 2021 to 2025: DE-LU 96.85, 235.45, 95.18,
+78.51, 89.32; France 109.17, 275.88, 96.86, 58.02, 61.07.
+
 **Checkpoint 3**
 
 ```python
