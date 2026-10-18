@@ -111,8 +111,7 @@ redistributed (see **Licence**): pull and land them with a token, or wait for
 `curated/sample/`, which is planned. Stated here rather than discovered after
 cloning.
 
-The architecture is defined once in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-and shared with the Sentinel-2 biomass MRV and German data-role market projects.
+The architecture is defined in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Data provenance
 
@@ -394,7 +393,7 @@ src/checks/         stage checkpoint functions, importable and testable
 dbt/                10 models (8 enabled), 7 singular tests (1 disabled) and
                     9 generic ones; built on fixtures in CI and on the real
                     2025 data — see What is not built
-docs/               ARCHITECTURE.md — the standard shared across projects
+docs/               ARCHITECTURE.md, the standard; RESOURCES.md, reading by stage
 .github/workflows/  pipeline.yml — pytest on 3.11 and 3.14; dbt parse and a
                     build on fixtures; weekly
 raw/                append-only landing, git-ignored: one folder per document,

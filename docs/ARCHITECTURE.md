@@ -1,11 +1,11 @@
-# Portfolio Architecture Standard
+# Architecture Standard
 
-Dr. Adewole Olagoke · 25 September 2026 · revised 17 October 2026
+Dr. Adewole Olagoke · 25 September 2026 · revised 18 October 2026
 
-One architecture, three projects. Each project is an **instantiation** of this
-standard, not a fresh design. That is deliberate: two projects sharing an
-architecture demonstrate a method. Two projects with different architectures
-demonstrate two tutorials.
+The stack, the repository shape and the working rules this repository is built
+on. Projects that reuse the standard document their own instantiation and its
+differences in their own repositories; since 18 October 2026 nothing about them
+is kept here.
 
 ---
 
@@ -23,13 +23,13 @@ has been revoked, a trial has lapsed, and a free tier has expired.
 
 ## Which document governs
 
-Five documents describe this portfolio and they are not interchangeable.
+Five documents describe this project and they are not interchangeable.
 
 | Document | Answers | Authority |
 |---|---|---|
-| `docs/ARCHITECTURE.md` (this file) | What the stack is, what is excluded, what every repository must look like | Governs the **standard**. Shared by A, BM and D |
-| `<project>/RUNBOOK.md` | What to build next here, and how to know it is right | Governs the **build**. Where a runbook and a plan disagree, the runbook wins |
-| `<project>/README.md` | What this project is, for someone arriving from a job application | Governs the **first impression**. Carries no build instructions |
+| `docs/ARCHITECTURE.md` (this file) | What the stack is, what is excluded, what the repository must look like | Governs the **standard** |
+| `RUNBOOK.md` | What to build next here, and how to know it is right | Governs the **build**. Where a runbook and a plan disagree, the runbook wins |
+| `README.md` | What this project is, for someone arriving from a job application | Governs the **first impression**. Carries no build instructions |
 | `docs/RESOURCES.md` | What to read before a given stage | Reference only |
 | `Master_Plan_Olagoke.docx` | Dates, decisions, certifications, runway, where to apply | Governs the **plan**, never the build |
 
@@ -68,7 +68,7 @@ bounded excursion below for how the Microsoft evidence is obtained anyway.
 
 ## Environment and tooling
 
-One environment for all three repositories: **VS Code**. It is already the
+One environment: **VS Code**. It is already the
 working environment, so this costs no migration. Four extensions, all from the
 VS Code Marketplace:
 
@@ -138,7 +138,7 @@ ever ran on one engine.
 
 ## Repository skeleton
 
-Identical across all three projects:
+The standard shape:
 
 ```
 config/           zones / study areas / factors, each row carrying a citation
@@ -191,14 +191,10 @@ and run the whole pipeline with one command.** No account, no credentials, no
 licence. That is a stronger artefact than a screenshot of a service they cannot
 reach.
 
-For geospatial work, `INSTALL spatial; LOAD spatial;` adds geometry types,
-GeoParquet, and GDAL-backed format support — which is what makes Project BM fit
-this standard rather than needing a separate one.
-
 ### Orchestration
 
 GitHub Actions is free with no minute cap on public repositories using standard
-runners. Two workflows per project:
+runners. Two workflows:
 
 - `ci.yml` — on every pull request: `pytest`, then `dbt build`. The green check
   on the repository page is evidence nobody can fabricate.
@@ -207,7 +203,7 @@ runners. Two workflows per project:
 
 Two limits to design around. Scheduled workflows in a public repo are disabled
 after roughly 60 days of repository inactivity, so commit periodically. And a
-single job is capped at 6 hours, which matters for raster work — see Project BM.
+single job is capped at 6 hours.
 
 ### Publication
 
@@ -230,43 +226,9 @@ with the T-SQL it would have run, in
 
 ---
 
-## One runbook per repository
-
-This standard is shared. Runbooks are not.
-
-Each project lives in its own repository with its own `RUNBOOK.md`, because the
-stages differ structurally: Project A ingests a REST API, Project BM searches a
-STAC catalogue and processes rasters, Project D polls many small heterogeneous
-sources on different schedules.
-A combined runbook would be unusable at length and wrong in detail.
-
-A project's runbook *should* be written **when that project starts**, not in
-advance, because BM's checkpoints ought to inherit what A's checkpoints actually
-caught in practice — knowledge that does not exist until A has run.
-
-**That is not what happened.** All three runbooks were written by 26 September
-2026, before Project A produced a single artefact. The rule was overridden
-deliberately, and the cost is real: BM's and C's checkpoints are reasoned from
-the domain rather than from experience, so some of them are wrong in ways only a
-run will reveal.
-
-| Project | Runbook | State |
-|---|---|---|
-| A — Grid Carbon Intensity | written | building |
-| BM — Sentinel-2 Biomass MRV | written in advance | not started |
-| D — German Data-Role Market | written in advance | not started |
-| ~~C — Scope 3 Value Chain~~ | archived 27.09.2026 | replaced by D — see `_archiv_2026-09/projects/README.md` |
-
-So treat BM's and D's runbooks as **specifications to be revised**, not
-instructions to be followed. When A's stages surface a class of error those
-runbooks do not anticipate, amend them then. The order of work is unchanged: A
-to Stage 10 first.
-
----
-
 ## Checkpoint discipline
 
-Every project runbook follows the same shape. Each stage has a **checkpoint**
+The runbook follows one shape. Each stage has a **checkpoint**
 that must pass before the next begins, because every stage here is one where a
 silent error produces plausible-looking numbers rather than a crash.
 
@@ -302,72 +264,20 @@ one squashed import.
 
 ## Instantiation
 
-| Layer | **A — Grid Carbon Intensity** | **BM — Sentinel-2 Biomass MRV** | **D — German Data-Role Market** |
-|---|---|---|---|
-| Sources | ENTSO-E Transparency Platform; IPCC AR5 WG3 Annex III | Copernicus Data Space; Planetary Computer STAC; CLMS; Global Forest Change; Copernicus DEM GLO-30 | Bundesagentur Jobbörse (**unofficial** interface); Personio / Recruitee / SmartRecruiters / Greenhouse ATS feeds; Helmholtz, Fraunhofer, Interamt RSS |
-| Ingestion | REST + token, 400 req/min | STAC search + signed asset reads | REST + header key at 1 req/s; per-platform ATS adapters; RSS. Daily for fast sources, weekly for institutes |
-| Heavy compute | none | xarray / rioxarray / odc-stac, **local** | blocking plus fuzzy matching (RapidFuzz) for vacancy dedupe and employer resolution |
-| Curated grain | zone × production type × quarter-hour | district × date × index / biomass | vacancy × source × seen-date, plus vacancy × role cluster |
-| Warehouse | DuckDB | DuckDB + `spatial` | DuckDB |
-| Uncertainty | AR5 factor ranges → MC → 90% interval + Sobol | six-source error budget → MC → 90% interval + Sobol | **classification uncertainty**: precision and recall on 200 hand labels, reported with Wilson intervals, plus a stated source-coverage figure |
-| Compliance layer | — | EUDR plot screening vs 31 Dec 2020 cut-off | robots.txt and ToS honoured; LinkedIn, Indeed and StepStone excluded by their terms; no third-party contact data committed |
-| Publication | Quarto → Pages; `.pbix`; Tableau Public | Quarto → Pages with maps | Quarto → Pages, every chart carrying its coverage statement; daily digest to a GitHub Issue |
-
-### Project BM — the two things that differ
-
-**Rasters never enter the warehouse.** Scene processing runs locally with
-`odc-stac` / `xarray` / `rioxarray` and emits zonal statistics per forest
-district per date. Those statistics are a few thousand rows of Parquet. DuckDB
-holds the statistics, not the imagery, which is why the standard holds.
-
-**Azure buys nothing here.** Microsoft Planetary Computer retired its hosted
-compute Hub in June 2024. The data and STAC APIs remain free, but compute is
-yours either way — so running it locally is the same work without the bill.
-
-Actions' 6-hour job cap means the historical backfill is computed locally once
-and committed as Parquet; the scheduled workflow only processes new acquisitions.
-
-Study area: **Lahn-Dill-Bergland and Vogelsberg forest districts, Hessen**,
-roughly 30 km from Pohlheim, with the 2018–2022 spruce dieback as an
-independently verifiable disturbance signal, compared against FNEWs, the
-national Sentinel-2 forest-damage product, and against the Hessen
-Waldzustandsbericht (Hessisches Ministerium / NW-FVA). Neither is ground truth,
-and HessenForst publishes neither.
-
-The EUDR module is DuckDB `spatial` work end to end: plot polygons as GeoJSON,
-tested against forest loss since the 31 December 2020 cut-off, emitting a
-per-plot pass/fail with its full evidence chain.
-
-### Project D — the three things that differ
-
-**Many small sources on different clocks.** A and BM each poll one API. D polls
-one large source plus a dozen ATS tenants plus a dozen RSS feeds, which move at
-different speeds. `config/sources.csv` carries a `poll_frequency` per source and
-a failing source must never fail the run — it is logged, reported in the digest,
-and flagged if silent for fourteen days. Polling a monthly source daily is noise
-that teaches you to ignore the digest.
-
-**The uncertainty layer is classification, not Monte Carlo.** There is no factor
-range to propagate. The honest analogue is a measured matcher: 200 hand-labelled
-postings, thresholds fitted on one half, precision and recall reported on the
-held-out half with Wilson intervals. A point estimate from a hundred labels is
-not a number anyone should trust, and saying so is the point.
-
-**One source is unofficial, and that is an engineering requirement.** The
-Bundesagentur interface is reverse-engineered and community-documented, with no
-published terms and no documented rate limits. So: one request per second, an
-identifying User-Agent, graceful degradation when it errors, and no headline
-dashboard claim resting on it alone. It is named as unofficial in the README, in
-`METHODOLOGY.md` and on the dashboard.
-
-Two ideas transferred from the archived Project C rather than being discarded:
-match tier drives stated confidence, exactly as data-quality tier drove interval
-width; and value-of-information ranking now ranks employers worth investigating
-instead of suppliers worth engaging.
+| Layer | **A — Grid Carbon Intensity** |
+|---|---|
+| Sources | ENTSO-E Transparency Platform; IPCC AR5 WG3 Annex III |
+| Ingestion | REST + token, 400 req/min |
+| Heavy compute | none |
+| Curated grain | zone × production type × quarter-hour |
+| Warehouse | DuckDB |
+| Uncertainty | AR5 factor ranges → MC → 90% interval + Sobol |
+| Compliance layer | — |
+| Publication | Quarto → Pages; `.pbix`; Tableau Public |
 
 ---
 
-## Honesty rules (all projects)
+## Honesty rules
 
 1. The README states what is real and what is not.
 2. No CV claims a technology until the checkpoint that proves it has passed.

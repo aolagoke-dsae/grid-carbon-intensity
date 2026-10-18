@@ -10,9 +10,8 @@ Ten stages. Each has a **checkpoint** that must pass before the next one starts.
 The checkpoints exist because every stage here is one where a silent error
 produces plausible-looking numbers rather than a crash.
 
-The stack is defined once in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-and shared with the Sentinel-2 biomass MRV and the German data-role market
-projects. This runbook is its instantiation for Project A.
+The stack is defined in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); this
+runbook is its instantiation for Project A.
 
 ---
 
@@ -81,8 +80,7 @@ defaults to 1.5s — that is 40/minute, ten times under the limit. Leave it alon
 | Environment | **VS Code** + dbt / Quarto extensions; `duckdb -ui` to inspect | €0 | none |
 | *Dropped* | Azure SQL (free offer), Stage 6b — see **The gate**; archived in `archive/azure-excursion/`. Power BI is built on the exported Parquet instead | €0 | none |
 
-Defined once in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and shared with
-the Sentinel-2 biomass MRV and the German data-role market projects. Tutorials,
+Defined in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Tutorials,
 reference repositories and data sources for each
 layer are listed in [`docs/RESOURCES.md`](docs/RESOURCES.md), each tagged with
 the stage it belongs to.
