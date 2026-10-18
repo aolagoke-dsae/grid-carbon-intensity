@@ -244,6 +244,25 @@ The pauses between calls add 18 seconds; the downloads take most of the time,
 since one DE-LU year is about 75 MB. Verify every EIC in
 `config/zones.csv` against the Transparency Platform Area List before trusting it.
 
+**Prices for the same years.** Decided 18.10.2026: the cost analysis covers the
+years the intensity covers, so day-ahead prices (A44) are backfilled for both
+zones as well. DE-LU 2025 is in since 06.10.2026; the rest is nine requests:
+
+```python
+from src.ingest.entsoe_client import day_ahead_prices
+for z in zones:
+    for year in range(2021, 2026):
+        if z["key"] == "DE_LU" and year == 2025:
+            continue                                   # pulled 06.10.2026
+        row = day_ahead_prices(z["eic"], year, os.environ["ENTSOE_TOKEN"])
+        print(z["key"], year, row["http_status"], row["rejected"], row["bytes"])
+```
+
+Land them with the A75 files (`python -m src.transform.xml_to_parquet`).
+Whether the earlier years carry one price curve or two, as 2025 does (trap 5),
+shows when they land: the curve filter in `stg_entsoe__prices.sql` counts the
+curves per delivery period, and its two tests fail on anything it cannot place.
+
 **Checkpoint 3**
 
 ```python
@@ -321,6 +340,10 @@ print(check_stage4_factors(rows, factors))
   France. On 2021–2024 (18.10.2026) DE-LU is 4.4–5.1% in every year and France
   1.6–1.9%. The bar is not met in any year; from 2022 pumped storage alone
   exceeds it.
+- **Decided 18.10.2026: accepted, and stated.** The bar stays the standard and
+  stays unmet. Every intensity figure, in this repository, the report and the
+  dashboard, carries the priced share of generation it rests on: DE-LU
+  94.9–95.6% and France 97.7–98.5% across 2021–2025.
 
 **What it unlocks:** the single strongest line for an MRV or assurance
 audience — every factor traced by hand to a named table in a named annex.
@@ -371,7 +394,9 @@ print(check_stage5_intensity(rows, factors, values, sparse))
   recorded source gap: 10 and 31 quarter-hours in DE-LU in 2024 and 2025, and
   413 hours in France in 2023, most in offshore wind's first weeks. (The
   322 French quarter-hours withheld in 2025 until 18.10. were steps with a
-  consumption leg only, counted as partial.)
+  consumption leg only, counted as partial.) These figures cover the priced
+  share of generation only, DE-LU 94.9–95.6% and France 97.7–98.5%
+  (Checkpoint 4).
 
 **This is the free/local gate.** Everything to here costs nothing. Nothing
 after it should start until this passes.

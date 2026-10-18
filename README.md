@@ -216,6 +216,14 @@ cited: AR5 has no oil row, and the earlier value was a placeholder. Lignite
 (B02) is priced from AR5's single coal row and marked a low-confidence proxy;
 it probably understates DE-LU, where lignite was 15% of 2025 generation.
 
+**Every intensity figure carries its priced share.** Unpriced fuels are left out
+of both sides of the ratio, so an intensity describes the priced part of
+generation only: 94.9–95.6% of it in DE-LU and 97.7–98.5% in France, 2021–2025.
+The runbook's bar is 98% for DE-LU, and storage, waste, oil and the undisclosed
+categories keep it out of reach. Rather than price them without a cited
+source, the share is stated beside every intensity figure this repository
+publishes (decided 18 October 2026).
+
 ## What is non-obvious in this data
 
 Five things in the real ENTSO-E payload that a naive parser gets wrong. Traps 1
