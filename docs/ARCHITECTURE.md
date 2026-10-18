@@ -27,7 +27,7 @@ Five documents describe this portfolio and they are not interchangeable.
 
 | Document | Answers | Authority |
 |---|---|---|
-| `docs/ARCHITECTURE.md` (this file) | What the stack is, what is excluded, what every repository must look like | Governs the **standard**. Shared by A, B and C |
+| `docs/ARCHITECTURE.md` (this file) | What the stack is, what is excluded, what every repository must look like | Governs the **standard**. Shared by A, BM and D |
 | `<project>/RUNBOOK.md` | What to build next here, and how to know it is right | Governs the **build**. Where a runbook and a plan disagree, the runbook wins |
 | `<project>/README.md` | What this project is, for someone arriving from a job application | Governs the **first impression**. Carries no build instructions |
 | `docs/RESOURCES.md` | What to read before a given stage | Reference only |
@@ -192,7 +192,7 @@ licence. That is a stronger artefact than a screenshot of a service they cannot
 reach.
 
 For geospatial work, `INSTALL spatial; LOAD spatial;` adds geometry types,
-GeoParquet, and GDAL-backed format support — which is what makes Project B fit
+GeoParquet, and GDAL-backed format support — which is what makes Project BM fit
 this standard rather than needing a separate one.
 
 ### Orchestration
@@ -207,7 +207,7 @@ runners. Two workflows per project:
 
 Two limits to design around. Scheduled workflows in a public repo are disabled
 after roughly 60 days of repository inactivity, so commit periodically. And a
-single job is capped at 6 hours, which matters for raster work — see Project B.
+single job is capped at 6 hours, which matters for raster work — see Project BM.
 
 ### Publication
 
@@ -235,29 +235,29 @@ with the T-SQL it would have run, in
 This standard is shared. Runbooks are not.
 
 Each project lives in its own repository with its own `RUNBOOK.md`, because the
-stages differ structurally: Project A ingests a REST API, Project B searches a
+stages differ structurally: Project A ingests a REST API, Project BM searches a
 STAC catalogue and processes rasters, Project D polls many small heterogeneous
 sources on different schedules.
 A combined runbook would be unusable at length and wrong in detail.
 
 A project's runbook *should* be written **when that project starts**, not in
-advance, because B's checkpoints ought to inherit what A's checkpoints actually
+advance, because BM's checkpoints ought to inherit what A's checkpoints actually
 caught in practice — knowledge that does not exist until A has run.
 
 **That is not what happened.** All three runbooks were written by 26 September
 2026, before Project A produced a single artefact. The rule was overridden
-deliberately, and the cost is real: B's and C's checkpoints are reasoned from
+deliberately, and the cost is real: BM's and C's checkpoints are reasoned from
 the domain rather than from experience, so some of them are wrong in ways only a
 run will reveal.
 
 | Project | Runbook | State |
 |---|---|---|
 | A — Grid Carbon Intensity | written | building |
-| B — Sentinel-2 Biomass MRV | written in advance | not started |
+| BM — Sentinel-2 Biomass MRV | written in advance | not started |
 | D — German Data-Role Market | written in advance | not started |
 | ~~C — Scope 3 Value Chain~~ | archived 27.09.2026 | replaced by D — see `_archiv_2026-09/projects/README.md` |
 
-So treat B's and C's runbooks as **specifications to be revised**, not
+So treat BM's and D's runbooks as **specifications to be revised**, not
 instructions to be followed. When A's stages surface a class of error those
 runbooks do not anticipate, amend them then. The order of work is unchanged: A
 to Stage 10 first.
@@ -302,7 +302,7 @@ one squashed import.
 
 ## Instantiation
 
-| Layer | **A — Grid Carbon Intensity** | **B — Sentinel-2 Biomass MRV** | **D — German Data-Role Market** |
+| Layer | **A — Grid Carbon Intensity** | **BM — Sentinel-2 Biomass MRV** | **D — German Data-Role Market** |
 |---|---|---|---|
 | Sources | ENTSO-E Transparency Platform; IPCC AR5 WG3 Annex III | Copernicus Data Space; Planetary Computer STAC; CLMS; Global Forest Change; Copernicus DEM GLO-30 | Bundesagentur Jobbörse (**unofficial** interface); Personio / Recruitee / SmartRecruiters / Greenhouse ATS feeds; Helmholtz, Fraunhofer, Interamt RSS |
 | Ingestion | REST + token, 400 req/min | STAC search + signed asset reads | REST + header key at 1 req/s; per-platform ATS adapters; RSS. Daily for fast sources, weekly for institutes |
@@ -313,7 +313,7 @@ one squashed import.
 | Compliance layer | — | EUDR plot screening vs 31 Dec 2020 cut-off | robots.txt and ToS honoured; LinkedIn, Indeed and StepStone excluded by their terms; no third-party contact data committed |
 | Publication | Quarto → Pages; `.pbix`; Tableau Public | Quarto → Pages with maps | Quarto → Pages, every chart carrying its coverage statement; daily digest to a GitHub Issue |
 
-### Project B — the two things that differ
+### Project BM — the two things that differ
 
 **Rasters never enter the warehouse.** Scene processing runs locally with
 `odc-stac` / `xarray` / `rioxarray` and emits zonal statistics per forest
@@ -338,7 +338,7 @@ per-plot pass/fail with its full evidence chain.
 
 ### Project D — the three things that differ
 
-**Many small sources on different clocks.** A and B each poll one API. D polls
+**Many small sources on different clocks.** A and BM each poll one API. D polls
 one large source plus a dozen ATS tenants plus a dozen RSS feeds, which move at
 different speeds. `config/sources.csv` carries a `poll_frequency` per source and
 a failing source must never fail the run — it is logged, reported in the digest,

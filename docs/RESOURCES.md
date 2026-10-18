@@ -17,7 +17,7 @@ Companion to [`ARCHITECTURE.md`](ARCHITECTURE.md) and `RUNBOOK.md`.
 |---|---|---|
 | [dbt Core quickstart with DuckDB](https://docs.getdbt.com/guides/duckdb) | The official walkthrough: install, `profiles.yml`, first models. Start here. | Stage 6 · WE 5–6, by 15.11. |
 | [dbt on DuckDB — thomassie.me](https://thomassie.me/2026-04-04-dbt-on-duckdb/) | Sources over Parquet, staging → marts, generic tests, `dbt docs generate`. Two to three hours. Follow it with **your** Stage 3 Parquet, not its customer tables. | Stage 6 · WE 5–6, by 15.11. |
-| [DuckDB spatial extension](https://duckdb.org/docs/lts/core_extensions/spatial/overview) | Geometry types, GeoParquet, GDAL formats. The piece that lets Project B share this warehouse. | Project B |
+| [DuckDB spatial extension](https://duckdb.org/docs/lts/core_extensions/spatial/overview) | Geometry types, GeoParquet, GDAL formats. The piece that lets Project BM share this warehouse. | Project BM |
 | [Quarto → GitHub Pages](https://quarto.org/docs/publishing/github-pages.html) | Publishing the report site. You already know Quarto; this is only the deploy step. | Stage 10 |
 | [GitHub Actions billing](https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions) | Confirms free, uncapped minutes on public repos with standard runners. | Stage 9 |
 | [Azure SQL Database free offer](https://learn.microsoft.com/en-us/azure/azure-sql/database/free-offer?view=azuresql) | Lifetime-free tier, auto-pause behaviour, the irreversible setting. | Stage 6b, dropped and archived in `archive/azure-excursion/` |
@@ -75,7 +75,7 @@ into a prepared answer.
 
 ---
 
-## 5 · Domain — Project B, Sentinel-2 biomass MRV
+## 5 · Domain — Project BM, Sentinel-2 biomass MRV
 
 Carried forward from Implementation Protocol v2. Re-verify access terms before
 relying on any of them.
@@ -132,8 +132,8 @@ entries are recorded here; the rest were duplicates of the tables above.
 
 | Source | Use | Caveat |
 |---|---|---|
-| Deutscher Wetterdienst open data — `opendata.dwd.de` | Station and gridded climate series. Temperature against load for Project A; drought indices for Project B | Free, no key. Station metadata is a separate download from the series |
-| Geofabrik Germany extracts — `download.geofabrik.de/europe/germany.html` | OpenStreetMap extracts by Bundesland, for spatial joins and basemaps in Project B | Large files. Take the Hessen extract, not Germany |
+| Deutscher Wetterdienst open data — `opendata.dwd.de` | Station and gridded climate series. Temperature against load for Project A; drought indices for Project BM | Free, no key. Station metadata is a separate download from the series |
+| Geofabrik Germany extracts — `download.geofabrik.de/europe/germany.html` | OpenStreetMap extracts by Bundesland, for spatial joins and basemaps in Project BM | Large files. Take the Hessen extract, not Germany |
 | EU Open Data Portal — `data.europa.eu` | Catalogue across EU institutions when a dataset's home is unclear | A catalogue, not a source. Follow through to the publisher |
 | EU ETS — `climate.ec.europa.eu` | The Commission's ETS pages | The **EEA ETS data viewer** in §6 is the better access route for installation-level data |
 | ~~Open Power System Data — `open-power-system-data.org`~~ | — | **Do not use.** Not updated since 2020. It appears in two of the archived plans as a recommended source; it is stale and ENTSO-E supersedes it |
