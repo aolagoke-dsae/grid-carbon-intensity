@@ -1,3 +1,3 @@
-zone_eic,psr,decided,note
-10YFR-RTE------C,B05,2026-10-17,"RTE publishes hard coal only while a unit runs: absent on 307 days of the 2025 A75 pull, 524 MW median when present. A missing quarter-hour is zero output, not a gap."
-10YFR-RTE------C,B25,2026-10-17,"Battery storage, absent on 121 days of the 2025 A75 pull. A missing quarter-hour is zero output, not a gap."
+zone_eic,psr,from_date,to_date,decided,note
+10YFR-RTE------C,B05,,,2026-10-17,"RTE publishes hard coal only while a unit runs: absent on 307 days of the 2025 A75 pull, 524 MW median when present. A missing quarter-hour is zero output, not a gap."
+10YFR-RTE------C,B25,,,2026-10-17,"Battery storage, absent on 121 days of the 2025 A75 pull. A missing quarter-hour is zero output, not a gap."

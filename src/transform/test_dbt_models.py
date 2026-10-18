@@ -10,7 +10,9 @@ tests written for those failures must fail.
 
 The fixtures cover both transition days (92 steps at PT15M, 25 at PT60M),
 A03 carry-forward, a pump-only series, a series published only while a unit
-runs, and both A44 curves.
+runs, and both A44 curves. Since 18.10.2026 also a series stated net, one leg
+per hour, a day that changes resolution, and a series exempt inside a window
+only (config/sparse_series.csv from_date and to_date).
 
 Needs dbt-core and dbt-duckdb (requirements.txt). Skipped where dbt cannot be
 imported, unless REQUIRE_DBT=1, as in CI's dbt job.
@@ -88,9 +90,24 @@ def _de(broken=False):
 def _fr():
     s = []
     for i, day in enumerate(FR_DAYS):
-        s.append(_series(FR, "B14", day, "PT60M", {1: 40000.0, 10: 38000.0} if i == 0 else {1: 41000.0}))
+        if i == 0:
+            s.append(_series(FR, "B14", day, "PT60M", {1: 40000.0, 10: 38000.0}))
+        else:   # RTE's move to PT15M, as on 19.12.2024: one hourly step, then 92 quarter-hours
+            s.append(_series(FR, "B14", (day[0], "2026-10-26T00:00Z"), "PT60M", {1: 41000.0}))
+            s.append(_series(FR, "B14", ("2026-10-26T00:00Z", day[1]), "PT15M", {1: 41000.0}))
         s.append(_series(FR, "B10", day, "PT60M", {1: 200.0, 5: 0.0}))
         s.append(_series(FR, "B10", day, "PT60M", {1: 0.0, 5: 300.0}, direction="consumption"))
+    # Reservoir hydro stated net, as in RTE's hourly A75: on the second day 20
+    # generating hours, then four pumping hours that carry only the
+    # consumption leg. A01, so every hour is stated and nothing is carried.
+    s.append(_series(FR, "B12", FR_DAYS[0], "PT60M", {1: 900.0}))
+    s.append(_series(FR, "B12", (FR_DAYS[1][0], "2026-10-26T19:00Z"), "PT60M",
+                     {p: 800.0 for p in range(1, 21)}, curve="A01"))
+    s.append(_series(FR, "B12", ("2026-10-26T19:00Z", FR_DAYS[1][1]), "PT60M",
+                     {p: 150.0 for p in range(1, 5)}, direction="consumption", curve="A01"))
+    # Offshore wind published from the second day only. _project gives it a
+    # window ending on the first day, as French offshore wind has before 2023-06-01.
+    s.append(_series(FR, "B18", FR_DAYS[1], "PT60M", {1: 30.0}))
     # Hard coal while one unit runs, ten hours on the first day only: declared
     # in config/sparse_series.csv, so its short day and its absent day pass.
     s.append(_series(FR, "B05", ("2026-10-25T05:00Z", "2026-10-25T15:00Z"), "PT60M", {1: 500.0}))
@@ -125,6 +142,8 @@ def _project(root, payloads):
         _store(root / "raw" / doc / zone / "2026", text)
     X.land_tree(root / "raw", root / "raw" / "parquet")
     shutil.copytree(REPO / "config", root / "config")
+    with (root / "config" / "sparse_series.csv").open("a", encoding="utf-8", newline="") as fh:
+        fh.write(f'{FR},B18,,2026-10-25,2026-10-18,"fixture: not published before 26.10.2026"\n')
     (root / "warehouse").mkdir()
     (root / "profiles").mkdir()
     (root / "profiles" / "profiles.yml").write_text(
@@ -183,7 +202,10 @@ def test_the_gapfilled_model_matches_the_parser_step_by_step(built):
     got = {(z, p, d, ts): mw for z, p, d, ts, mw in con.sql(
         "select zone_eic, psr_type, direction, ts_utc, mw from main_intermediate.int_generation_gapfilled"
     ).fetchall()}
-    assert len(got) == len(want) == 92 * 3 + 96 * 3 + 92 + 96 + 25 * 3 + 24 * 3 + 10
+    # DE: three series and a pumping leg over 23 + 24 h. FR, 25 + 24 h: B14, B10 both
+    # legs and B12 on the first day; B10 both legs, B12 (20 + 4 net) and B18 on the
+    # second, where B14 has one hourly step and 92 quarter-hours; B05 ten hours.
+    assert len(got) == len(want) == 92 * 3 + 96 * 3 + 92 + 96 + 25 * 4 + 24 * 4 + 1 + 92 + 10
     assert got.keys() == want.keys()
     assert all(got[k] == pytest.approx(want[k]) for k in want)
 
