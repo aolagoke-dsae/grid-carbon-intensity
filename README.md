@@ -219,10 +219,19 @@ at 900–1,300 gCO₂e/kWh against the coal row's 740–910 (Turconi et al., 201
 so DE-LU's intensity is understated by 13–17 gCO₂e/kWh at the low end of that
 range and by 77–104 at the high end, 2021–2025. The error lowers DE-LU's
 figures, so it cannot flatter the contrast with France; B02 is to be replaced
-before Stage 8. Coal-derived gas (B03) borrows the same row at about 1% of
+before Stage 8. No lignite source publishes a median, so the replacement is
+Germany's own value from a country-resolved life-cycle inventory (Itten et al.,
+2023), with that study's 1,000–1,350 gCO₂e/kWh range across countries as the
+band; if Germany's value lies where other German estimates put it,
+1,052–1,183, DE-LU rises by 37–79. Biomass (B01) uses AR5's row for dedicated
+energy crops and crop residues, narrower than Germany's category: two thirds
+of Germany's biomass electricity outside waste plants is biogas. Weighting the
+Umweltbundesamt's pathway factors by Germany's 2021–2025 biomass mix gives
+222–276 gCO₂e/kWh, inside the row's 130–420, and moves DE-LU by −0.7 to +4.0,
+so the row stays. Coal-derived gas (B03) borrows the coal row at about 1% of
 DE-LU generation, and solar (B16) uses AR5's utility-PV row rather than
 rooftop, which would move DE-LU by at most 1.2 gCO₂e/kWh. The numbers
-are in `docs/FACTOR_CHECK.md` (decided 18 October 2026).
+are in `docs/FACTOR_CHECK.md` (decided 18 and 19 October 2026).
 
 **Every intensity figure carries its priced share.** Unpriced fuels are left out
 of both sides of the ratio, so an intensity describes the priced part of

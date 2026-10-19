@@ -324,10 +324,16 @@ more per kWh than hard-coal plants, so the B02 proxy understates DE-LU, where
 lignite was 15.3% of 2025 generation: at the 900–1,300 gCO₂e/kWh that
 life-cycle studies give for lignite (Turconi et al. 2013), by 13–17 at the low
 end and 77–104 at the high end, 2021–2025. Decided 18.10.2026: kept for WE 3
-with that stated, replaced before Stage 8 by a lignite factor with a published
-median and band. B03 stays on the coal row at about 1% of DE-LU generation,
-and solar stays on AR5's utility-PV row (`docs/FACTOR_CHECK.md`, decisions 1
-and 3). `load_factors` refuses a
+with that stated, replaced before Stage 8. No lignite source publishes a
+median (searched 19.10.2026), so the replacement is Germany's value from Itten
+et al. (2023, section 4.2.4) with their 1,000–1,350 range across countries as
+the band, once that value has been read off the report. B03 stays on the coal
+row at about 1% of DE-LU generation, and solar stays on AR5's utility-PV row
+(`docs/FACTOR_CHECK.md`, decisions 1 and 3). Biomass (B01) stays on AR5's
+dedicated-biomass row although Germany's category is broader: weighted by
+Germany's biomass mix, UBA's pathway factors give 222–276 gCO₂e/kWh, inside
+the row's band, and DE-LU moves by −0.7 to +4.0 (decision 4, 19.10.2026).
+`load_factors` refuses a
 priced row whose source is a placeholder. Run-of-river (B11) keeps AR5's
 hydropower minimum and median and stops at the median, 1 / 24 / 24, decided
 18.10.2026 after the hand check: the row's upper end is reservoir methane,
@@ -349,7 +355,10 @@ print(check_stage4_factors(rows, factors))
 - Returns `True` — every `psrType` in the data has a row, priced or explicitly flagged
 - You have **personally** verified each published figure against Table A.III.2.
   Done 18.10.2026: all twelve priced rows match the PDF, p. 1335; the record
-  is `docs/FACTOR_CHECK.md`.
+  is `docs/FACTOR_CHECK.md`. On 19.10.2026 lignite's replacement was chosen,
+  since no lignite median is published (decision 1), and biomass kept its
+  row, with the error from its narrower scope measured and stated
+  (decision 4).
 - Priced share: unpriced fuels under **2%** of DE-LU energy. Higher means the
   unpriced categories are material and you must say so wherever intensity appears.
   Measured on the 2025 pulls (17.10.2026): **4.8% unpriced in DE-LU** (pumped
@@ -525,8 +534,9 @@ than AR5's: run-of-river (B11) stops at its median since 18.10.2026, because
 AR5's hydropower maximum is reservoir methane. Under the full band it owned
 65–71% of France's interval variance (Stage 4).
 
-**Lignite sensitivity.** Until B02 has a lignite factor with a published median
-and band, run this stage twice more with B02 fixed at 900 and at 1,300
+**Lignite sensitivity.** Until B02 carries Germany's value and the 1,000–1,350
+band from Itten et al. (2023) (decided 19.10.2026, since no lignite source
+publishes a median), run this stage twice more with B02 fixed at 900 and at 1,300
 gCO₂e/kWh (Turconi et al. 2013), and report beside the main result whether
 the load-shift recommendation changes (decided 18.10.2026).
 
@@ -542,7 +552,7 @@ the load-shift recommendation changes (decided 18.10.2026).
   spread, so gas, biomass or even a small hydro share can lead. Read the width
   share beside the variance share before naming the driver.
 - The lignite sensitivity is reported beside the main result, or B02 has been
-  replaced by a lignite factor with a published median and band.
+  replaced by Germany's value and band from Itten et al. (2023).
 
 ---
 
