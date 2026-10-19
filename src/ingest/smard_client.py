@@ -24,7 +24,9 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import json
+import sys
 import time
+import zoneinfo
 from pathlib import Path
 
 import requests
@@ -47,6 +49,8 @@ FILTERS = {
 }
 REGION = "DE"
 RESOLUTION = "hour"          # hour | quarterhour | day | week | month | year
+# SMARD weeks run from Monday 00:00 to Monday 00:00, German time.
+BERLIN = zoneinfo.ZoneInfo("Europe/Berlin")
 
 
 def _is_json_object(body: bytes) -> bool:
@@ -112,3 +116,71 @@ def week(filter_id: int, timestamp_ms: int, region: str = REGION,
     url = f"{BASE}/{filter_id}/{region}/{name}"
     out = RAW / "SMARD" / str(filter_id) / resolution / name
     return _get(url, out)
+
+
+def weeks_in_year(stamps: list[int], year: int) -> list[int]:
+    """The week-start stamps whose week overlaps the German calendar year.
+
+    The first and last weeks of a year usually straddle New Year: 2025 needs
+    the week of Monday 30 December 2024 and the week of Monday 29 December
+    2025, 53 in all. A week that ends exactly at local midnight on 1 January
+    belongs to the year before.
+    """
+    lo = dt.datetime(year, 1, 1, tzinfo=BERLIN)
+    hi = dt.datetime(year + 1, 1, 1, tzinfo=BERLIN)
+    picked = []
+    for t in stamps:
+        start = dt.datetime.fromtimestamp(t / 1000, BERLIN)
+        end = start + dt.timedelta(days=7)      # wall clock: the next Monday 00:00
+        if start < hi and end > lo:
+            picked.append(t)
+    return picked
+
+
+def backfill(filter_id: int, year: int, region: str = REGION,
+             resolution: str = RESOLUTION) -> list[dict]:
+    """Every week of a calendar year that SMARD holds, one request for each
+    week not already stored. Reads the index first, as every pull must.
+
+    A week with an accepted retrieval on disk is skipped, so a rerun after a
+    failure repeats only what failed; a week whose only retrieval sits in
+    _failed/ is fetched again. Returns the manifest rows of the requests made.
+    """
+    rows = []
+    for t in weeks_in_year(index(filter_id, region, resolution), year):
+        name = f"{filter_id}_{region}_{resolution}_{t}.json"
+        if raw_store.current_version(RAW / "SMARD" / str(filter_id) / resolution / name):
+            continue
+        rows.append(week(filter_id, t, region, resolution))
+    return rows
+
+
+def main(argv: list[str]) -> int:
+    """python -m src.ingest.smard_client <year> [resolution ...]
+
+    Filter 4169, the DE-LU day-ahead price, for every week of <year>, at each
+    resolution named; by default hour and quarterhour. A resolution SMARD does
+    not hold is reported and its index response kept under _failed/.
+    """
+    if not argv or not argv[0].isdigit():
+        print(main.__doc__)
+        return 2
+    year, resolutions = int(argv[0]), argv[1:] or ["hour", "quarterhour"]
+    status = 0
+    for res in resolutions:
+        try:
+            rows = backfill(4169, year, resolution=res)
+        except RuntimeError as e:
+            print(f"{res}: {e}")
+            status = 1
+            continue
+        rejected = [r for r in rows if r["rejected"]]
+        print(f"{res}: {len(rows)} week(s) fetched, {len(rejected)} rejected")
+        for r in rejected:
+            print(f"   HTTP {r['http_status']}: {r['url']} -> {r['path']}")
+        status = status or int(bool(rejected))
+    return status
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

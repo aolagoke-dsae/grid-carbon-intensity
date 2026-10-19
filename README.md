@@ -384,11 +384,11 @@ supplies 3% of the energy, 23% of the variance and 13% of the interval width.
 
 ## Tests
 
-`pytest` — 164 tests, all green: 143 test functions, some parametrised. Four
+`pytest` — 180 tests, all green: 154 test functions, some parametrised. Four
 of them read the real 7.5 MB A44 payload and **skip in CI**, because `raw/*` is
 gitignored. Seven build the dbt models with dbt-duckdb and run in CI's dbt job
-only; the unit-test job reports 153 passed, 4 skipped. A local run with `raw/`
-populated reports 164 passed.
+only; the unit-test job reports 169 passed, 4 skipped. A local run with `raw/`
+populated reports 180 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
@@ -410,6 +410,8 @@ at least one test fail.
 | `src/transform/test_intensity.py` | 34 | The uncertainty propagation, the factor handling and the sensitivity shares |
 | `src/checks/test_validate.py` | 27 | The stage checkpoints, including whole missing days, the coverage policy and the stage 5 recomputation |
 | `src/ingest/test_entsoe_client.py` | 9 | Token redaction in exceptions and the manifest; yearly requests that cover the local year |
+| `src/ingest/test_smard_client.py` | 5 | The SMARD backfill: the 53 weeks 2025 needs, a week ending at New Year left to the year before, both clock-change weeks, stored weeks not fetched again, failed ones fetched again |
+| `src/transform/test_smard_parse.py` | 11 | SMARD weeks read strictly, six malformed shapes refused; the newest accepted retrieval of each week; hourly means of complete hours only; the agreement measure used against the two A44 curves |
 | `src/ingest/test_raw_store.py` | 12 | `raw/` is append-only: a failed pull never replaces data, every retrieval is kept, the smoke scripts report the status they actually got |
 | `src/transform/test_xml_to_parquet.py` | 13 | The landing: stated points only, both domains, dtypes, provenance and the digest check, the newest accepted retrieval of each year, zones outside the analysis left in `raw/` |
 | `src/transform/test_dbt_models.py` | 7 | The dbt models on landed fixtures, step by step against `parse()`; a deleted day and an empty A01 position fail their tests |
@@ -438,8 +440,8 @@ quarter-hour fails four more.
 config/             zones, coverage exemptions, recorded source gaps and
                     emission factors: CSV, read by Python and dbt alike
 src/ingest/         ENTSO-E and SMARD clients → raw/ + manifest.csv
-src/transform/      A75 parser, A44 price parser, parquet landing, intensity,
-                    uncertainty
+src/transform/      A75 parser, A44 price parser, SMARD reader, parquet
+                    landing, intensity, uncertainty
 src/checks/         stage checkpoint functions, importable and testable
 dbt/                10 models (8 enabled), 7 singular tests (1 disabled) and
                     9 generic ones; built on fixtures in CI and on the real

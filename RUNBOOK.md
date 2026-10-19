@@ -26,7 +26,7 @@ has been pulled.*
 | | Written | Unit-tested | Run against real data |
 |---|---|---|---|
 | Ingestion client (ENTSO-E) | yes | token redaction, the append-only raw store, local-year windows | **A44 and A75** — A44 06.10.2026; A75 for DE-LU and FR, 2025 on 17.10.2026 and 2021–2024 on 18.10.2026; A65 not yet fetched |
-| Ingestion client (SMARD) | yes | — | **yes** — 06.10.2026 |
+| Ingestion client (SMARD) | yes | the yearly backfill: which weeks a year needs, stored weeks not fetched again | **yes** — one week 06.10.2026 |
 | Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **yes** — DE-LU and FR 2021–2025, 17. and 18.10.2026 |
 | Parser, A44 prices (trap 5) | yes | yes | **yes** — the 2025 DE-LU payload |
 | Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; the Monte Carlo interval and the fact table **not yet** |
@@ -268,6 +268,21 @@ PT15M throughout 2021–2024; France carries one, at PT15M from delivery day
 both price tests pass and `dbt build` is green, 23 of 23. Time-weighted yearly
 means of the filtered curve, €/MWh, 2021 to 2025: DE-LU 96.85, 235.45, 95.18,
 78.51, 89.32; France 109.17, 275.88, 96.86, 58.02, 61.07.
+
+**Which DE-LU curve is the market's (WE 3).** Trap 5 leaves one question about
+prices: which of DE-LU's two A44 curves is the day-ahead market's. The
+independent check is SMARD filter 4169, the Bundesnetzagentur's day-ahead price
+for Germany/Luxembourg, for the weeks of 2025. No token is needed:
+
+```bash
+python -m src.ingest.smard_client 2025     # every 2025 week, hourly and quarter-hourly
+python notebooks/price_curves.py
+```
+
+The notebook carries the rule, fixed on 19.10.2026 before the pull. A curve is
+the market's if it equals SMARD to the cent in at least 99% of the steps both
+state, both before the 15-minute go-live and after it. The dbt default
+(`a44_curve` in `dbt_project.yml`) follows the verdict.
 
 **Checkpoint 3**
 
