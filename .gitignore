@@ -22,6 +22,10 @@ curated/*
 .ipynb_checkpoints/
 notebooks/scratch/
 
+# editor settings: personal, not part of the project. Added 19.10.2026 before
+# the repository went public, so `git add -A` cannot publish them.
+.vscode/
+
 # build artefacts
 __pycache__/
 *.pyc
