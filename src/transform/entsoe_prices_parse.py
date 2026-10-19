@@ -40,7 +40,9 @@ field the others do not:
     Sum both and every downstream mean is a weighted average of two different
     markets. Sum one at random and the answer changes between runs. So the
     column is emitted here, carried through the raw parquet, and the choice is
-    made once, explicitly, in stg_entsoe__prices.sql.
+    made once, explicitly, in stg_entsoe__prices.sql. Position 1 is the
+    day-ahead market's: it equals SMARD filter 4169 to the cent at every hour
+    and quarter-hour of 2025 (notebooks/price_curves.py, 19.10.2026).
 
     Not every zone publishes two curves. The field is optional in the schema,
     so it is emitted as None rather than defaulted - a default of 1 would make

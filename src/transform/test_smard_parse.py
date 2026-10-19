@@ -81,3 +81,60 @@ def test_agreement_counts_only_the_times_both_state():
     assert a["share"] == pytest.approx(2 / 3)
     assert a["max_abs"] == pytest.approx(1.0)
     assert P.agreement(ref, {}, 0.005)["share"] is None
+
+
+# --------------------------------------------------------------------------
+# The real data. Skipped where raw/* is absent, as in CI. These lock in the
+# verdict of notebooks/price_curves.py of 19.10.2026: SMARD filter 4169 against
+# the 2025 DE-LU A44 payload. A newer retrieval that changes it fails here on
+# purpose: rerun the notebook and re-decide.
+# --------------------------------------------------------------------------
+
+from pathlib import Path  # noqa: E402
+
+from entsoe_prices_parse import parse_prices  # noqa: E402
+
+_RAW = Path(__file__).resolve().parents[2] / "raw"
+_A44 = sorted((_RAW / "A44" / "10Y1001A1001A82H" / "2025").glob("*.xml"))
+_SMARD = _RAW / "SMARD" / "4169"
+needs_real = pytest.mark.skipif(
+    not (_A44 and (_SMARD / "hour").is_dir() and (_SMARD / "quarterhour").is_dir()),
+    reason="needs the 2025 DE-LU A44 payload and the 2025 SMARD weeks; raw/* is not in CI",
+)
+Y0 = dt.datetime(2024, 12, 31, 23, tzinfo=UTC)       # 2025, German time
+Y1 = dt.datetime(2025, 12, 31, 23, tzinfo=UTC)
+GO_LIVE = dt.datetime(2025, 9, 30, 22, tzinfo=UTC)   # 15-minute MTU
+
+
+def _window(series, lo=Y0, hi=Y1):
+    return {t: v for t, v in series.items() if lo <= t < hi}
+
+
+@pytest.fixture(scope="module")
+def real():
+    curves: dict = {}
+    for r in parse_prices(_A44[-1].read_text(encoding="utf-8")):
+        if Y0 <= r["ts_utc"] < Y1:
+            curves.setdefault(r["classification_sequence"], {})[r["ts_utc"]] = r["price_eur_mwh"]
+    return (curves, _window(P.load_series(_SMARD / "hour")),
+            _window(P.load_series(_SMARD / "quarterhour")))
+
+
+@needs_real
+def test_curve_1_is_smard_to_the_cent_before_and_after_the_15_minute_go_live(real):
+    """Prevents: the dbt default drifting to a curve that is not the market's,
+    or a re-pulled payload whose curve 1 no longer matches SMARD."""
+    curves, hours, quarters = real
+    before = P.agreement(_window(hours, Y0, GO_LIVE), _window(curves[1], Y0, GO_LIVE), 0.005)
+    after = P.agreement(_window(quarters, GO_LIVE, Y1), _window(curves[1], GO_LIVE, Y1), 0.005)
+    assert (before["n"], before["agree"]) == (6551, 6551)
+    assert (after["n"], after["agree"]) == (8836, 8836)
+
+
+@needs_real
+def test_curve_2_is_not_smard(real):
+    """The other curve is a different market, not a rounding of the same one."""
+    curves, _, quarters = real
+    a = P.agreement(quarters, curves[2], 0.005)
+    assert a["n"] == 35040
+    assert a["share"] < 0.01

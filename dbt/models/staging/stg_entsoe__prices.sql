@@ -20,19 +20,22 @@
   number that is wrong, plausible, and stable enough to go unnoticed.
 
   DEFAULT: curve 1, overridable with `dbt build --vars '{a44_curve: 2}'`.
-  The reason is continuity, not quality. Curve 1 is the series that was
-  actually binding at each moment: hourly MTU until the German switch to
+  Curve 1 is the day-ahead market's: hourly MTU until the German switch to
   15-minute MTU, then 15-minute. Its resolution changes exactly once, at
   2025-09-30T22:00Z = 1 Oct 2025 00:00 CEST. Curve 2 is 15-minute across the
   whole year, including the nine months before 15-minute MTU went live, so its
   earlier portion cannot be the binding day-ahead result.
 
-  NOT YET SETTLED: which curve ENTSO-E regards as authoritative. The
-  independent check is SMARD filter 4169, and the only SMARD file on disk is a
-  September 2026 week -- the 2025 weeks still have to be pulled. Until then
-  this is a documented default, not a verified one. Curve 2's floor of -499.99
-  sits on the EPEX technical limit and it carries 44 % more negative intervals,
-  which reads as genuine 15-minute clearing; that is evidence, not proof.
+  VERIFIED 19.10.2026 against SMARD filter 4169, the Bundesnetzagentur's
+  day-ahead price, for every week of 2025 (notebooks/price_curves.py, rule
+  fixed before the pull). Curve 1 equals SMARD to the cent at all 6,551 hours
+  before the go-live and all 8,836 quarter-hours after it, its 93
+  carried-forward A03 steps included. Curve 2 agrees at 0.23 % and 0.03 %,
+  off by 7.9 and 11.7 EUR/MWh on average. The default was chosen for
+  continuity on 08.10.2026; it now rests on that check. Curve 2's limits
+  (-149.99 to 2,999.99 in 2021-2023) fit EXAA's separate 10:15 auction;
+  that is circumstantial. 2021-2024 follow by the same sequence numbering,
+  not by a SMARD comparison.
 -#}
 
 with src as (

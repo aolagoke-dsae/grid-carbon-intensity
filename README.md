@@ -50,10 +50,11 @@ are plain Python — NumPy, no modelling framework — in
 What has run on real data and what has run only on test fixtures is kept
 apart throughout. The ingestion clients, both parsers, the uncertainty module
 and CI are written and unit-tested. Of the live sources, ENTSO-E day-ahead
-prices (A44) for DE-LU 2025 and SMARD were pulled on 6 October 2026,
+prices (A44) for DE-LU 2025 and one SMARD week were pulled on 6 October 2026,
 generation per type (A75) for DE-LU and FR, 2025 on 17 October 2026 and
-2021–2024 on 18 October, and the remaining prices for both zones, 2021–2025,
-on 18 October; load (A65) has not been fetched. The A75 parser and the stage 2–5 checks have
+2021–2024 on 18 October, the remaining prices for both zones, 2021–2025, on
+18 October, and every SMARD price week of 2025 on 19 October; load (A65) has
+not been fetched. The A75 parser and the stage 2–5 checks have
 run on all ten zone-years, stage 5 on the median-factor intensity. Landed, the
 2021–2025 A75 and A44 data build green through the dbt project,
 23 nodes on 18 October 2026, and CI builds every model on fixtures and checks
@@ -91,7 +92,7 @@ Named here rather than left for a reader to discover.
 | Power BI dashboard | **not started**; it will read the exported Parquet. The Azure portability excursion was dropped in October 2026 and is archived in `archive/azure-excursion/` |
 | Sobol sensitivity of the saving | **not built**. For the intensity alone, `variance_contribution()` reports first-order variance shares — for this linear model, its first-order Sobol indices — and each fuel's share of the 90% interval width |
 | Cross-border flow (A11) import adjustment | **not built**; intensity is average, not marginal |
-| Trap 5, the two competing A44 price curves | **handled** 08.10.2026 — `entsoe_prices_parse.py`, `xml_to_parquet.py` and the curve filter in `stg_entsoe__prices.sql`. DE-LU carries both curves in every year from 2021, France one; the filter keeps every delivery period (18.10.2026). What stays open is *which* curve is authoritative: that needs SMARD filter 4169 for the 2025 weeks, which has not been pulled |
+| Trap 5, the two competing A44 price curves | **handled** 08.10.2026 — `entsoe_prices_parse.py`, `xml_to_parquet.py` and the curve filter in `stg_entsoe__prices.sql`. DE-LU carries both curves in every year from 2021, France one; the filter keeps every delivery period (18.10.2026). Which curve is the market's was settled on 19.10.2026: curve 1, the default, which equals SMARD filter 4169 to the cent at every hour and quarter-hour of 2025 |
 
 What *is* built: ingestion with a redacting manifest, run for A44 and SMARD;
 the A75 parser with its four traps, tested on fixtures including both
@@ -124,13 +125,14 @@ The architecture is defined in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | Source | Used for | Access |
 |---|---|---|
 | ENTSO-E Transparency Platform | Generation per production type (A75), day-ahead prices (A44), actual load (A65) | REST API, token |
-| SMARD (Bundesnetzagentur) | Independent second source; the reconciliation test against it is planned, not written | REST, no key |
+| SMARD (Bundesnetzagentur) | Independent second source. Filter 4169, the day-ahead price, settled trap 5 for 2025 and is pinned by two tests; a reconciliation of generation in dbt is planned, not written | REST, no key |
 | IPCC AR5 WG3 Annex III | Lifecycle emission factors with published ranges, for every priced fuel but lignite and hard coal | `config/ipcc_ar5_factors.csv` |
 | Itten et al. (2023), ZHAW, for the Swiss UVEK life-cycle inventory database | Lignite and hard coal (B02, B05): Germany's values read off Fig. 4.5, the ranges across countries as bands | `config/ipcc_ar5_factors.csv` |
 
 A fetcher exists for each ENTSO-E and SMARD row above. The A44 and SMARD
 fetchers ran on 6 October 2026, the A75 fetcher on 17 October 2026 (DE-LU and
-FR, 2025); A65 has not run. Each yearly request covers the zone's local
+FR, 2025), and SMARD again on 19 October for every week of 2025; A65 has not
+run. Each yearly request covers the zone's local
 calendar year, so consecutive years meet at local midnight. Cross-border
 flows (A11), DWD temperature and EEA verified emissions are candidates for
 later work and have no fetcher, so they are not listed as sources.
@@ -290,8 +292,9 @@ asserted in `test_prices_parse.py`, and enforced in SQL by the curve filter in
    The earlier years, pulled on 18 October 2026, carry the same pair: in
    2021–2024 position 1 runs at PT60M and position 2 at PT15M, every year, so a
    15-minute curve exists from January 2021 at the latest, nearly five years
-   before the 15-minute MTU went live. That is further evidence, not proof,
-   that position 2 is not the binding day-ahead result. France publishes one
+   before the 15-minute MTU went live. That was further evidence, though not
+   proof, that position 2 is not the binding day-ahead result; SMARD has since
+   settled it (below). France publishes one
    curve, hourly until delivery day 29 September 2025 and PT15M from 30
    September, a day before DE-LU; on that first day it states one price per
    hour, so its first 15-minute day still carries hourly prices.
@@ -310,10 +313,28 @@ asserted in `test_prices_parse.py`, and enforced in SQL by the curve filter in
    **How it is handled.** `classification_sequence` is emitted by the parser,
    carried through `raw/parquet/a44.parquet`, and filtered once in
    `stg_entsoe__prices.sql` under the dbt var `a44_curve`, default 1. Curve 1
-   is chosen for continuity — it is the series that was actually binding at
-   each moment, hourly until the 15-minute MTU go-live and 15-minute after —
-   **not** because it has been shown to be the authoritative one. That question
-   needs SMARD filter 4169 for the 2025 weeks and stays open.
+   was chosen on 8 October for continuity, as the series that was binding at
+   each moment, hourly until the 15-minute MTU go-live and 15-minute after,
+   before anything showed it to be the market's.
+
+   **On 19 October 2026 SMARD showed it.** Filter 4169, the
+   Bundesnetzagentur's day-ahead price, was pulled for every week of 2025 and
+   set against both curves by `notebooks/price_curves.py`, under a rule
+   committed a minute before the first request. Curve 1 equals SMARD to the
+   cent at all 6,551 hours before the go-live and at all 8,836 quarter-hours
+   after it, its 93 carried-forward A03 steps included. Curve 2 agrees at
+   0.23% and 0.03% of them, off by 7.9 and 11.7 €/MWh on average and by up to
+   329. SMARD's own quarter-hour series repeats curve 1's hourly price before
+   the go-live, and its hours average curve 1's quarter-hours after it. Two
+   tests that need `raw/` pin the verdict (`test_smard_parse.py`).
+
+   Curve 2's limits fit EXAA, which runs a separate quarter-hour auction for
+   Germany at 10:15 and whose price range was −150 to +3,000 €/MWh
+   ([Wikipedia](https://en.wikipedia.org/wiki/Energy_Exchange_Austria)).
+   Curve 2's floor is −149.99 €/MWh in 2021–2023, it peaks at 2,999.99 in
+   2022, and from 2024 its floor is −499.99. That identification is
+   circumstantial, and nothing depends on it. The SMARD check covers 2025;
+   2021–2024 rest on the same sequence numbering.
 
    The arithmetic of ignoring the discriminator, measured: unfiltered, the
    50,044 points carry 15,014 duplicated `(zone, period, position)` keys and a
@@ -384,11 +405,11 @@ supplies 3% of the energy, 23% of the variance and 13% of the interval width.
 
 ## Tests
 
-`pytest` — 180 tests, all green: 154 test functions, some parametrised. Four
-of them read the real 7.5 MB A44 payload and **skip in CI**, because `raw/*` is
-gitignored. Seven build the dbt models with dbt-duckdb and run in CI's dbt job
-only; the unit-test job reports 169 passed, 4 skipped. A local run with `raw/`
-populated reports 180 passed.
+`pytest` — 182 tests, all green: 156 test functions, some parametrised. Six
+read real payloads, the 7.5 MB A44 file and in two cases the 2025 SMARD weeks
+as well, and **skip in CI**, because `raw/*` is gitignored. Seven build the dbt models with dbt-duckdb and run in CI's dbt job
+only; the unit-test job reports 169 passed, 6 skipped. A local run with `raw/`
+populated reports 182 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
@@ -411,7 +432,7 @@ at least one test fail.
 | `src/checks/test_validate.py` | 27 | The stage checkpoints, including whole missing days, the coverage policy and the stage 5 recomputation |
 | `src/ingest/test_entsoe_client.py` | 9 | Token redaction in exceptions and the manifest; yearly requests that cover the local year |
 | `src/ingest/test_smard_client.py` | 5 | The SMARD backfill: the 53 weeks 2025 needs, a week ending at New Year left to the year before, both clock-change weeks, stored weeks not fetched again, failed ones fetched again |
-| `src/transform/test_smard_parse.py` | 11 | SMARD weeks read strictly, six malformed shapes refused; the newest accepted retrieval of each week; hourly means of complete hours only; the agreement measure used against the two A44 curves |
+| `src/transform/test_smard_parse.py` | 13 | SMARD weeks read strictly, six malformed shapes refused; the newest accepted retrieval of each week; hourly means of complete hours only; the agreement measure used against the two A44 curves; two real-data checks that curve 1 is SMARD's to the cent in 2025 and curve 2 is not |
 | `src/ingest/test_raw_store.py` | 12 | `raw/` is append-only: a failed pull never replaces data, every retrieval is kept, the smoke scripts report the status they actually got |
 | `src/transform/test_xml_to_parquet.py` | 13 | The landing: stated points only, both domains, dtypes, provenance and the digest check, the newest accepted retrieval of each year, zones outside the analysis left in `raw/` |
 | `src/transform/test_dbt_models.py` | 7 | The dbt models on landed fixtures, step by step against `parse()`; a deleted day and an empty A01 position fail their tests |

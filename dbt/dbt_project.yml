@@ -21,12 +21,12 @@ clean-targets: ["target", "dbt_packages"]
 # TRAP 5. A DE-LU A44 payload carries two complete, disagreeing day-ahead
 # price curves separated only by classificationSequence. This picks one.
 # Override per run:  dbt build --vars '{a44_curve: 2}'
-#   1  the continuously binding series: hourly MTU, then 15-minute from
-#      2025-10-01. Default.
+#   1  the day-ahead market's: hourly MTU, then 15-minute from 2025-10-01.
+#      Default.
 #   2  15-minute across the whole year, including the nine months before
 #      15-minute MTU went live.
-# Which one ENTSO-E treats as authoritative is still open; the tiebreaker is
-# SMARD filter 4169 for the 2025 weeks, not yet pulled. See the header of
+# Curve 1 equals SMARD filter 4169 to the cent at every hour and quarter-hour
+# of 2025 (19.10.2026, notebooks/price_curves.py). See the header of
 # models/staging/stg_entsoe__prices.sql.
 vars:
   a44_curve: 1

@@ -26,9 +26,9 @@ has been pulled.*
 | | Written | Unit-tested | Run against real data |
 |---|---|---|---|
 | Ingestion client (ENTSO-E) | yes | token redaction, the append-only raw store, local-year windows | **A44 and A75** — A44 06.10.2026; A75 for DE-LU and FR, 2025 on 17.10.2026 and 2021–2024 on 18.10.2026; A65 not yet fetched |
-| Ingestion client (SMARD) | yes | the yearly backfill: which weeks a year needs, stored weeks not fetched again | **yes** — one week 06.10.2026 |
+| Ingestion client (SMARD) | yes | the yearly backfill: which weeks a year needs, stored weeks not fetched again | **yes** — one week 06.10.2026; every week of 2025, hourly and quarter-hourly, 19.10.2026 |
 | Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **yes** — DE-LU and FR 2021–2025, 17. and 18.10.2026 |
-| Parser, A44 prices (trap 5) | yes | yes | **yes** — the 2025 DE-LU payload |
+| Parser, A44 prices (trap 5) | yes | yes | **yes** — the 2025 DE-LU payload; its curve 1 equals SMARD 4169 to the cent, 19.10.2026 |
 | Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; the Monte Carlo interval and the fact table **not yet** |
 | Stage checks (2, 3, 4, 5) | yes; 2 and 5 rewritten 17.10. so they can fail; 3 counts either leg and measures time since 18.10. | yes, each made to fail | **all four** on the 2021–2025 A75 pulls, 18.10.2026 |
 | T-SQL schema + DQ views (Azure) | archived 17.10.2026 in `archive/azure-excursion/` | — | never: DuckDB cannot run them |
@@ -36,7 +36,8 @@ has been pulled.*
 | CI | yes, `.github/workflows/pipeline.yml` | — | **yes**, green on 3.11 and 3.14 |
 | Version control | yes — MIT; public from WE 3, 24./25.10.2026 | — | — |
 
-`raw/` holds the A44 and A75 payloads and one SMARD week, all in `manifest.csv`.
+`raw/` holds the A44 and A75 payloads and the SMARD price weeks of 2025 (and one
+of 2026), all in `manifest.csv`.
 `curated/` is still empty. `docs/` holds ARCHITECTURE.md and RESOURCES.md.
 
 Three of the stage checkpoints could not pass on real data until 7 October:
@@ -283,6 +284,12 @@ The notebook carries the rule, fixed on 19.10.2026 before the pull. A curve is
 the market's if it equals SMARD to the cent in at least 99% of the steps both
 state, both before the 15-minute go-live and after it. The dbt default
 (`a44_curve` in `dbt_project.yml`) follows the verdict.
+
+**Pulled and run 19.10.2026.** 106 weeks and both indexes, all HTTP 200, none
+rejected. Curve 1 equals SMARD to the cent at all 6,551 hours before the
+go-live and all 8,836 quarter-hours after it; curve 2 agrees at 0.23% and
+0.03%. Curve 1 is the market's, so the default stands, and two tests in
+`test_smard_parse.py` that need `raw/` keep it so.
 
 **Checkpoint 3**
 
