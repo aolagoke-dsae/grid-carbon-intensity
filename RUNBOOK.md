@@ -320,8 +320,14 @@ priced from a placeholder). B25 joined on 17 October 2026, when the first French
 A75 pull reported battery storage and the stage 4 check failed on a fuel with
 no row. Two priced rows are proxies, marked `low`: B03 (coal-derived gas) and
 B02 (lignite), both on AR5's single coal row. Lignite plants generally emit
-more per kWh than hard-coal plants, so the B02 proxy probably understates
-DE-LU, where lignite was 15.3% of 2025 generation. `load_factors` refuses a
+more per kWh than hard-coal plants, so the B02 proxy understates DE-LU, where
+lignite was 15.3% of 2025 generation: at the 900–1,300 gCO₂e/kWh that
+life-cycle studies give for lignite (Turconi et al. 2013), by 13–17 at the low
+end and 77–104 at the high end, 2021–2025. Decided 18.10.2026: kept for WE 3
+with that stated, replaced before Stage 8 by a lignite factor with a published
+median and band. B03 stays on the coal row at about 1% of DE-LU generation,
+and solar stays on AR5's utility-PV row (`docs/FACTOR_CHECK.md`, decisions 1
+and 3). `load_factors` refuses a
 priced row whose source is a placeholder. Run-of-river (B11) keeps AR5's
 hydropower minimum and median and stops at the median, 1 / 24 / 24, decided
 18.10.2026 after the hand check: the row's upper end is reservoir methane,
@@ -517,6 +523,11 @@ than AR5's: run-of-river (B11) stops at its median since 18.10.2026, because
 AR5's hydropower maximum is reservoir methane. Under the full band it owned
 65–71% of France's interval variance (Stage 4).
 
+**Lignite sensitivity.** Until B02 has a lignite factor with a published median
+and band, run this stage twice more with B02 fixed at 900 and at 1,300
+gCO₂e/kWh (Turconi et al. 2013), and report beside the main result whether
+the load-shift recommendation changes (decided 18.10.2026).
+
 **Checkpoint 8**
 
 - The deterministic point (every fuel at its median factor) falls **inside**
@@ -528,6 +539,8 @@ AR5's hydropower maximum is reservoir methane. Under the full band it owned
   A fuel's share grows with its energy share squared and with its band's
   spread, so gas, biomass or even a small hydro share can lead. Read the width
   share beside the variance share before naming the driver.
+- The lignite sensitivity is reported beside the main result, or B02 has been
+  replaced by a lignite factor with a published median and band.
 
 ---
 

@@ -213,8 +213,16 @@ the anomaly above.*
 Battery storage (B25) is unpriced, like pumped storage (B10): its emissions
 belong to whatever charged it. Oil (B06) is unpriced as well until a factor is
 cited: AR5 has no oil row, and the earlier value was a placeholder. Lignite
-(B02) is priced from AR5's single coal row and marked a low-confidence proxy;
-it probably understates DE-LU, where lignite was 15% of 2025 generation.
+(B02) is priced from AR5's single coal row and marked a low-confidence proxy,
+and the error is stated rather than guessed at: life-cycle studies put lignite
+at 900–1,300 gCO₂e/kWh against the coal row's 740–910 (Turconi et al., 2013),
+so DE-LU's intensity is understated by 13–17 gCO₂e/kWh at the low end of that
+range and by 77–104 at the high end, 2021–2025. The error lowers DE-LU's
+figures, so it cannot flatter the contrast with France; B02 is to be replaced
+before Stage 8. Coal-derived gas (B03) borrows the same row at about 1% of
+DE-LU generation, and solar (B16) uses AR5's utility-PV row rather than
+rooftop, which would move DE-LU by at most 1.2 gCO₂e/kWh. The numbers
+are in `docs/FACTOR_CHECK.md` (decided 18 October 2026).
 
 **Every intensity figure carries its priced share.** Unpriced fuels are left out
 of both sides of the ratio, so an intensity describes the priced part of
