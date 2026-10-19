@@ -140,7 +140,8 @@ gives Germany's lignite decrease as −20%; the figure's label and bars give
 Pages 53–54 supplied and checked against the report by Adewole Olagoke ·
 19 October 2026 · Itten et al. (2023), Fig. 4.5, p. 54
 
-B02 has carried 1,060 (1,000–1,350), confidence `medium`, since 19.10.2026:
+B02 has carried 1,060 (1,000–1,350), confidence `medium`, since 19.10.2026
+(commit `25f869a`):
 
 | DE-LU, gCO2eq/kWh | 2021 | 2022 | 2023 | 2024 | 2025 |
 |---|---:|---:|---:|---:|---:|
@@ -264,10 +265,30 @@ check against the report that AR5 had.
 its `source` column. The German value lies inside the row's band, from 8 below
 its median to 46 above, and moves DE-LU by at most 4.0, about a tenth of what
 the lignite candidates do. The row matters through its band instead: at
-130–420 it already owns 7–10% of DE-LU's interval width.
+130–420 it owned 7–10% of DE-LU's interval width with lignite on the coal
+row, and owns 3–5% since lignite carries its own band.
 
-UBA biomass factors checked against Climate Change 11/2026, sections 4.6–4.10:
-______ · by ______ · date ______
+**Checked against the report, 19.10.2026.** All six agree. The report prints
+no factor per kWh; each is the pathway's caused emissions ("verursachte
+Emissionen") divided by its 2024 generation, and the quotient reproduces the
+slide: solid biomass 634,463 t / 10,147 GWh = 62.5 (Tables 28 and 32), biogas
+8,070,052 / 28,641 = 281.8 and biomethane 723,985 / 2,796 = 258.9 (Tables 33,
+37 and 38), liquid biomass 64,899 / 96 = 676.0 (Tables 39 and 43), sewage gas
+157,499 / 1,529 = 103.0 (Tables 44 and 48) and landfill gas 23,686 / 177 =
+133.8 (Tables 49 and 53).
+
+The report shows a third limit. For biogas and biomethane made from manure it
+subtracts 162 gCO2eq per kWh of gas, a RED II credit for the storage methane
+the manure would otherwise have emitted (Table 36); manure is 17% of biogas
+generation and 5% of biomethane's (Table 35). AR5's row, for dedicated crops
+and crop residues, has no such credit. Without it, at the report's electrical
+efficiencies of 51% and 57%, biogas would be about 54 higher and biomethane
+about 14, the German factor 258–262 rather than 222–225, and DE-LU's point
+would move by +2.4 to +2.7 rather than by −0.4 to −0.7: still inside the
+row's band, and still a fraction of what lignite moved.
+
+Pages 65–85 supplied and checked against the report by Adewole Olagoke ·
+19 October 2026 · Climate Change 11/2026, sections 4.6–4.10
 
 ## If a number differs from the PDF
 
@@ -283,7 +304,8 @@ Decisions 1–3 were taken on 18 October 2026. Decision 2 changed a value
 and went in a commit of its own (`7eb577e`); decisions 1 and 3 changed only the
 reasons in the `source` column, the README and the runbook (`5d04521`).
 On 19 October 2026 decision 1 gained its replacement and decision 4 was taken;
-both changed reasons only, no value.
+both changed reasons only, no value. Later that day B02 took Germany's value,
+the second value change, in a commit of its own (`25f869a`).
 
 The check is recorded under Checkpoint 4 in the runbook, and this worksheet is
 committed as its record.
