@@ -34,7 +34,7 @@ has been pulled.*
 | T-SQL schema + DQ views (Azure) | archived 17.10.2026 in `archive/azure-excursion/` | — | never: DuckDB cannot run them |
 | dbt models | yes — 10 models (8 enabled), 7 singular tests (1 disabled), 9 generic | built on fixtures in CI and compared with the Python parser | **yes** — the 2021–2025 A75 and A44 data, 18.10.2026: 23 nodes green; rebuilt 19.10.2026 with the Itten coal rows, `dim_production_type` equal to the factor file row for row |
 | CI | yes, `.github/workflows/pipeline.yml` | — | **yes**, green on 3.11 and 3.14 |
-| Version control | yes — MIT; public from WE 3, 24./25.10.2026 | — | — |
+| Version control | yes — MIT; public since 20.10.2026, ahead of the planned WE 3 (<https://github.com/aolagoke-dsae/grid-carbon-intensity>) | — | — |
 
 `raw/` holds the A44 and A75 payloads and the SMARD price weeks of 2021–2025
 (and one of 2026), all in `manifest.csv`.
