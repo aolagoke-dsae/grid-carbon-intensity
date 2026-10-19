@@ -347,7 +347,9 @@ print(check_stage4_factors(rows, factors))
 ```
 
 - Returns `True` — every `psrType` in the data has a row, priced or explicitly flagged
-- You have **personally** verified each published figure against Table A.III.2
+- You have **personally** verified each published figure against Table A.III.2.
+  Done 18.10.2026: all twelve priced rows match the PDF, p. 1335; the record
+  is `docs/FACTOR_CHECK.md`.
 - Priced share: unpriced fuels under **2%** of DE-LU energy. Higher means the
   unpriced categories are material and you must say so wherever intensity appears.
   Measured on the 2025 pulls (17.10.2026): **4.8% unpriced in DE-LU** (pumped
