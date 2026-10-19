@@ -54,7 +54,8 @@ Study how these are *organised*. Do not copy their content.
 | [API rate limit](https://transparencyplatform.zendesk.com/hc/en-us/articles/12783148966036) | 400 req/min per token, 429 with ~10 min auto-unban. `SLEEP_SECONDS = 1.5` is ten times under. |
 | [Transparency Platform area list](https://transparencyplatform.zendesk.com/hc/en-us/articles/15885757676308) | Verify every EIC in `config/zones.csv` against this before trusting it. |
 | [EnergieID/entsoe-py](https://github.com/EnergieID/entsoe-py) | **Do not switch to it.** See the note below. Use it as an independent cross-check. |
-| IPCC AR5 WG3 Annex III, Table A.III.2 | The factor source. Stage 4 requires verifying every row of `config/ipcc_ar5_factors.csv` against it by hand. |
+| IPCC AR5 WG3 Annex III, Table A.III.2 | The source of every priced factor but lignite and hard coal. Stage 4 requires verifying each row of `config/ipcc_ar5_factors.csv` against its source by hand. |
+| Itten et al. (2023), *Life cycle inventories of solid fossil fuels*, ZHAW — <https://doi.org/10.21256/zhaw-30218> | The source of lignite (B02) and hard coal (B05) since 19 October 2026: Germany's values read off Fig. 4.5, p. 54, the ranges across countries as bands (`docs/FACTOR_CHECK.md`, decision 1). |
 | Electricity Maps (free tier) | Independent published intensity series for the Stage 5 cross-check. Its default figures are life-cycle intensities of the consumed, flow-traced mix, so expect differences from imports and from the factor sets, not from lifecycle versus combustion. |
 | SMARD (Bundesnetzagentur) | German generation and load, as a second opinion when ENTSO-E looks wrong. |
 

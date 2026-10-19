@@ -1,11 +1,12 @@
 # Grid Carbon Intensity
 
 Hourly-and-quarter-hourly carbon intensity for two European bidding zones,
-DE-LU and FR, **derived** from the ENTSO-E generation mix using IPCC AR5
-lifecycle factors rather than consumed from a vendor — with the published
-factor uncertainty propagated through to a 90% interval by Monte Carlo, and a
-first-order sensitivity index saying which fuel's factor that interval is
-mostly made of.
+DE-LU and FR, **derived** from the ENTSO-E generation mix using published
+life-cycle factors — IPCC AR5 for most fuels, a country-resolved inventory for
+German lignite and hard coal — rather than consumed from a vendor, with the
+published factor uncertainty propagated through to a 90% interval by Monte
+Carlo, and a first-order sensitivity index saying which fuel's factor that
+interval is mostly made of.
 
 The eventual purpose is a load-shifting decision model that prices the saving
 in tCO2e and euros. That is the question the project exists to answer; it is
@@ -120,7 +121,8 @@ The architecture is defined in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 |---|---|---|
 | ENTSO-E Transparency Platform | Generation per production type (A75), day-ahead prices (A44), actual load (A65) | REST API, token |
 | SMARD (Bundesnetzagentur) | Independent second source; the reconciliation test against it is planned, not written | REST, no key |
-| IPCC AR5 WG3 Annex III | Lifecycle emission factors with published ranges | `config/ipcc_ar5_factors.csv` |
+| IPCC AR5 WG3 Annex III | Lifecycle emission factors with published ranges, for every priced fuel but lignite and hard coal | `config/ipcc_ar5_factors.csv` |
+| Itten et al. (2023), ZHAW, for the Swiss UVEK life-cycle inventory database | Lignite and hard coal (B02, B05): Germany's values read off Fig. 4.5, the ranges across countries as bands | `config/ipcc_ar5_factors.csv` |
 
 A fetcher exists for each ENTSO-E and SMARD row above. The A44 and SMARD
 fetchers ran on 6 October 2026, the A75 fetcher on 17 October 2026 (DE-LU and
@@ -464,9 +466,10 @@ Three different things are licensed three different ways.
 
 **The code is MIT** — see `LICENSE`. Use it, change it, ship it; keep the notice.
 
-**The emission factors** in `config/ipcc_ar5_factors.csv` are reproduced from
-IPCC AR5 WG3 Annex III with citation. Verify against the source before relying
-on them.
+**The emission factors** in `config/ipcc_ar5_factors.csv` are reproduced with
+citation from IPCC AR5 WG3 Annex III, except lignite and hard coal, which are
+read off a figure in Itten et al. (2023); the file keeps its name. Verify
+against the sources before relying on them.
 
 **The ENTSO-E data is not redistributed here.** `raw/` is git-ignored and only
 `manifest.csv` — the provenance record, with the token redacted — is committed.

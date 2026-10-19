@@ -266,12 +266,12 @@ one squashed import.
 
 | Layer | **A — Grid Carbon Intensity** |
 |---|---|
-| Sources | ENTSO-E Transparency Platform; IPCC AR5 WG3 Annex III |
+| Sources | ENTSO-E Transparency Platform; IPCC AR5 WG3 Annex III; Itten et al. (2023) for lignite and hard coal |
 | Ingestion | REST + token, 400 req/min |
 | Heavy compute | none |
 | Curated grain | zone × production type × quarter-hour |
 | Warehouse | DuckDB |
-| Uncertainty | AR5 factor ranges → MC → 90% interval + Sobol |
+| Uncertainty | Published factor ranges (AR5; Itten et al. 2023 for coal) → MC → 90% interval + Sobol |
 | Compliance layer | — |
 | Publication | Quarto → Pages; `.pbix`; Tableau Public |
 
