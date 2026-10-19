@@ -106,7 +106,9 @@ each with a test that makes it fail; and CI across Python 3.11 and 3.14.
 The other three are configuration kept for the third-zone diagnostic, not
 results: their pulls stay in `raw/`, `xml_to_parquet` lands only the two
 analysis zones, and `notebooks/third_zone.py` measures all five from the raw
-payloads.
+payloads. On 19 October 2026 the diagnostic chose PL: as flat within the day as
+France at almost twice Germany's carbon level (`docs/THIRD_ZONE.md`). Choosing
+it does not add it to the analysis yet.
 
 No subscription, no licence and no free tier is required to run any of it.
 `git clone` then `pytest` works today, and it builds the dbt models on
@@ -442,7 +444,9 @@ src/checks/         stage checkpoint functions, importable and testable
 dbt/                10 models (8 enabled), 7 singular tests (1 disabled) and
                     9 generic ones; built on fixtures in CI and on the real
                     2025 data — see What is not built
-docs/               ARCHITECTURE.md, the standard; RESOURCES.md, reading by stage
+docs/               ARCHITECTURE.md, the standard; RESOURCES.md, reading by stage;
+                    FACTOR_CHECK.md and THIRD_ZONE.md, decisions with their
+                    evidence
 .github/workflows/  pipeline.yml — pytest on 3.11 and 3.14; dbt parse and a
                     build on fixtures; weekly
 raw/                append-only landing, git-ignored: one folder per document,

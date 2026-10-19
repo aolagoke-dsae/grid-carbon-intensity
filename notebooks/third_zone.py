@@ -58,15 +58,17 @@
 #    (C_DE ≤ C_FR), the confound does not exist as §2.3 states it, and no zone
 #    is chosen until it is restated.
 #
-# Run from the repository root: `python notebooks/third_zone.py`. No token is
+# Run from the repository root: `python notebooks/third_zone.py`, and with
+# `--sensitivity` for the choice under other factor tables. No token is
 # needed; the pulls are a separate step (Master Plan §2.3, RUNBOOK Stage 3).
 # Zones not pulled yet are listed as such, and no zone is chosen until all
-# three candidates are in.
+# three candidates are in. The result, 19.10.2026: `docs/THIRD_ZONE.md`.
 
 # %%
 from __future__ import annotations
 
 import csv
+import dataclasses
 import datetime as dt
 import os
 import statistics
@@ -130,11 +132,9 @@ def num(x, spec: str, scale: float = 1.0) -> str:
     return "–" if x is None else format(scale * x, spec)
 
 
-def priced(psr: str) -> bool:
-    return psr in FACTORS and FACTORS[psr].priced
-
-
-def measure(zone: dict) -> dict:
+def load(zone: dict) -> dict:
+    """Parse the zone's payload once: the hourly mix over its complete hours,
+    and what the parser met. Nothing here depends on the factors."""
     xml = payload(zone["eic"])
     if xml is None:
         return {"zone": zone["key"], "file": None}
@@ -161,36 +161,11 @@ def measure(zone: dict) -> dict:
     complete = {h for h in hours
                 if y0 <= h < y1 and all(stated[h].get(p, 0.0) >= 0.999 for p in regular)}
 
-    total = priced_mwh = emissions = 0.0
-    unpriced: dict = defaultdict(float)
-    hourly: dict = {}
-    for h in sorted(complete):
-        mix = energy.get(h, {})
-        p = sum(e for f, e in mix.items() if priced(f))
-        em = sum(e * FACTORS[f].median for f, e in mix.items() if priced(f))
-        total += sum(mix.values())
-        priced_mwh += p
-        emissions += em
-        for f, e in mix.items():
-            if not priced(f):
-                unpriced[f] += e
-        if p > 0:
-            hourly[h] = em / p
-
-    days: dict = defaultdict(list)
-    for h, v in hourly.items():
-        days[h.astimezone(tz).date()].append(v)
-    cvs = []
-    for d, vals in days.items():
-        start = dt.datetime(d.year, d.month, d.day, tzinfo=tz)
-        length = (start + dt.timedelta(days=1)).astimezone(dt.timezone.utc) - start.astimezone(dt.timezone.utc)
-        if len(vals) == round(length.total_seconds() / 3600):
-            cvs.append(statistics.pstdev(vals) / statistics.fmean(vals))
-
     codes = sorted({r["psr"] for r in rows})
     return {
         "zone": zone["key"],
         "file": xml.relative_to(ROOT).as_posix(),
+        "tz": tz,
         "rows": len(rows),
         "codes": codes,
         "not_in_psr_map": [c for c in codes if c not in PSR],
@@ -200,16 +175,65 @@ def measure(zone: dict) -> dict:
         "stated_hours": len(hours),
         "outside": outside,
         "complete_hours": len(complete),
-        "days": len(cvs),
-        "level": emissions / priced_mwh if priced_mwh else None,
-        "cv_mean": statistics.fmean(cvs) if cvs else None,
-        "cv_median": statistics.median(cvs) if cvs else None,
-        "priced_share": priced_mwh / total if total else None,
-        "unpriced": sorted(((f, e / total) for f, e in unpriced.items()), key=lambda t: -t[1]),
-        "unknown": sorted(f for f in unpriced if f not in FACTORS),
         "sparse": sorted(set(full) - regular),
         "twh": sum(sum(energy[h].values()) for h in hours if y0 <= h < y1) / 1e6,
+        "mix": {h: dict(energy.get(h, {})) for h in sorted(complete)},
     }
+
+
+def score(z: dict, factors: dict = FACTORS) -> dict:
+    """Level, within-day CV and priced share over the complete hours, under
+    one factor table; z as load() returned it, with those added."""
+    def priced(psr: str) -> bool:
+        return psr in factors and factors[psr].priced
+
+    total = priced_mwh = emissions = 0.0
+    unpriced: dict = defaultdict(float)
+    hourly: dict = {}
+    for h, mix in z["mix"].items():
+        p = sum(e for f, e in mix.items() if priced(f))
+        em = sum(e * factors[f].median for f, e in mix.items() if priced(f))
+        total += sum(mix.values())
+        priced_mwh += p
+        emissions += em
+        for f, e in mix.items():
+            if not priced(f):
+                unpriced[f] += e
+        if p > 0:
+            hourly[h] = em / p
+
+    tz = z["tz"]
+    days: dict = defaultdict(list)
+    for h, v in hourly.items():
+        days[h.astimezone(tz).date()].append(v)
+    cvs, sds = {}, {}
+    for d, vals in days.items():
+        start = dt.datetime(d.year, d.month, d.day, tzinfo=tz)
+        length = (start + dt.timedelta(days=1)).astimezone(dt.timezone.utc) - start.astimezone(dt.timezone.utc)
+        if len(vals) == round(length.total_seconds() / 3600):
+            sds[d] = statistics.pstdev(vals)
+            cvs[d] = sds[d] / statistics.fmean(vals)
+    summer = [c for d, c in cvs.items() if 4 <= d.month <= 9]
+    winter = [c for d, c in cvs.items() if not 4 <= d.month <= 9]
+
+    return {
+        **z,
+        "days": len(cvs),
+        "level": emissions / priced_mwh if priced_mwh else None,
+        "cv_mean": statistics.fmean(cvs.values()) if cvs else None,
+        "cv_median": statistics.median(cvs.values()) if cvs else None,
+        "priced_share": priced_mwh / total if total else None,
+        "unpriced": sorted(((f, e / total) for f, e in unpriced.items()), key=lambda t: -t[1]),
+        "unknown": sorted(f for f in unpriced if f not in factors),
+        "sd_mean": statistics.fmean(sds.values()) if sds else None,
+        "cv_summer": statistics.fmean(summer) if summer else None,
+        "cv_winter": statistics.fmean(winter) if winter else None,
+    }
+
+
+def measure(zone: dict, factors: dict = FACTORS) -> dict:
+    z = load(zone)
+    return score(z, factors) if "mix" in z else z
 
 
 # %%
@@ -261,8 +285,10 @@ def choose(results: dict, cv: str):
 
 
 # %%
-results = {z["key"]: measure(z) for z in ZONES}
+loaded = {z["key"]: load(z) for z in ZONES}
+results = {k: score(z) if "mix" in z else z for k, z in loaded.items()}
 pulled = [k for k, r in results.items() if r["file"] and "error" not in r]
+missing = [z["key"] for z in ZONES if z["key"] not in PAIR and z["key"] not in pulled]
 
 print(f"Third-zone diagnostic, {YEAR}, median factors, complete hours and local days only\n")
 print("| Zone | Resolution | Generation in the year, TWh | Complete hours | Days | Level, gCO2e/kWh "
@@ -297,6 +323,14 @@ for k in pulled:
           f"hours with any value {r['stated_hours']:,} of {r['hours']:,}, "
           f"outside the local year {r['outside']}; steps stated twice: {r['stated_twice']}")
 
+print("\nBeyond the rule, descriptive only: the absolute spread, and the CV by half-year\n")
+print("| Zone | Mean within-day SD, gCO2e/kWh | CV, April–September | CV, October–March |")
+print("|---|---:|---:|---:|")
+for k in pulled:
+    r = results[k]
+    print(f"| {k} | {num(r['sd_mean'], '.1f')} | {num(r['cv_summer'], '.3f')} "
+          f"| {num(r['cv_winter'], '.3f')} |")
+
 # %%
 if all(k in pulled for k in PAIR):
     uv = place(results, "cv_mean")
@@ -310,7 +344,6 @@ if all(k in pulled for k in PAIR):
         if k not in uv:
             print(f"| {k} | – | – | – | no complete hours or days to place |")
 
-    missing = [z["key"] for z in ZONES if z["key"] not in PAIR and z["key"] not in pulled]
     if missing:
         print(f"\nNo choice yet: {', '.join(missing)} not pulled or not parsed.")
     else:
@@ -320,3 +353,44 @@ if all(k in pulled for k in PAIR):
         print(f"Robustness (rule 4, median CV): {check or 'none'}{'; ' + check_note if check_note else ''}")
         if best != check:
             print("The two disagree: report both; the choice is not final.")
+
+# %% [markdown]
+# ## Sensitivity to the factors (run with `--sensitivity`)
+#
+# The same rule under three other factor tables: every priced factor at the
+# low end of its band, every one at the high end, and PL's lignite and hard
+# coal at Poland's own values in Itten et al. (2023, Fig. 4.5), read off the
+# figure like Germany's (`docs/FACTOR_CHECK.md`, decision 1). The band ends
+# move every zone at once, so they test the plane, not one zone.
+
+# %%
+POLAND = {"B02": 1094.0, "B05": 1115.0}     # Itten et al. 2023, Fig. 4.5, Poland
+
+
+def swapped(pick) -> dict:
+    """The factor table with every priced median replaced by pick(psr, factor)."""
+    return {k: dataclasses.replace(f, median=pick(k, f)) if f.priced else f
+            for k, f in FACTORS.items()}
+
+
+if "--sensitivity" in sys.argv and all(k in pulled for k in PAIR) and not missing:
+    low, high = swapped(lambda k, f: f.lo), swapped(lambda k, f: f.hi)
+    poland = swapped(lambda k, f: POLAND.get(k, f.median))
+    variants = {
+        "medians (the result)": lambda key: FACTORS,
+        "every factor at its band minimum": lambda key: low,
+        "every factor at its band maximum": lambda key: high,
+        "PL's coal at Poland's own values": lambda key: poland if key == "PL" else FACTORS,
+    }
+    candidates = [k for k in pulled if k not in PAIR]
+    print("\nSensitivity: the rule under other factor tables\n")
+    print("| Factors | " + " | ".join(f"{k}: level, CV, abs(u − v)" for k in candidates)
+          + " | Choice, mean CV | Choice, median CV |")
+    print("|---|" + "---:|" * len(candidates) + "---|---|")
+    for name, table in variants.items():
+        res = {k: score(z, table(k)) for k, z in loaded.items() if k in pulled}
+        uv = place(res, "cv_mean")
+        cells = [f"{num(res[k]['level'], '.0f')}, {num(res[k]['cv_mean'], '.3f')}, "
+                 f"{abs(uv[k][0] - uv[k][1]):.2f}" if k in uv else "–" for k in candidates]
+        print(f"| {name} | " + " | ".join(cells)
+              + f" | {choose(res, 'cv_mean')[0] or 'none'} | {choose(res, 'cv_median')[0] or 'none'} |")
