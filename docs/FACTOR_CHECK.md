@@ -30,7 +30,7 @@ table's methane column, which the reproduction leaves out, gives hydropower
 | 2 | B02 | Fossil Brown coal/Lignite | Coal — PC (proxy) | 820 | 740 | 910 | low | 740 | 820 | 910 | yes | decision 1: CSV now 1060 / 1000 / 1350, not from AR5 |
 | 3 | B03 | Fossil Coal-derived gas | Coal — PC (proxy) | 820 | 740 | 910 | low | 740 | 820 | 910 | yes | proxy: decision 1 |
 | 4 | B04 | Fossil Gas | Gas — Combined Cycle | 490 | 410 | 650 | high | 410 | 490 | 650 | yes | |
-| 5 | B05 | Fossil Hard coal | Coal — PC | 820 | 740 | 910 | high | 740 | 820 | 910 | yes | |
+| 5 | B05 | Fossil Hard coal | Coal — PC | 820 | 740 | 910 | high | 740 | 820 | 910 | yes | decision 1: CSV now 1040 / 861 / 1320, not from AR5 |
 | 6 | B09 | Geothermal | Geothermal | 38 | 6 | 79 | high | 6.0 | 38 | 79 | yes | |
 | 7 | B11 | Hydro Run-of-river | Hydropower | 24 | 1 | 2200 | medium | 1.0 | 24 | 2200 | yes | decision 2: CSV max now 24 |
 | 8 | B12 | Hydro Water Reservoir | Hydropower | 24 | 1 | 2200 | medium | 1.0 | 24 | 2200 | yes | decision 2 |
@@ -54,7 +54,7 @@ Measured on the 2021–2025 data with `src/transform/intensity.py` (method
 intensity at the median factors, the interval the Monte Carlo 90% interval,
 10,000 draws at the module's default seed. Shares are of priced generation.
 
-### 1. Lignite (B02) and coal-derived gas (B03) on the coal row
+### 1. Lignite (B02), coal-derived gas (B03) and hard coal (B05) on the coal row
 
 Lignite is 16–22% of DE-LU's priced generation in 2021–2025; coal-derived gas
 is about 1% from 2023, the first year it is published. AR5 has one coal row,
@@ -153,14 +153,37 @@ B02 has carried 1,060 (1,000–1,350), confidence `medium`, since 19.10.2026
 
 The deterministic point stays inside its interval in every year, and 20,000
 draws move the bounds by under 0.3%. France has no lignite and does not move.
-Per quarter-hour, DE-LU now runs 91–701 gCO2eq/kWh, with yearly medians of
-409, 434, 360, 354 and 351 (Checkpoint 5).
+With lignite alone replaced, DE-LU ran 91–701 gCO2eq/kWh per quarter-hour,
+with yearly medians of 409, 434, 360, 354 and 351.
 
-**Open: hard coal.** The same figure puts German hard coal at about 1.04
-kgCO2eq/kWh, above the whole of the AR5 coal row that B05 uses (740–910).
-Other German estimates run from 811 (Ladage et al., 2021, CO2 only) to 1,142
-(ifeu, 2015). At 1,044, DE-LU's point would rise by a further 15–30
-gCO2eq/kWh, 2021–2025. Not decided.
+**Hard coal, decided 19.10.2026.** The same figure puts German hard coal at
+**1.04 kgCO2eq/kWh** (UVEK database 2022; pixel reading 1.044 ± 0.005, its
+printed change −6% against 1.103 in 2018), above the whole of the AR5 coal
+row that B05 used (740–910). Other German estimates run from 811 (Ladage et
+al., 2021, CO2 only) to 1,142 (ifeu, 2015). B05 gets the same treatment as
+lignite: Germany's value as the centre, labelled a country value, and the
+range across countries the abstract gives, 0.861 (Austria) to 1.32 (the Czech
+Republic), as the band. Confidence `medium`, like B02.
+
+With B02 at 1,060 (1,000–1,350) and B05 at 1,040 (861–1,320):
+
+| gCO2eq/kWh | 2021 | 2022 | 2023 | 2024 | 2025 |
+|---|---:|---:|---:|---:|---:|
+| DE-LU point (90% interval) | 410.6 (394.7–465.0) | 441.6 (423.1–499.8) | 384.8 (369.8–435.1) | 357.4 (343.6–405.4) | 352.1 (338.1–399.2) |
+| Change from hard coal | +23.3 | +28.9 | +20.3 | +14.4 | +14.8 |
+| Change from both, against the coal row | +71.4 | +80.9 | +63.5 | +55.4 | +53.3 |
+| Share of the variance, lignite / hard coal | 57% / 24% | 55% / 31% | 53% / 22% | 53% / 13% | 48% / 14% |
+| France, change from hard coal | +1.8 | +1.6 | +0.4 | +0.3 | +0.2 |
+
+The deterministic point stays inside its interval in both zones in every
+year, and 20,000 draws move the bounds by under 0.3%. Per quarter-hour, DE-LU
+runs 93–764 gCO2eq/kWh with yearly medians of 432, 464, 376, 367 and 366, and
+France 15–124 with 48, 71, 41, 28 and 27 (Checkpoint 5).
+
+One table prices both zones, so French hard coal carries Germany's value. The
+same figure gives France 1.25; at 0.1–0.8% of French priced generation,
+France's own value would add a further 0.2–1.7. Too little for a zone column
+in the factor table, enough to state.
 
 ### 2. One hydropower row for run-of-river (B11) and reservoirs (B12)
 
@@ -265,8 +288,8 @@ check against the report that AR5 had.
 its `source` column. The German value lies inside the row's band, from 8 below
 its median to 46 above, and moves DE-LU by at most 4.0, about a tenth of what
 the lignite candidates do. The row matters through its band instead: at
-130–420 it owned 7–10% of DE-LU's interval width with lignite on the coal
-row, and owns 3–5% since lignite carries its own band.
+130–420 it owned 7–10% of DE-LU's interval width with lignite and hard coal
+on the coal row, and owns 2–6% since both carry their own bands.
 
 **Checked against the report, 19.10.2026.** All six agree. The report prints
 no factor per kWh; each is the pathway's caused emissions ("verursachte
@@ -305,7 +328,8 @@ and went in a commit of its own (`7eb577e`); decisions 1 and 3 changed only the
 reasons in the `source` column, the README and the runbook (`5d04521`).
 On 19 October 2026 decision 1 gained its replacement and decision 4 was taken;
 both changed reasons only, no value. Later that day B02 took Germany's value,
-the second value change, in a commit of its own (`25f869a`).
+the second value change, in a commit of its own (`25f869a`), and B05
+Germany's hard-coal value, the third, in another.
 
 The check is recorded under Checkpoint 4 in the runbook, and this worksheet is
 committed as its record.

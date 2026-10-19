@@ -70,11 +70,25 @@ def test_lignite_is_priced_as_lignite(factors):
     understated DE-LU by 38-52 gCO2e/kWh, 2021-2025. No lignite source
     publishes a median, so B02 carries Germany's value read off Itten et al.
     (2023), Fig. 4.5, with their range across countries as the band."""
-    lig, coal = factors["B02"], factors["B05"]
+    lig, ar5_coal = factors["B02"], factors["B03"]  # B03 still uses the AR5 row
     assert (lig.lo, lig.median, lig.hi) == (1000.0, 1060.0, 1350.0)
-    assert lig.lo > coal.hi, "the lignite band must clear the whole coal row"
+    assert lig.lo > ar5_coal.hi, "the lignite band must clear the whole coal row"
     assert not lig.source.startswith("Proxy") and "Itten" in lig.source
     assert lig.confidence == "medium"
+
+
+def test_hard_coal_is_priced_for_germany(factors):
+    """Decided 19.10.2026 (docs/FACTOR_CHECK.md, decision 1), after lignite.
+    The same figure puts German hard coal at 1.04 kgCO2e/kWh, above the whole
+    AR5 coal row, which understated DE-LU by a further 14-29 gCO2e/kWh,
+    2021-2025. Germany's value is the centre and the range across countries
+    the band; only coal-derived gas stays on the AR5 row."""
+    hard, ar5_coal = factors["B05"], factors["B03"]
+    assert (hard.lo, hard.median, hard.hi) == (861.0, 1040.0, 1320.0)
+    assert (ar5_coal.lo, ar5_coal.median, ar5_coal.hi) == (740.0, 820.0, 910.0)
+    assert hard.median > ar5_coal.hi
+    assert not hard.source.startswith("Proxy") and "Itten" in hard.source
+    assert hard.confidence == "medium"
 
 
 def test_a_priced_placeholder_is_refused(tmp_path):
@@ -140,14 +154,16 @@ def test_the_score_range_maps_onto_the_published_band(factors):
 
 
 def test_the_skew_comes_from_the_band(factors):
-    """Reservoir hydro keeps its long right side; coal stays almost symmetric."""
+    """Reservoir hydro keeps its long right side; AR5's coal row stays almost
+    symmetric. Since 19.10.2026 only coal-derived gas (B03) uses that row:
+    hard coal (B05) carries Germany's value and a band of its own."""
 
     def right_over_left(d):
         m = np.median(d)
         return (np.percentile(d, 90) - m) / (m - np.percentile(d, 10))
 
     hydro = sample_factor(factors["B12"], 100_000, np.random.default_rng(2))
-    coal = sample_factor(factors["B05"], 100_000, np.random.default_rng(2))
+    coal = sample_factor(factors["B03"], 100_000, np.random.default_rng(2))
     assert right_over_left(hydro) > 10
     assert right_over_left(coal) == pytest.approx(1.0, abs=0.15)
 
@@ -197,7 +213,7 @@ def test_describe_sampling_explains_every_row(factors):
 # --------------------------------------------------------------------------
 def test_pure_coal_hour_lands_on_the_coal_factor(factors):
     out = summarise({"B05": 1000.0}, factors, n_draws=20_000)
-    assert out["intensity_median"] == pytest.approx(820, rel=0.02)
+    assert out["intensity_median"] == pytest.approx(factors["B05"].median, rel=0.02)
     assert factors["B05"].lo <= out["intensity_p05"] <= out["intensity_median"]
     assert out["intensity_median"] <= out["intensity_p95"] <= factors["B05"].hi
     assert out["coverage_pct"] == 100.0

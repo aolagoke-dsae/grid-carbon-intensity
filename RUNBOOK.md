@@ -325,7 +325,11 @@ second until 19.10.2026: lignite plants emit more per kWh than the coal row's
 understated by 38–52 gCO₂e/kWh, 2021–2025. No lignite source publishes a
 median, so B02 now carries Germany's value, 1,060, read off Itten et al.
 (2023, Fig. 4.5), with their 1,000–1,350 range across countries as the band,
-marked `medium`. Solar stays on AR5's utility-PV row (`docs/FACTOR_CHECK.md`,
+marked `medium`. Hard coal (B05) left the coal row the same day for Germany's
+value from the same figure, 1,040, with 861–1,320 as the band, also `medium`:
+on AR5's row DE-LU had been understated by a further 14–29, 2021–2025. B05
+prices France's hard coal with the German value too, at 0.1–0.8% of French
+generation. Solar stays on AR5's utility-PV row (`docs/FACTOR_CHECK.md`,
 decisions 1 and 3). Biomass (B01) stays on AR5's
 dedicated-biomass row although Germany's category is broader: weighted by
 Germany's biomass mix, UBA's pathway factors give 222–276 gCO₂e/kWh, inside
@@ -352,10 +356,11 @@ print(check_stage4_factors(rows, factors))
 - Returns `True` — every `psrType` in the data has a row, priced or explicitly flagged
 - You have **personally** verified each published figure against Table A.III.2.
   Done 18.10.2026: all twelve priced rows match the PDF, p. 1335; the record
-  is `docs/FACTOR_CHECK.md`. On 19.10.2026 lignite took Germany's value from
-  Itten et al. (2023), since no lignite median is published (decision 1), and
-  biomass kept its row, with the error from its narrower scope measured and
-  stated (decision 4).
+  is `docs/FACTOR_CHECK.md`. On 19.10.2026 lignite and hard coal took
+  Germany's values from Itten et al. (2023), since no lignite median is
+  published and AR5's coal row sits below both German fleets (decision 1),
+  and biomass kept its row, with the error from its narrower scope measured
+  and stated (decision 4).
 - Priced share: unpriced fuels under **2%** of DE-LU energy. Higher means the
   unpriced categories are material and you must say so wherever intensity appears.
   Measured on the 2025 pulls (17.10.2026): **4.8% unpriced in DE-LU** (pumped
@@ -401,7 +406,7 @@ print(check_stage5_intensity(rows, factors, values, sparse))
   factors, so MWh on one side of the ratio and MW on the other fails, and so
   does a value reported from a partial mix. Its predecessor bounded the values
   to 0–1000, which no units error leaves
-- Range roughly **50–700 gCO2e/kWh** for DE-LU across a year
+- Range roughly **50–800 gCO2e/kWh** for DE-LU across a year
 - Plot one week and look at it. Sunny summer midday low, still winter evening
   high. An inverted shape means a join error.
 - Cross-check a handful of hours against an independent published series
@@ -413,8 +418,10 @@ print(check_stage5_intensity(rows, factors, values, sparse))
   document.
 - Measured on the 2021–2025 pulls (18.10.2026), at median factors: DE-LU
   83–622 gCO2e/kWh per quarter-hour, yearly medians 356, 378, 315, 310 and 309;
-  with lignite at Germany's value (19.10.2026), 91–701 and 409, 434, 360, 354
-  and 351. France 15–117 per step, medians 47, 70, 41, 28 and 27. Withheld, each at a
+  with lignite and hard coal at Germany's values (19.10.2026), 93–764 and 432,
+  464, 376, 367 and 366. France 15–117 per step, medians 47, 70, 41, 28 and 27;
+  with hard coal at Germany's value, 15–124 and 48, 71, 41, 28 and 27. Withheld,
+  each at a
   recorded source gap: 10 and 31 quarter-hours in DE-LU in 2024 and 2025, and
   413 hours in France in 2023, most in offshore wind's first weeks. (The
   322 French quarter-hours withheld in 2025 until 18.10. were steps with a
@@ -532,10 +539,12 @@ than AR5's: run-of-river (B11) stops at its median since 18.10.2026, because
 AR5's hydropower maximum is reservoir methane. Under the full band it owned
 65–71% of France's interval variance (Stage 4).
 
-**Lignite.** The 900 / 1,300 sensitivity planned on 18.10.2026 is not needed:
-since 19.10.2026 B02 carries Germany's value, 1,060, and the 1,000–1,350 band
-from Itten et al. (2023), sampled like every other band. It now leads DE-LU's
-interval: 55–76% of the variance and 33–51% of the width, 2021–2025.
+**Lignite and hard coal.** The 900 / 1,300 sensitivity planned on 18.10.2026
+is not needed: since 19.10.2026 B02 and B05 carry Germany's values from Itten
+et al. (2023), 1,060 and 1,040, with bands of 1,000–1,350 and 861–1,320,
+sampled like every other band. Lignite now leads DE-LU's interval, 48–57% of
+the variance and 29–34% of the width, 2021–2025; hard coal has 13–31% of the
+variance.
 
 **Checkpoint 8**
 
@@ -543,14 +552,14 @@ interval: 55–76% of the variance and 33–51% of the width, 2021–2025.
   the resulting 90% interval. If it does not, the sampling is biased.
 - Re-run with 20,000 draws: interval bounds move less than 1%. That is
   convergence and you should be able to state it.
-- Sobol indices sum to approximately 1 and name a dominant driver. Do not
-  expect it to be hard coal: coal's AR5 band (740–910) is the narrowest of any
-  fuel. A fuel's share grows with its energy share squared and with its band's
-  spread, so gas, biomass or even a small hydro share can lead; in DE-LU it is
-  lignite since 19.10.2026, whose band reaches 290 above its centre. Read the
-  width share beside the variance share before naming the driver.
-- B02 carries a lignite factor, not the coal row: done 19.10.2026, Germany's
-  value and band from Itten et al. (2023).
+- Sobol indices sum to approximately 1 and name a dominant driver. A fuel's
+  share grows with its energy share squared and with its band's spread, so
+  gas, biomass or even a small hydro share can lead. In DE-LU it is lignite
+  since 19.10.2026, whose band reaches 290 above its centre; AR5's coal row
+  (740–910), the narrowest band of any fuel, now carries only coal-derived gas.
+  Read the width share beside the variance share before naming the driver.
+- B02 and B05 carry German lignite and hard-coal factors, not AR5's coal row:
+  done 19.10.2026, from Itten et al. (2023).
 
 ---
 
@@ -603,8 +612,8 @@ Tableau module, on this data rather than a supplied training set.
 - `docs/METHODOLOGY.md` written: sources, factor table with citations, the
   A03/DST/direction handling, the sampling-rule decision, the uncertainty
   method, and the known limitations (no import adjustment yet, six unpriced
-  fuel categories, the coal-derived-gas proxy, a lignite value read off a
-  figure)
+  fuel categories, the coal-derived-gas proxy, lignite and hard-coal values
+  read off a figure, and German hard coal's value applied to France)
 - Once you have 30+ consecutive green scheduled runs, screenshot the Actions
   history and put it near the top of the README. That image is worth more than
   any certificate, because it proves the thing ran without you.
