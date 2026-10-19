@@ -32,7 +32,7 @@ has been pulled.*
 | Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; the Monte Carlo interval and the fact table **not yet** |
 | Stage checks (2, 3, 4, 5) | yes; 2 and 5 rewritten 17.10. so they can fail; 3 counts either leg and measures time since 18.10. | yes, each made to fail | **all four** on the 2021–2025 A75 pulls, 18.10.2026 |
 | T-SQL schema + DQ views (Azure) | archived 17.10.2026 in `archive/azure-excursion/` | — | never: DuckDB cannot run them |
-| dbt models | yes — 10 models (8 enabled), 7 singular tests (1 disabled), 9 generic | built on fixtures in CI and compared with the Python parser | **yes** — the 2021–2025 A75 and 2025 A44 data, 18.10.2026: 23 nodes green |
+| dbt models | yes — 10 models (8 enabled), 7 singular tests (1 disabled), 9 generic | built on fixtures in CI and compared with the Python parser | **yes** — the 2021–2025 A75 and A44 data, 18.10.2026: 23 nodes green; rebuilt 19.10.2026 with the Itten coal rows, `dim_production_type` equal to the factor file row for row |
 | CI | yes, `.github/workflows/pipeline.yml` | — | **yes**, green on 3.11 and 3.14 |
 | Version control | yes — MIT; public from WE 3, 24./25.10.2026 | — | — |
 

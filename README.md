@@ -57,7 +57,8 @@ generation per type (A75) for DE-LU and FR, 2025 on 17 October 2026 and
 has not been fetched. The A75 parser and the stage 2–5 checks have
 run on all ten zone-years, stage 5 on the median-factor intensity. Landed, the
 2021–2025 A75 and A44 data build green through the dbt project,
-23 nodes on 18 October 2026, and CI builds every model on fixtures and checks
+23 nodes on 18 October 2026 and again on 19 October with the new coal rows,
+and CI builds every model on fixtures and checks
 it against the Python parser. The
 fact tables, the Monte Carlo interval on real data and the report are not
 built. **What is not built** has the detail.

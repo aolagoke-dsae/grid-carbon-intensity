@@ -28,8 +28,9 @@ on `mw` must fail. CI runs it in the dbt job. Until 17 October 2026 the only
 check was a manual one against the five-point B15 series of the
 `test_parse.py` fixture, which had been described as the real DE-LU series.
 
-On the real 2021–2025 A75 pulls for DE-LU and France, with the 2025 DE-LU A44
-pull, `dbt build` is green: 23 nodes, every test passing (18 October 2026).
+On the real 2021–2025 A75 and A44 pulls for DE-LU and France, `dbt build` is
+green: 23 nodes, every test passing (18 October 2026, and again on 19 October
+after lignite and hard coal took Itten et al.'s values).
 The SQL coverage test and the Python `check_stage3_coverage` agree exactly:
 with `config/source_gaps.csv` emptied, both report the same 101 short
 day-series, and none with it.
