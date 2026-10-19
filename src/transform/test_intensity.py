@@ -58,12 +58,23 @@ def test_unpriced_fuels_are_flagged_not_missing(factors):
 
 
 def test_proxies_say_so(factors):
-    """AR5 has one coal row. Lignite and coal-derived gas borrow it, which is
-    a proxy, not a citation, and lignite is DE-LU's largest fossil source
-    (audit A12)."""
-    for psr in ("B02", "B03"):
-        assert factors[psr].confidence == "low"
-        assert factors[psr].source.startswith("Proxy")
+    """AR5 has one coal row. Coal-derived gas borrows it, which is a proxy,
+    not a citation (audit A12). Lignite borrowed it too until 19.10.2026."""
+    assert factors["B03"].confidence == "low"
+    assert factors["B03"].source.startswith("Proxy")
+
+
+def test_lignite_is_priced_as_lignite(factors):
+    """Decided 19.10.2026 (docs/FACTOR_CHECK.md, decision 1). Lignite is
+    DE-LU's largest fossil source, and on AR5's coal row (740 / 820 / 910) it
+    understated DE-LU by 38-52 gCO2e/kWh, 2021-2025. No lignite source
+    publishes a median, so B02 carries Germany's value read off Itten et al.
+    (2023), Fig. 4.5, with their range across countries as the band."""
+    lig, coal = factors["B02"], factors["B05"]
+    assert (lig.lo, lig.median, lig.hi) == (1000.0, 1060.0, 1350.0)
+    assert lig.lo > coal.hi, "the lignite band must clear the whole coal row"
+    assert not lig.source.startswith("Proxy") and "Itten" in lig.source
+    assert lig.confidence == "medium"
 
 
 def test_a_priced_placeholder_is_refused(tmp_path):

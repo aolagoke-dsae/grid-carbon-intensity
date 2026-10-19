@@ -213,17 +213,13 @@ the anomaly above.*
 Battery storage (B25) is unpriced, like pumped storage (B10): its emissions
 belong to whatever charged it. Oil (B06) is unpriced as well until a factor is
 cited: AR5 has no oil row, and the earlier value was a placeholder. Lignite
-(B02) is priced from AR5's single coal row and marked a low-confidence proxy,
-and the error is stated rather than guessed at: life-cycle studies put lignite
-at 900–1,300 gCO₂e/kWh against the coal row's 740–910 (Turconi et al., 2013),
-so DE-LU's intensity is understated by 13–17 gCO₂e/kWh at the low end of that
-range and by 77–104 at the high end, 2021–2025. The error lowers DE-LU's
-figures, so it cannot flatter the contrast with France; B02 is to be replaced
-before Stage 8. No lignite source publishes a median, so the replacement is
-Germany's own value from a country-resolved life-cycle inventory (Itten et al.,
-2023), with that study's 1,000–1,350 gCO₂e/kWh range across countries as the
-band; if Germany's value lies where other German estimates put it,
-1,052–1,183, DE-LU rises by 37–79. Biomass (B01) uses AR5's row for dedicated
+(B02) is no longer priced from AR5's single coal row (740–910): life-cycle
+studies put lignite at 900–1,300 gCO₂e/kWh (Turconi et al., 2013), and on the
+coal row DE-LU was understated by 38–52 gCO₂e/kWh, 2021–2025. No lignite
+source publishes a median, so since 19 October 2026 B02 carries Germany's own
+value from a country-resolved life-cycle inventory, 1,060 gCO₂e/kWh read off
+Itten et al. (2023, Fig. 4.5), with that study's 1,000–1,350 range across
+countries as the band. Biomass (B01) uses AR5's row for dedicated
 energy crops and crop residues, narrower than Germany's category: two thirds
 of Germany's biomass electricity outside waste plants is biogas. Weighting the
 Umweltbundesamt's pathway factors by Germany's 2021–2025 biomass mix gives
@@ -349,6 +345,14 @@ keep the full row. Under the full band, run-of-river accounted for 65–71% of
 France's interval variance in 2021–2025 at 7–9% of its generation. The point
 estimate does not change; France's interval narrows by 35–40%.
 
+One factor is not AR5's, decided 19 October 2026. AR5's single coal row stops
+at 910 gCO₂e/kWh, below where life-cycle studies put lignite, DE-LU's largest
+fossil source. Lignite (B02) therefore carries Germany's value from a
+life-cycle inventory resolved by country, 1,060, with the inventory's range
+across countries, 1,000–1,350, as its band (Itten et al., 2023). That band
+reaches much further above its centre than below, and it now leads DE-LU's
+interval: 55–76% of the variance and 33–51% of the width, 2021–2025.
+
 > Changed 17 October 2026 (method 2.0.0). Until then the default was a
 > triangular with the published median as its mode. For a skewed band that
 > moves the median — nuclear's came out at 37.7 instead of 12 — so French,
@@ -368,11 +372,11 @@ supplies 3% of the energy, 23% of the variance and 13% of the interval width.
 
 ## Tests
 
-`pytest` — 152 tests, all green: 131 test functions, some parametrised. Four
+`pytest` — 161 tests, all green: 140 test functions, some parametrised. Four
 of them read the real 7.5 MB A44 payload and **skip in CI**, because `raw/*` is
 gitignored. Seven build the dbt models with dbt-duckdb and run in CI's dbt job
-only; the unit-test job reports 141 passed, 4 skipped. A local run with `raw/`
-populated reports 152 passed.
+only; the unit-test job reports 150 passed, 4 skipped. A local run with `raw/`
+populated reports 161 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
@@ -391,8 +395,8 @@ at least one test fail.
 | `src/transform/test_parse.py` | 24 | Traps 1–4 in the A75 parser, on fixtures, including both transition days at PT15M and PT60M; A01 gaps left empty; an Acknowledgement or an empty document refused; the direction check against the XML |
 | `src/transform/test_prices_parse.py` | 25 | Trap 5 and the A44 parser, including 4 transition-day cases and the 4 real-payload checks |
 | `src/transform/test_dst.py` | 13 | Daylight-saving arithmetic of the validation calendar, `validate.expected_steps` |
-| `src/transform/test_intensity.py` | 31 | The uncertainty propagation, the factor handling and the sensitivity shares |
-| `src/checks/test_validate.py` | 20 | The stage checkpoints, including whole missing days, the coverage policy and the stage 5 recomputation |
+| `src/transform/test_intensity.py` | 33 | The uncertainty propagation, the factor handling and the sensitivity shares |
+| `src/checks/test_validate.py` | 27 | The stage checkpoints, including whole missing days, the coverage policy and the stage 5 recomputation |
 | `src/ingest/test_entsoe_client.py` | 9 | Token redaction in exceptions and the manifest; yearly requests that cover the local year |
 | `src/ingest/test_raw_store.py` | 12 | `raw/` is append-only: a failed pull never replaces data, every retrieval is kept, the smoke scripts report the status they actually got |
 | `src/transform/test_xml_to_parquet.py` | 11 | The landing: stated points only, both domains, dtypes, provenance and the digest check, the newest accepted retrieval of each year |

@@ -27,7 +27,7 @@ table's methane column, which the reproduction leaves out, gives hydropower
 | # | psrType | ENTSO-E fuel | AR5 row read | CSV median | CSV min | CSV max | Confidence | AR5 min | AR5 median | AR5 max | Match? | Note |
 |---|---|---|---|---:|---:|---:|---|---:|---:|---:|---|---|
 | 1 | B01 | Biomass | Biomass — dedicated | 230 | 130 | 420 | medium | 130 | 230 | 420 | yes | decision 4 |
-| 2 | B02 | Fossil Brown coal/Lignite | Coal — PC (proxy) | 820 | 740 | 910 | low | 740 | 820 | 910 | yes | proxy: decision 1 |
+| 2 | B02 | Fossil Brown coal/Lignite | Coal — PC (proxy) | 820 | 740 | 910 | low | 740 | 820 | 910 | yes | decision 1: CSV now 1060 / 1000 / 1350, not from AR5 |
 | 3 | B03 | Fossil Coal-derived gas | Coal — PC (proxy) | 820 | 740 | 910 | low | 740 | 820 | 910 | yes | proxy: decision 1 |
 | 4 | B04 | Fossil Gas | Gas — Combined Cycle | 490 | 410 | 650 | high | 410 | 490 | 650 | yes | |
 | 5 | B05 | Fossil Hard coal | Coal — PC | 820 | 740 | 910 | high | 740 | 820 | 910 | yes | |
@@ -92,7 +92,7 @@ data. What exists, in gCO2eq/kWh:
 | Source | Centre | Range | Catch |
 |---|---|---|---|
 | World Nuclear Association (2011) | 1,054, a mean | 790–1,372 | The only source with both. A mean, from the nuclear industry's trade body, with no per-study values; its own Figure 2 gives 1,069 |
-| Itten et al. (2023) | — | 1,000–1,350, across countries | Per country, for the Swiss UVEK life-cycle inventory database. Germany's value is in section 4.2.4 and has not been read yet |
+| Itten et al. (2023) | — | 1,000–1,350, across countries | Per country, for the Swiss UVEK life-cycle inventory database. Germany's value is a bar in Fig. 4.5, read below |
 | Turconi et al. (2013) | — | 900–1,300, seven studies | The range used above |
 | Ladage et al. (2021) | 1,052, Germany 2018 | — | CO2 only, with the supply chain; a point |
 | ifeu (2015), quoted in Deutscher Bundestag (2015) | 1,183, Germany | — | A point, second-hand |
@@ -121,13 +121,45 @@ median, and their range across countries, 1,000–1,350, as the band. It is one
 recent source, resolved by country, covering mining, supply and the plant. Its
 range is the spread across countries' fleets rather than uncertainty about
 Germany's, in the way that AR5's ranges are the spread across studies. Until
-Germany's value has been read off section 4.2.4 (p. 53 in the report's table of
-contents), B02 stays on the coal row and Stage 8 runs the 900 and 1,300
-sensitivity. If Germany's value cannot be had, the fallback is WNA's 1,054
-(790–1,372), its centre labelled a mean.
+Germany's value was read off the report, B02 was to stay on the coal row and
+Stage 8 to run the 900 and 1,300 sensitivity, with WNA's 1,054 (790–1,372)
+as the fallback.
 
-Germany's lignite value, Itten et al. (2023), section 4.2.4: ______ kgCO2eq/kWh ·
-read by ______ · date ______
+**Germany's value, read 19.10.2026.** Section 4.2.4 (p. 53) gives no number:
+the per-country results are the bars of Fig. 4.5 (p. 54), greenhouse gas
+emissions per kWh of electricity at the power plant, characterised with IPCC
+(2021), the UVEK database of 2018 beside its 2022 update. Germany's lignite
+bar, 2022, reads **1.06 kgCO2eq/kWh**. Measured on the page image, with the
+axis fitted to the figure's gridlines, it is 1.062 ± 0.005. The same fit
+reproduces each of the figure's 29 printed percentage changes to within one
+point, the lignite range the abstract gives (1.00 to 1.35, Slovenia to Bosnia
+and Herzegovina) and its hard-coal range (0.861 to 1.32). The text on p. 53
+gives Germany's lignite decrease as −20%; the figure's label and bars give
+−13% (1.217 to 1.062), and the value is taken from the figure.
+
+Pages 53–54 supplied and checked against the report by Adewole Olagoke ·
+19 October 2026 · Itten et al. (2023), Fig. 4.5, p. 54
+
+B02 has carried 1,060 (1,000–1,350), confidence `medium`, since 19.10.2026:
+
+| DE-LU, gCO2eq/kWh | 2021 | 2022 | 2023 | 2024 | 2025 |
+|---|---:|---:|---:|---:|---:|
+| Point (90% interval) | 387.3 (375.1–437.7) | 412.7 (399.9–465.5) | 364.6 (352.6–410.9) | 342.9 (330.6–388.0) | 337.3 (324.8–381.6) |
+| Change in the point | +48.1 | +51.9 | +43.3 | +40.9 | +38.5 |
+| Interval width (on the coal row) | 62.6 (41.5) | 65.6 (41.8) | 58.2 (41.0) | 57.5 (42.2) | 56.9 (43.1) |
+| Lignite's share of the variance | 72% | 76% | 66% | 60% | 55% |
+| Lignite's share of the width | 48% | 51% | 41% | 37% | 33% |
+
+The deterministic point stays inside its interval in every year, and 20,000
+draws move the bounds by under 0.3%. France has no lignite and does not move.
+Per quarter-hour, DE-LU now runs 91–701 gCO2eq/kWh, with yearly medians of
+409, 434, 360, 354 and 351 (Checkpoint 5).
+
+**Open: hard coal.** The same figure puts German hard coal at about 1.04
+kgCO2eq/kWh, above the whole of the AR5 coal row that B05 uses (740–910).
+Other German estimates run from 811 (Ladage et al., 2021, CO2 only) to 1,142
+(ifeu, 2015). At 1,044, DE-LU's point would rise by a further 15–30
+gCO2eq/kWh, 2021–2025. Not decided.
 
 ### 2. One hydropower row for run-of-river (B11) and reservoirs (B12)
 

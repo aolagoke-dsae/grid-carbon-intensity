@@ -318,18 +318,15 @@ B20 (composition undisclosed by ENTSO-E), B17 (waste, contested biogenic/fossil
 split) and B06 (oil: AR5 has no oil row, and until 17 October 2026 it was
 priced from a placeholder). B25 joined on 17 October 2026, when the first French
 A75 pull reported battery storage and the stage 4 check failed on a fuel with
-no row. Two priced rows are proxies, marked `low`: B03 (coal-derived gas) and
-B02 (lignite), both on AR5's single coal row. Lignite plants generally emit
-more per kWh than hard-coal plants, so the B02 proxy understates DE-LU, where
-lignite was 15.3% of 2025 generation: at the 900–1,300 gCO₂e/kWh that
-life-cycle studies give for lignite (Turconi et al. 2013), by 13–17 at the low
-end and 77–104 at the high end, 2021–2025. Decided 18.10.2026: kept for WE 3
-with that stated, replaced before Stage 8. No lignite source publishes a
-median (searched 19.10.2026), so the replacement is Germany's value from Itten
-et al. (2023, section 4.2.4) with their 1,000–1,350 range across countries as
-the band, once that value has been read off the report. B03 stays on the coal
-row at about 1% of DE-LU generation, and solar stays on AR5's utility-PV row
-(`docs/FACTOR_CHECK.md`, decisions 1 and 3). Biomass (B01) stays on AR5's
+no row. One priced row is a proxy, marked `low`: B03 (coal-derived gas), on
+AR5's single coal row at about 1% of DE-LU generation. Lignite (B02) was the
+second until 19.10.2026: lignite plants emit more per kWh than the coal row's
+740–910, and on it DE-LU, where lignite was 15.3% of 2025 generation, was
+understated by 38–52 gCO₂e/kWh, 2021–2025. No lignite source publishes a
+median, so B02 now carries Germany's value, 1,060, read off Itten et al.
+(2023, Fig. 4.5), with their 1,000–1,350 range across countries as the band,
+marked `medium`. Solar stays on AR5's utility-PV row (`docs/FACTOR_CHECK.md`,
+decisions 1 and 3). Biomass (B01) stays on AR5's
 dedicated-biomass row although Germany's category is broader: weighted by
 Germany's biomass mix, UBA's pathway factors give 222–276 gCO₂e/kWh, inside
 the row's band, and DE-LU moves by −0.7 to +4.0 (decision 4, 19.10.2026).
@@ -355,10 +352,10 @@ print(check_stage4_factors(rows, factors))
 - Returns `True` — every `psrType` in the data has a row, priced or explicitly flagged
 - You have **personally** verified each published figure against Table A.III.2.
   Done 18.10.2026: all twelve priced rows match the PDF, p. 1335; the record
-  is `docs/FACTOR_CHECK.md`. On 19.10.2026 lignite's replacement was chosen,
-  since no lignite median is published (decision 1), and biomass kept its
-  row, with the error from its narrower scope measured and stated
-  (decision 4).
+  is `docs/FACTOR_CHECK.md`. On 19.10.2026 lignite took Germany's value from
+  Itten et al. (2023), since no lignite median is published (decision 1), and
+  biomass kept its row, with the error from its narrower scope measured and
+  stated (decision 4).
 - Priced share: unpriced fuels under **2%** of DE-LU energy. Higher means the
   unpriced categories are material and you must say so wherever intensity appears.
   Measured on the 2025 pulls (17.10.2026): **4.8% unpriced in DE-LU** (pumped
@@ -416,7 +413,8 @@ print(check_stage5_intensity(rows, factors, values, sparse))
   document.
 - Measured on the 2021–2025 pulls (18.10.2026), at median factors: DE-LU
   83–622 gCO2e/kWh per quarter-hour, yearly medians 356, 378, 315, 310 and 309;
-  France 15–117 per step, medians 47, 70, 41, 28 and 27. Withheld, each at a
+  with lignite at Germany's value (19.10.2026), 91–701 and 409, 434, 360, 354
+  and 351. France 15–117 per step, medians 47, 70, 41, 28 and 27. Withheld, each at a
   recorded source gap: 10 and 31 quarter-hours in DE-LU in 2024 and 2025, and
   413 hours in France in 2023, most in offshore wind's first weeks. (The
   322 French quarter-hours withheld in 2025 until 18.10. were steps with a
@@ -534,11 +532,10 @@ than AR5's: run-of-river (B11) stops at its median since 18.10.2026, because
 AR5's hydropower maximum is reservoir methane. Under the full band it owned
 65–71% of France's interval variance (Stage 4).
 
-**Lignite sensitivity.** Until B02 carries Germany's value and the 1,000–1,350
-band from Itten et al. (2023) (decided 19.10.2026, since no lignite source
-publishes a median), run this stage twice more with B02 fixed at 900 and at 1,300
-gCO₂e/kWh (Turconi et al. 2013), and report beside the main result whether
-the load-shift recommendation changes (decided 18.10.2026).
+**Lignite.** The 900 / 1,300 sensitivity planned on 18.10.2026 is not needed:
+since 19.10.2026 B02 carries Germany's value, 1,060, and the 1,000–1,350 band
+from Itten et al. (2023), sampled like every other band. It now leads DE-LU's
+interval: 55–76% of the variance and 33–51% of the width, 2021–2025.
 
 **Checkpoint 8**
 
@@ -547,12 +544,13 @@ the load-shift recommendation changes (decided 18.10.2026).
 - Re-run with 20,000 draws: interval bounds move less than 1%. That is
   convergence and you should be able to state it.
 - Sobol indices sum to approximately 1 and name a dominant driver. Do not
-  expect it to be coal: coal's AR5 band (740–910) is the narrowest of any fuel.
-  A fuel's share grows with its energy share squared and with its band's
-  spread, so gas, biomass or even a small hydro share can lead. Read the width
-  share beside the variance share before naming the driver.
-- The lignite sensitivity is reported beside the main result, or B02 has been
-  replaced by Germany's value and band from Itten et al. (2023).
+  expect it to be hard coal: coal's AR5 band (740–910) is the narrowest of any
+  fuel. A fuel's share grows with its energy share squared and with its band's
+  spread, so gas, biomass or even a small hydro share can lead; in DE-LU it is
+  lignite since 19.10.2026, whose band reaches 290 above its centre. Read the
+  width share beside the variance share before naming the driver.
+- B02 carries a lignite factor, not the coal row: done 19.10.2026, Germany's
+  value and band from Itten et al. (2023).
 
 ---
 
@@ -605,7 +603,8 @@ Tableau module, on this data rather than a supplied training set.
 - `docs/METHODOLOGY.md` written: sources, factor table with citations, the
   A03/DST/direction handling, the sampling-rule decision, the uncertainty
   method, and the known limitations (no import adjustment yet, six unpriced
-  fuel categories, the lignite proxy)
+  fuel categories, the coal-derived-gas proxy, a lignite value read off a
+  figure)
 - Once you have 30+ consecutive green scheduled runs, screenshot the Actions
   history and put it near the top of the README. That image is worth more than
   any certificate, because it proves the thing ran without you.
