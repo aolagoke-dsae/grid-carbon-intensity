@@ -34,8 +34,10 @@
   off by 7.9 and 11.7 EUR/MWh on average. The default was chosen for
   continuity on 08.10.2026; it now rests on that check. Curve 2's limits
   (-149.99 to 2,999.99 in 2021-2023) fit EXAA's separate 10:15 auction;
-  that is circumstantial. 2021-2024 follow by the same sequence numbering,
-  not by a SMARD comparison.
+  that is circumstantial. 2021-2024, pulled the same evening and hourly
+  throughout: curve 1 equals SMARD at every hour of every year, 35,064 in
+  all; the means of curve 2's quarter-hours come within a cent at
+  0.10-0.29 %.
 -#}
 
 with src as (

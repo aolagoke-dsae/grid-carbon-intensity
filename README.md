@@ -53,8 +53,8 @@ and CI are written and unit-tested. Of the live sources, ENTSO-E day-ahead
 prices (A44) for DE-LU 2025 and one SMARD week were pulled on 6 October 2026,
 generation per type (A75) for DE-LU and FR, 2025 on 17 October 2026 and
 2021–2024 on 18 October, the remaining prices for both zones, 2021–2025, on
-18 October, and every SMARD price week of 2025 on 19 October; load (A65) has
-not been fetched. The A75 parser and the stage 2–5 checks have
+18 October, and every SMARD price week of 2021–2025 on 19 October; load (A65)
+has not been fetched. The A75 parser and the stage 2–5 checks have
 run on all ten zone-years, stage 5 on the median-factor intensity. Landed, the
 2021–2025 A75 and A44 data build green through the dbt project,
 23 nodes on 18 October 2026, and CI builds every model on fixtures and checks
@@ -92,7 +92,7 @@ Named here rather than left for a reader to discover.
 | Power BI dashboard | **not started**; it will read the exported Parquet. The Azure portability excursion was dropped in October 2026 and is archived in `archive/azure-excursion/` |
 | Sobol sensitivity of the saving | **not built**. For the intensity alone, `variance_contribution()` reports first-order variance shares — for this linear model, its first-order Sobol indices — and each fuel's share of the 90% interval width |
 | Cross-border flow (A11) import adjustment | **not built**; intensity is average, not marginal |
-| Trap 5, the two competing A44 price curves | **handled** 08.10.2026 — `entsoe_prices_parse.py`, `xml_to_parquet.py` and the curve filter in `stg_entsoe__prices.sql`. DE-LU carries both curves in every year from 2021, France one; the filter keeps every delivery period (18.10.2026). Which curve is the market's was settled on 19.10.2026: curve 1, the default, which equals SMARD filter 4169 to the cent at every hour and quarter-hour of 2025 |
+| Trap 5, the two competing A44 price curves | **handled** 08.10.2026 — `entsoe_prices_parse.py`, `xml_to_parquet.py` and the curve filter in `stg_entsoe__prices.sql`. DE-LU carries both curves in every year from 2021, France one; the filter keeps every delivery period (18.10.2026). Which curve is the market's was settled on 19.10.2026: curve 1, the default, which equals SMARD filter 4169 to the cent at every hour and quarter-hour of 2021–2025 |
 
 What *is* built: ingestion with a redacting manifest, run for A44 and SMARD;
 the A75 parser with its four traps, tested on fixtures including both
@@ -125,14 +125,14 @@ The architecture is defined in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | Source | Used for | Access |
 |---|---|---|
 | ENTSO-E Transparency Platform | Generation per production type (A75), day-ahead prices (A44), actual load (A65) | REST API, token |
-| SMARD (Bundesnetzagentur) | Independent second source. Filter 4169, the day-ahead price, settled trap 5 for 2025 and is pinned by two tests; a reconciliation of generation in dbt is planned, not written | REST, no key |
+| SMARD (Bundesnetzagentur) | Independent second source. Filter 4169, the day-ahead price, settled trap 5 for 2021–2025 and is pinned by six tests; a reconciliation of generation in dbt is planned, not written | REST, no key |
 | IPCC AR5 WG3 Annex III | Lifecycle emission factors with published ranges, for every priced fuel but lignite and hard coal | `config/ipcc_ar5_factors.csv` |
 | Itten et al. (2023), ZHAW, for the Swiss UVEK life-cycle inventory database | Lignite and hard coal (B02, B05): Germany's values read off Fig. 4.5, the ranges across countries as bands | `config/ipcc_ar5_factors.csv` |
 
 A fetcher exists for each ENTSO-E and SMARD row above. The A44 and SMARD
 fetchers ran on 6 October 2026, the A75 fetcher on 17 October 2026 (DE-LU and
-FR, 2025), and SMARD again on 19 October for every week of 2025; A65 has not
-run. Each yearly request covers the zone's local
+FR, 2025), and SMARD again on 19 October for every week of 2021–2025; A65 has
+not run. Each yearly request covers the zone's local
 calendar year, so consecutive years meet at local midnight. Cross-border
 flows (A11), DWD temperature and EEA verified emissions are candidates for
 later work and have no fetcher, so they are not listed as sources.
@@ -333,8 +333,17 @@ asserted in `test_prices_parse.py`, and enforced in SQL by the curve filter in
    ([Wikipedia](https://en.wikipedia.org/wiki/Energy_Exchange_Austria)).
    Curve 2's floor is −149.99 €/MWh in 2021–2023, it peaks at 2,999.99 in
    2022, and from 2024 its floor is −499.99. That identification is
-   circumstantial, and nothing depends on it. The SMARD check covers 2025;
-   2021–2024 rest on the same sequence numbering.
+   circumstantial, and nothing depends on it.
+
+   **2021–2024, pulled the same evening, agree as well.** Those years had
+   hourly MTU throughout. Curve 1 equals SMARD to the cent at every hour:
+   8,760 in each of 2021–2023 and 8,784 in 2024. The means of curve 2's
+   quarter-hours come within a cent at 0.10–0.29% of them. Across the five
+   years that is 50,451 steps of curve 1, its 241 carried-forward ones
+   included, without a single difference. SMARD's quarter-hour series repeats
+   curve 1's hourly price in every year before the go-live. The same rule
+   applies to each year, with only its first regime, and four more tests pin
+   it.
 
    The arithmetic of ignoring the discriminator, measured: unfiltered, the
    50,044 points carry 15,014 duplicated `(zone, period, position)` keys and a
@@ -405,11 +414,12 @@ supplies 3% of the energy, 23% of the variance and 13% of the interval width.
 
 ## Tests
 
-`pytest` — 182 tests, all green: 156 test functions, some parametrised. Six
-read real payloads, the 7.5 MB A44 file and in two cases the 2025 SMARD weeks
-as well, and **skip in CI**, because `raw/*` is gitignored. Seven build the dbt models with dbt-duckdb and run in CI's dbt job
-only; the unit-test job reports 169 passed, 6 skipped. A local run with `raw/`
-populated reports 182 passed.
+`pytest` — 186 tests, all green: 157 test functions, some parametrised. Ten
+read real payloads in `raw/`: four the 7.5 MB 2025 A44 file, six the A44 files
+of 2021–2025 with the SMARD weeks. They **skip in CI**, because `raw/*` is
+gitignored. Seven build the dbt models with dbt-duckdb and run in CI's dbt job
+only; the unit-test job reports 169 passed, 10 skipped. A local run with `raw/`
+populated reports 186 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
@@ -432,7 +442,7 @@ at least one test fail.
 | `src/checks/test_validate.py` | 27 | The stage checkpoints, including whole missing days, the coverage policy and the stage 5 recomputation |
 | `src/ingest/test_entsoe_client.py` | 9 | Token redaction in exceptions and the manifest; yearly requests that cover the local year |
 | `src/ingest/test_smard_client.py` | 5 | The SMARD backfill: the 53 weeks 2025 needs, a week ending at New Year left to the year before, both clock-change weeks, stored weeks not fetched again, failed ones fetched again |
-| `src/transform/test_smard_parse.py` | 13 | SMARD weeks read strictly, six malformed shapes refused; the newest accepted retrieval of each week; hourly means of complete hours only; the agreement measure used against the two A44 curves; two real-data checks that curve 1 is SMARD's to the cent in 2025 and curve 2 is not |
+| `src/transform/test_smard_parse.py` | 17 | SMARD weeks read strictly, six malformed shapes refused; the newest accepted retrieval of each week; hourly means of complete hours only; the agreement measure used against the two A44 curves; six real-data checks that curve 1 is SMARD's to the cent in every year 2021–2025 and curve 2 is not |
 | `src/ingest/test_raw_store.py` | 12 | `raw/` is append-only: a failed pull never replaces data, every retrieval is kept, the smoke scripts report the status they actually got |
 | `src/transform/test_xml_to_parquet.py` | 13 | The landing: stated points only, both domains, dtypes, provenance and the digest check, the newest accepted retrieval of each year, zones outside the analysis left in `raw/` |
 | `src/transform/test_dbt_models.py` | 7 | The dbt models on landed fixtures, step by step against `parse()`; a deleted day and an empty A01 position fail their tests |

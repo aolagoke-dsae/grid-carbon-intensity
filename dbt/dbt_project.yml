@@ -26,7 +26,7 @@ clean-targets: ["target", "dbt_packages"]
 #   2  15-minute across the whole year, including the nine months before
 #      15-minute MTU went live.
 # Curve 1 equals SMARD filter 4169 to the cent at every hour and quarter-hour
-# of 2025 (19.10.2026, notebooks/price_curves.py). See the header of
+# of 2021-2025 (19.10.2026, notebooks/price_curves.py). See the header of
 # models/staging/stg_entsoe__prices.sql.
 vars:
   a44_curve: 1

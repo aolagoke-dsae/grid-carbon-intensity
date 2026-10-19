@@ -2,12 +2,14 @@
 the two A44 price curves against them (trap 5). Fixtures only."""
 import datetime as dt
 import json
+import zoneinfo
 
 import pytest
 
 import smard_parse as P
 
 UTC = dt.timezone.utc
+BERLIN = zoneinfo.ZoneInfo("Europe/Berlin")
 
 
 def _ms(*args) -> int:
@@ -138,3 +140,32 @@ def test_curve_2_is_not_smard(real):
     a = P.agreement(quarters, curves[2], 0.005)
     assert a["n"] == 35040
     assert a["share"] < 0.01
+
+
+def _a44(year: int) -> list:
+    return sorted((_RAW / "A44" / "10Y1001A1001A82H" / str(year)).glob("*.xml"))
+
+
+@pytest.fixture(scope="module")
+def smard_hours():
+    return P.load_series(_SMARD / "hour")
+
+
+@needs_real
+@pytest.mark.parametrize("year, hours", [(2021, 8760), (2022, 8760), (2023, 8760), (2024, 8784)])
+def test_curve_1_is_smard_at_every_hour_of_2021_to_2024(year, hours, smard_hours):
+    """Hourly MTU throughout: curve 1's hours are SMARD's to the cent, and the
+    means of curve 2's quarter-hours are not (checked 19.10.2026)."""
+    if not _a44(year):
+        pytest.skip(f"no {year} DE-LU A44 payload in raw/")
+    lo = dt.datetime(year, 1, 1, tzinfo=BERLIN).astimezone(UTC)
+    hi = dt.datetime(year + 1, 1, 1, tzinfo=BERLIN).astimezone(UTC)
+    curves: dict = {}
+    for r in parse_prices(_a44(year)[-1].read_text(encoding="utf-8")):
+        if lo <= r["ts_utc"] < hi:
+            curves.setdefault(r["classification_sequence"], {})[r["ts_utc"]] = r["price_eur_mwh"]
+    reference = _window(smard_hours, lo, hi)
+    one = P.agreement(reference, curves[1], 0.005)
+    two = P.agreement(reference, P.hourly_means(curves[2], 0.25), 0.01)
+    assert (one["n"], one["agree"]) == (hours, hours)
+    assert two["n"] == hours and two["share"] < 0.01
