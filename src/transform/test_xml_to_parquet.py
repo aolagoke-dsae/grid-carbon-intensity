@@ -184,3 +184,22 @@ def test_strict_mode_raises_and_keep_going_lands_the_rest(tmp_path, capsys):
     counts = X.land_tree(raw, raw / "parquet", strict=False)
     assert counts == {"A44": 1}
     assert "! " in capsys.readouterr().out
+
+
+def test_zones_outside_the_analysis_stay_in_raw(tmp_path):
+    """The third-zone diagnostic pulls PL, NL and IE-SEM into raw/ (Master
+    Plan, 2.3). They are measured there and not landed, so the warehouse, its
+    dbt tests and every intensity figure stay on the two analysis zones."""
+    raw = tmp_path / "raw"
+    _store(raw / "A44" / "Z" / "2025", "20261006T183150Z", _a44(20.0))
+    _store(raw / "A44" / "Y" / "2025", "20261006T183151Z", _a44(30.0))
+    counts = X.land_tree(raw, raw / "parquet", skip_zones=frozenset({"Y"}))
+    df = pd.read_parquet(raw / "parquet" / "a44.parquet")
+    assert counts == {"A44": 1}
+    assert df["quantity"].tolist() == [20.0]
+
+
+def test_the_command_line_skips_exactly_the_zones_outside_the_analysis():
+    assert X.zones_outside_analysis() == {
+        "10YNL----------L", "10YPL-AREA-----S", "10Y1001A1001A59C",
+    }

@@ -6,7 +6,7 @@ read the same file and cannot drift apart.
 
 | File | Read by | What it holds |
 |---|---|---|
-| `zones.csv` | `entsoe_client.py` (request windows), `dim_zone` | Bidding zones with their IANA time zone. `in_analysis` marks the two zones the analysis covers; the other three are kept for the third-zone diagnostic. |
+| `zones.csv` | `entsoe_client.py` (request windows), `dim_zone` | Bidding zones with their IANA time zone. `in_analysis` marks the two zones the analysis covers; the other three are kept for the third-zone diagnostic, measured from `raw/` by `notebooks/third_zone.py` and never landed (`xml_to_parquet` skips them). |
 | `sparse_series.csv` | `validate.load_coverage_policy`, `assert_step_count_per_local_day` | Series whose missing step is not a gap. A row without dates: published only while a unit runs, so a missing step is zero output. A row with `from_date` and/or `to_date`, local days, both inclusive: exempt inside that window only — a series that has ended, or one not yet published. |
 | `source_gaps.csv` | `validate.load_coverage_policy`, `assert_step_count_per_local_day` | Gaps in the published data, recorded after inspection with their size. A gap of exactly the recorded size passes; any other fails. |
 | `ipcc_ar5_factors.csv` | `intensity.py`, `dim_production_type` | Emission factor bands per production type, with a citation in every row: IPCC AR5 for all but lignite and hard coal, which carry Germany's values from Itten et al. (2023) since 19 October 2026 (`docs/FACTOR_CHECK.md`, decision 1). |

@@ -26,9 +26,15 @@ Every row carries its provenance: source_file and source_sha256, the SHA-256
 of the stored bytes, which is the key of that retrieval's row in
 raw/manifest.csv (audit B6). land_tree refuses a file whose bytes no longer
 match the digest in its name.
+
+Only the zones in the analysis are landed (since 19.10.2026). config/zones.csv
+keeps three more for the third-zone diagnostic (Master Plan §2.3); their
+payloads stay in raw/, where notebooks/third_zone.py measures them, so the
+warehouse, its dbt tests and every intensity figure stay on DE-LU and FR.
 """
 from __future__ import annotations
 
+import csv
 import datetime as dt
 import hashlib
 import re
@@ -240,9 +246,19 @@ def _check_stored_name(xml: Path, frame: pd.DataFrame) -> None:
         )
 
 
-def land_tree(raw_root: Path, parquet_root: Path, strict: bool = True) -> dict:
+ZONES_CSV = Path(__file__).resolve().parents[2] / "config" / "zones.csv"
+
+
+def zones_outside_analysis(zones_csv: Path = ZONES_CSV) -> frozenset[str]:
+    """EICs of the zones config/zones.csv keeps but does not analyse."""
+    with zones_csv.open(newline="", encoding="utf-8") as fh:
+        return frozenset(z["eic"] for z in csv.DictReader(fh) if z["in_analysis"] != "yes")
+
+
+def land_tree(raw_root: Path, parquet_root: Path, strict: bool = True,
+              skip_zones: frozenset[str] = frozenset()) -> dict:
     """Land the newest accepted retrieval of every raw/<DOCTYPE>/<EIC>/<year>/
-    item into raw/parquet/<doctype>.parquet.
+    item into raw/parquet/<doctype>.parquet, except the zones in skip_zones.
 
     strict=True re-raises after reporting. The previous bare `except Exception:
     print(...)` meant a document type that failed on EVERY file produced no
@@ -256,7 +272,8 @@ def land_tree(raw_root: Path, parquet_root: Path, strict: bool = True) -> dict:
         if p.is_dir() and p.name != "parquet" and not p.name.startswith("_")
     ):
         frames = []
-        xmls = current_payloads(doc_dir)
+        xmls = [x for x in current_payloads(doc_dir)
+                if x.relative_to(doc_dir).parts[0] not in skip_zones]
         for xml in xmls:
             try:
                 frame = land(xml)
@@ -284,6 +301,7 @@ def land_tree(raw_root: Path, parquet_root: Path, strict: bool = True) -> dict:
 if __name__ == "__main__":
     import sys
 
-    c = land_tree(Path("raw"), Path("raw/parquet"), strict="--keep-going" not in sys.argv)
+    c = land_tree(Path("raw"), Path("raw/parquet"), strict="--keep-going" not in sys.argv,
+                  skip_zones=zones_outside_analysis())
     for k, v in c.items():
         print(f"{k}: {v:,} stated points")

@@ -104,7 +104,9 @@ each with a test that makes it fail; and CI across Python 3.11 and 3.14.
 
 `config/zones.csv` carries five zones and marks the two the analysis covers.
 The other three are configuration kept for the third-zone diagnostic, not
-results.
+results: their pulls stay in `raw/`, `xml_to_parquet` lands only the two
+analysis zones, and `notebooks/third_zone.py` measures all five from the raw
+payloads.
 
 No subscription, no licence and no free tier is required to run any of it.
 `git clone` then `pytest` works today, and it builds the dbt models on
@@ -380,11 +382,11 @@ supplies 3% of the energy, 23% of the variance and 13% of the interval width.
 
 ## Tests
 
-`pytest` — 162 tests, all green: 141 test functions, some parametrised. Four
+`pytest` — 164 tests, all green: 143 test functions, some parametrised. Four
 of them read the real 7.5 MB A44 payload and **skip in CI**, because `raw/*` is
 gitignored. Seven build the dbt models with dbt-duckdb and run in CI's dbt job
-only; the unit-test job reports 151 passed, 4 skipped. A local run with `raw/`
-populated reports 162 passed.
+only; the unit-test job reports 153 passed, 4 skipped. A local run with `raw/`
+populated reports 164 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
@@ -407,7 +409,7 @@ at least one test fail.
 | `src/checks/test_validate.py` | 27 | The stage checkpoints, including whole missing days, the coverage policy and the stage 5 recomputation |
 | `src/ingest/test_entsoe_client.py` | 9 | Token redaction in exceptions and the manifest; yearly requests that cover the local year |
 | `src/ingest/test_raw_store.py` | 12 | `raw/` is append-only: a failed pull never replaces data, every retrieval is kept, the smoke scripts report the status they actually got |
-| `src/transform/test_xml_to_parquet.py` | 11 | The landing: stated points only, both domains, dtypes, provenance and the digest check, the newest accepted retrieval of each year |
+| `src/transform/test_xml_to_parquet.py` | 13 | The landing: stated points only, both domains, dtypes, provenance and the digest check, the newest accepted retrieval of each year, zones outside the analysis left in `raw/` |
 | `src/transform/test_dbt_models.py` | 7 | The dbt models on landed fixtures, step by step against `parse()`; a deleted day and an empty A01 position fail their tests |
 
 The test that matters most: **the deterministic point estimate must fall
