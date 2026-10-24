@@ -323,3 +323,80 @@ for season, (months, (peak, peak_h), (trough, trough_h)) in EM_SEASONS.items():
             cells.append((f"{means[top]:.0f} @ {top:02d}", f"{means[low]:.0f} @ {low:02d}"))
         print(f"| {season} | {zone_name} | {peak} @ {peak_h:02d} | {cells[0][0]} | {cells[1][0]} "
               f"| {trough} @ {trough_h:02d} | {cells[0][1]} | {cells[1][1]} |")
+
+
+# %% [markdown]
+# ## After the first run, 25.10.2026: what rule 3 asks to investigate
+#
+# Written after the result above, and changing nothing in it: rule 3 failed
+# on the plain means, C 7.2% above their production-based mean in 2024 and
+# 4.8% in 2025. Three things are looked at, all descriptive.
+#
+# 1. **Which mean.** The energy-weighted means stand in brackets above. The
+#    page does not say which mean it reports, and neither does the
+#    methodology page.
+# 2. **Which clock.** Read as UTC, seven of their eight seasonal peaks and
+#    troughs fall on the hour where C has its own, and the eighth, the spring
+#    peak, one hour away (03:00 against 02:00). Read as local time, none
+#    does. Their times are taken as UTC.
+# 3. **Which hours.** If their series and ours were joined to different
+#    hours, their extreme hours would be ordinary ones in ours. Where do
+#    their extreme hours and days rank in our series?
+# 4. **Which factors.** The page does not say whether its figures are
+#    life-cycle. C on their direct factors shows which reading fits:
+#    `DE.yaml` direct entries, `defaults.yaml` for battery discharge and
+#    unknown, and zero for biomass, hydro, nuclear, solar, wind and
+#    geothermal, as they set them.
+
+# %%
+for year in YEARS:
+    m, em = DATA[year]["means"], EM_MEAN[year]["production-based"]
+    print(f"{year}, energy-weighted: A {m['A'][1]:.1f} → factor set {m['B'][1] - m['A'][1]:+.1f} → "
+          f"coverage {m['C'][1] - m['B'][1]:+.1f} → C {m['C'][1]:.1f}, "
+          f"{100 * (m['C'][1] / em - 1):+.1f}% against their production-based {em}")
+
+print("\n| Their figure | Their time, as UTC | Rank in our A, of complete hours | Rank in C | A | C |")
+print("|---|---|---:|---:|---:|---:|")
+for label, stamp, value in EM_HOURS:
+    hour = dt.datetime.strptime(stamp, "%Y-%m-%d %H:%M").replace(tzinfo=UTC)
+    ranks = []
+    for v in "AC":
+        series = {h: i for h, (i, _, _) in DATA[hour.year]["per_hour"][v].items() if i is not None}
+        order = sorted(series, key=series.get, reverse=label.startswith("highest"))
+        ranks.append((order.index(hour) + 1, series[hour], len(order)))
+    print(f"| {label} {hour.year} | {hour:%m-%d %H:%M} | {ranks[0][0]} of {ranks[0][2]:,} "
+          f"| {ranks[1][0]} | {ranks[0][1]:.0f} | {ranks[1][1]:.0f} |")
+
+print("\n| Their figure | Day | Rank in our A, of days | Rank in C |")
+print("|---|---|---:|---:|")
+for label, day, value in EM_DAYS:
+    d = dt.date.fromisoformat(day)
+    ranks = []
+    for v in "AC":
+        daily = defaultdict(list)
+        for h, (i, _, _) in DATA[d.year]["per_hour"][v].items():
+            if i is not None and h.year == d.year:
+                daily[h.date()].append(i)
+        means = {k: statistics.fmean(x) for k, x in daily.items() if len(x) >= 20}
+        order = sorted(means, key=means.get, reverse=label.startswith("highest"))
+        ranks.append((order.index(d) + 1 if d in means else None, len(order)))
+    print(f"| {label} {d.year} | {day} | {ranks[0][0]} of {ranks[0][1]} | {ranks[1][0]} |")
+
+
+# %%
+EM_DIRECT = {
+    2024: {"coal": 1080.4, "gas": 400.79, "oil": 869.31,
+           "hydro discharge": 240.13, "battery discharge": 317.53},
+    2025: {"coal": 1052.69, "gas": 382.97, "oil": 826.11,
+           "hydro discharge": 235.37, "battery discharge": 297.68},
+}
+for _f in EM_DIRECT.values():
+    _f.update({"biomass": 0.0, "geothermal": 0.0, "hydro": 0.0, "nuclear": 0.0,
+               "solar": 0.0, "wind": 0.0, "unknown": 575.0})
+print()
+for year in YEARS:
+    ef = {p: EM_DIRECT[year][m] for p, m in MODE.items()}
+    direct = {h: weighted(mix, ef) for h, mix in DATA[year]["hours"].items()}
+    print(f"{year}, C on their direct factors: plain {plain(direct):.1f}, energy-weighted "
+          f"{energy_weighted(direct):.1f}, against their production-based "
+          f"{EM_MEAN[year]['production-based']}")

@@ -378,6 +378,22 @@ coal hold at about 16 GW at every hour, while the evening adds gas and wind,
 both below the mix's average. The two weeks' intensities rest on 94.8% and
 94.5% of their generation, the priced share.
 
+## Against Electricity Maps
+
+Electricity Maps puts Germany's 2025 intensity at 335.4 gCO₂eq/kWh, imports
+included; ours is 352.1, energy-weighted over the priced share. Their hourly
+series is not open to a public repository, so `notebooks/em_crosscheck.py` uses
+what is: their open-source factors for Germany and their published figures,
+under a rule committed before the run. **The timing agrees**: their lowest and
+highest hours of 2024 and 2025 rank between 1st and 21st of about 8,750 in
+ours, and their days between 1st and 5th. **The level is not settled**: with
+their factors and coverage, our parse lands 0.4% above their production-based
+2025 mean if that mean is energy-weighted and 4.8% if it is a plain mean of
+hours, and their page does not say which. The gap from 352.1 to 335.4 is their
+factors (+9.8, mostly coal), the generation we leave unpriced (+2.2), a
+residual (−1.5) and imports (−27.1); both sides use life-cycle factors.
+Details, and 2024, in `docs/EM_CROSSCHECK.md`.
+
 ## The interval is the deliverable
 
 A carbon intensity quoted as a single number is a number nobody can audit.
@@ -496,10 +512,12 @@ dbt/                10 models (8 enabled), 7 singular tests (1 disabled) and
                     2025 data — see What is not built
 docs/               ARCHITECTURE.md, the standard; RESOURCES.md, reading by stage;
                     FACTOR_CHECK.md and THIRD_ZONE.md, decisions with their
-                    evidence; figures/, each PNG beside a CSV of what it draws
+                    evidence; EM_CROSSCHECK.md, the comparison with Electricity
+                    Maps; figures/, each PNG beside a CSV of what it draws
 notebooks/          percent-cell exploration, nothing load-bearing: Stages 0–2
                     interactively, the third-zone diagnostic, the price-curve
-                    check, the Stage 5 week plot
+                    check, the Stage 5 week plot, the Electricity Maps
+                    cross-check
 .github/workflows/  pipeline.yml — pytest on 3.11 and 3.14; dbt parse and a
                     build on fixtures; weekly
 raw/                append-only landing, git-ignored: one folder per document,

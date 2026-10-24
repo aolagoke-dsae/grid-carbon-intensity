@@ -29,7 +29,7 @@ has been pulled.*
 | Ingestion client (SMARD) | yes | the yearly backfill: which weeks a year needs, stored weeks not fetched again | **yes** — one week 06.10.2026; every week of 2021–2025, hourly and quarter-hourly, 19.10.2026 |
 | Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **yes** — DE-LU and FR 2021–2025, 17. and 18.10.2026 |
 | Parser, A44 prices (trap 5) | yes | yes | **yes** — the DE-LU payloads of 2021–2025; curve 1 equals SMARD 4169 to the cent in every year, 19.10.2026 |
-| Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; two weeks of 2025 plotted and their shape checked, 24.10.2026; the Monte Carlo interval and the fact table **not yet** |
+| Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; two weeks of 2025 plotted and their shape checked, 24.10.2026; checked against Electricity Maps' published figures, 25.10.2026; the Monte Carlo interval and the fact table **not yet** |
 | Stage checks (2, 3, 4, 5) | yes; 2 and 5 rewritten 17.10. so they can fail; 3 counts either leg and measures time since 18.10. | yes, each made to fail | **all four** on the 2021–2025 A75 pulls, 18.10.2026 |
 | T-SQL schema + DQ views (Azure) | archived 17.10.2026 in `archive/azure-excursion/` | — | never: DuckDB cannot run them |
 | dbt models | yes — 10 models (8 enabled), 7 singular tests (1 disabled), 9 generic | built on fixtures in CI and compared with the Python parser | **yes** — the 2021–2025 A75 and A44 data, 18.10.2026: 23 nodes green; rebuilt 19.10.2026 with the Itten coal rows, `dim_production_type` equal to the factor file row for row |
@@ -39,8 +39,8 @@ has been pulled.*
 `raw/` holds the A44 and A75 payloads and the SMARD price weeks of 2021–2025
 (and one of 2026), all in `manifest.csv`.
 `curated/` is still empty. `docs/` holds ARCHITECTURE.md and RESOURCES.md, the
-decision records FACTOR_CHECK.md and THIRD_ZONE.md, and in `figures/` each
-figure beside a CSV of what it draws.
+decision records FACTOR_CHECK.md and THIRD_ZONE.md, the cross-check
+EM_CROSSCHECK.md, and in `figures/` each figure beside a CSV of what it draws.
 
 Three of the stage checkpoints could not pass on real data until 7 October:
 Stage 2 compared a whole series against one period's step count, Stage 3 merged
@@ -458,12 +458,26 @@ print(check_stage5_intensity(rows, factors, values, sparse))
   above is wrong. Priced share 94.8% and 94.5%; 18 winter quarter-hours
   withheld at the recorded B12 gap of 14 January.
 - Cross-check a handful of hours against an independent published series
-  (Electricity Maps free tier). Expect a difference, but not from lifecycle
-  versus combustion factors: Electricity Maps' default figures are life-cycle
+  (Electricity Maps). Expect a difference, but not from lifecycle versus
+  combustion factors: Electricity Maps' default figures are life-cycle
   intensities too, of the consumed, flow-traced mix. The difference comes from
   imports and from the factor sets. **Document the difference and explain it.**
   That explanation is the single most impressive paragraph in the methodology
-  document.
+  document. Done on 25.10.2026 with what is public, since their hourly series is
+  not open to a public repository: their open-source method for Germany and
+  their published 2024–2025 figures (`notebooks/em_crosscheck.py`, the rule
+  committed in `6ee3cf2` before the run; record in `docs/EM_CROSSCHECK.md`).
+  **The timing agrees; the level is not settled.** Their lowest and highest
+  hours rank 1st to 21st of about 8,750 in ours and their days 1st to 5th, the
+  lowest hour of each year is ours too, and seven of their eight 2025 seasonal
+  peaks and troughs fall on our hours, read as UTC. Recomputed with their
+  factors and coverage, our parse lands 7.2% (2024) and 4.8% (2025) above their
+  production-based means, so the rule failed; energy-weighted it is 2.9% and
+  0.4%, and their page does not say which mean it reports. For 2025,
+  energy-weighted: our 352.1 gCO2e/kWh, +9.8 for their factor set (coal +13.4),
+  +2.2 for the generation we leave unpriced, −1.5 residual to their
+  production-based 362.5, and −27.1 for imports to their flow-traced 335.4. Both
+  sides are life-cycle.
 - Measured on the 2021–2025 pulls (18.10.2026), at median factors: DE-LU
   83–622 gCO2e/kWh per quarter-hour, yearly medians 356, 378, 315, 310 and 309;
   with lignite and hard coal at Germany's values (19.10.2026), 93–764 and 432,
@@ -701,7 +715,7 @@ each block.
 |---|---|---|
 | WE 2, 17./18.10. | Modul 4a, SQL | **Stage 3.** Backfill DE-LU and FR, coverage checked per year |
 | WE 3, 24./25.10. | Modul 4b, Tableau | **Stage 4.** Every factor checked by hand against AR5 Table A.III.2. Repository public |
-| WE 4, 31.10./01.11. | Modul 5a, Tableau LOD | **Stage 5.** The deterministic intensity on the backfill; Checkpoint 5 (its week plot done on 24.10.) |
+| WE 4, 31.10./01.11. | Modul 5a, Tableau LOD | **Stage 5.** The deterministic intensity on the backfill; Checkpoint 5 (its week plot done on 24.10., the Electricity Maps cross-check on 25.10.) |
 | WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt |
 | WE 6, 14./15.11. | Modul 6, Machine Learning | **Stage 6.** The intensity fact with a first Monte Carlo interval: the first defensible number |
 | WE 7, 21./22.11. | Modul 7, DAX and APIs | One Power BI page showing that number, read from the `exports/` Parquet; README draft |
