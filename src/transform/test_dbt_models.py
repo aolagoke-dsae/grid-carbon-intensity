@@ -215,10 +215,13 @@ def test_a_pump_only_series_keeps_its_consumption(built):
     gave it no rows at all (audit B1)."""
     _, con, payloads, _ = built
     want = sum(r["mwh"] for r in parse(payloads[0][2]) if r["psr"] == "B10")
-    rows, cons, gen = con.sql(
+    # fetchall(), not fetchone(): DuckDB 2.0 (21.10.2026) removed fetchone()
+    # from relations, and fetchall() reads the same in 1.x. Unpacking the list
+    # also fails if the query returns more than the one row it should.
+    [(rows, cons, gen)] = con.sql(
         "select count(*), sum(consumption_mwh), sum(generation_mwh) from main_intermediate.int_generation_energy "
         f"where zone_eic = '{DE}' and psr_type = 'B10'"
-    ).fetchone()
+    ).fetchall()
     assert rows == 92 + 96 and gen == 0
     assert cons == pytest.approx(want)
 
@@ -231,8 +234,8 @@ def test_energy_totals_match_the_parser(built):
         rows = parse(text)
         gen = sum(r["mwh"] for r in rows if r["direction"] == "generation")
         cons = sum(r["mwh"] for r in rows if r["direction"] == "consumption")
-        got = con.sql("select sum(generation_mwh), sum(consumption_mwh) from main_intermediate.int_generation_energy "
-                      f"where zone_eic = '{zone}'").fetchone()
+        [got] = con.sql("select sum(generation_mwh), sum(consumption_mwh) from main_intermediate.int_generation_energy "
+                        f"where zone_eic = '{zone}'").fetchall()
         assert got == (pytest.approx(gen), pytest.approx(cons))
 
 
@@ -261,8 +264,8 @@ def test_a_deleted_day_and_an_empty_a01_position_fail_their_tests(tmp_path):
     assert failed == {"assert_step_count_per_local_day": 1, "not_null_int_generation_gapfilled_mw": 1}
     con = duckdb.connect(str(tmp_path / "warehouse" / "grid.duckdb"), read_only=True)
     try:
-        row = con.sql("select zone_eic, psr_type, local_date, steps_present, steps_expected "
-                      "from main_dbt_test__audit.assert_step_count_per_local_day").fetchone()
+        rows = con.sql("select zone_eic, psr_type, local_date, steps_present, steps_expected "
+                       "from main_dbt_test__audit.assert_step_count_per_local_day").fetchall()
     finally:
         con.close()
-    assert row == (DE, "B04", dt.date(2026, 3, 30), 0, 96)
+    assert rows == [(DE, "B04", dt.date(2026, 3, 30), 0, 96)]
