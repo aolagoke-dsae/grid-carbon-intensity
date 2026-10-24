@@ -362,6 +362,22 @@ asserted in `test_prices_parse.py`, and enforced in SQL by the curve filter in
    carry-forward belongs in an `int_` model that does not exist yet, so a join
    on `ts_utc` today silently drops those intervals.
 
+## Two weeks of DE-LU, looked at
+
+![DE-LU carbon intensity of generation by quarter-hour, 16–22 June and 13–19 January 2025, with solar and wind output below](docs/figures/stage5_week_de_lu_2025.png)
+
+The deterministic intensity at median factors, for two weeks of 2025 chosen by
+a rule fixed before anything was plotted: the sunniest week of June–August and
+the stillest of December–February (`notebooks/stage5_week.py`; every value
+drawn is in `docs/figures/stage5_week_de_lu_2025.csv`). In summer the
+intensity falls from about 500 gCO₂e/kWh at night to 118–152 at midday, every
+day, and solar output peaks at 12:45; a misread timestamp, or a fuel joined to
+the wrong factor, would move or invert that dip. The still winter week runs
+highest at night, not in the evening as the runbook expected: lignite and hard
+coal hold at about 16 GW at every hour, while the evening adds gas and wind,
+both below the mix's average. The two weeks' intensities rest on 94.8% and
+94.5% of their generation, the priced share.
+
 ## The interval is the deliverable
 
 A carbon intensity quoted as a single number is a number nobody can audit.
@@ -480,7 +496,10 @@ dbt/                10 models (8 enabled), 7 singular tests (1 disabled) and
                     2025 data — see What is not built
 docs/               ARCHITECTURE.md, the standard; RESOURCES.md, reading by stage;
                     FACTOR_CHECK.md and THIRD_ZONE.md, decisions with their
-                    evidence
+                    evidence; figures/, each PNG beside a CSV of what it draws
+notebooks/          percent-cell exploration, nothing load-bearing: Stages 0–2
+                    interactively, the third-zone diagnostic, the price-curve
+                    check, the Stage 5 week plot
 .github/workflows/  pipeline.yml — pytest on 3.11 and 3.14; dbt parse and a
                     build on fixtures; weekly
 raw/                append-only landing, git-ignored: one folder per document,
