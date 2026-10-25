@@ -33,7 +33,7 @@ has been pulled.*
 | Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; two weeks of 2025 plotted and their shape checked, 24.10.2026; checked against Electricity Maps' published figures, 25.10.2026; in `fact_intensity` since 25.10.2026, equal to the stage 5 check at every step, with its 90% Monte Carlo interval from 10,000 shared draws, the point inside it at all 245,856 reported steps |
 | Stage checks (2–6) | yes; 2 and 5 rewritten 17.10. so they can fail; 3 counts either leg and measures time since 18.10.; 6 written 25.10. and extended to the interval the same day | yes, each made to fail | **all five**: 2–5 on the 2021–2025 A75 pulls, 18.10.2026; 6 on the marts built from them, 25.10.2026 |
 | T-SQL schema + DQ views (Azure) | archived 17.10.2026 in `archive/azure-excursion/` | — | never: DuckDB cannot run them |
-| dbt models | yes — 17 models (15 enabled, two of them Python), 11 singular tests, 35 generic; the three facts and the interval since 25.10.2026 | built on fixtures in CI and compared with the Python parser, the facts also with the stage 5 and 6 checks | **yes** — the 2021–2025 A75 and A44 data, 18.10.2026: 23 nodes green; rebuilt 19.10.2026 with the Itten coal rows, `dim_production_type` equal to the factor file row for row; with the facts and the interval, 25.10.2026: 61 nodes green, and Checkpoint 6 passes but for the rebuild from a clean clone |
+| dbt models | yes — 17 models (15 enabled, two of them Python), 11 singular tests, 35 generic; the three facts and the interval since 25.10.2026 | built on fixtures in CI and compared with the Python parser, the facts also with the stage 5 and 6 checks | **yes** — the 2021–2025 A75 and A44 data, 18.10.2026: 23 nodes green; rebuilt 19.10.2026 with the Itten coal rows, `dim_production_type` equal to the factor file row for row; with the facts and the interval, 25.10.2026: 61 nodes green; Checkpoint 6 passed, the rebuild from a clean clone included |
 | CI | yes, `.github/workflows/pipeline.yml` | — | **yes**, green on 3.11 and 3.14 |
 | Version control | yes — MIT; public since 20.10.2026, ahead of the planned WE 3 (<https://github.com/aolagoke-dsae/grid-carbon-intensity>) | — | — |
 
@@ -717,10 +717,11 @@ print(check_stage6_marts(con, payloads, load_factors("config/ipcc_ar5_factors.cs
   `check_stage6_marts`
 - `git clone` + `dbt build` reproduces the warehouse from scratch on a machine
   that has never seen the project. That is the property the whole standard
-  exists for. **Not yet.** The payloads are not in git, so a clone builds on
-  real data only after a pull with a token. What holds today: a clone builds
-  every model on fixtures (CI), and two environments built the same warehouse
-  from the same landed parquet.
+  exists for. **Done 25.10.2026**, by the rule below: in a new directory and a
+  new environment rather than on a new machine, and with the payloads brought
+  over and verified rather than pulled again. The payloads are not in git, so
+  a clone builds on real data only after a pull with a token; without one, a
+  clone builds every model on fixtures (CI).
 
   `curated/sample/` cannot carry real data (checked 25.10.2026). Under
   ENTSO-E's Terms of Use (29.03.2023, in force since 01.11.2023) only the
@@ -746,6 +747,24 @@ print(check_stage6_marts(con, payloads, load_factors("config/ipcc_ar5_factors.cs
   3. every table of the marts, and `int_intensity_interval`, equals the
      working copy's build of 25.10.2026 row for row: the same keys and the
      same text, numbers within 1e-9 relative.
+
+  **Run on 25.10.2026.** All three held. The clone of `08762d5` ran on Python
+  3.14.8 with dbt-core 1.12.6, dbt-duckdb 1.11.0, DuckDB 2.0.0, NumPy 2.5.4,
+  pandas 3.1.0 and pyarrow 26.0.0; the working copy's build had used Python
+  3.10.12, DuckDB 1.5.6, NumPy 2.2.6, pandas 2.3.3 and pyarrow 25.0.1. The
+  environment was installed with uv from `requirements.txt`, and every
+  command after that ran with only the four variables. The twenty payloads,
+  524 MB, each matched its accepted row in `manifest.csv`, and landed as
+  3,645,826 A75 and 274,257 A44 stated points.
+  1. `dbt build` green: 61 nodes, run as 51 and 10.
+  2. The snippet, copied from this runbook unchanged, returned `True` on all
+     ten zone-years: 4,207,792 rows, and 245,856 reported steps with their
+     intervals.
+  3. All eight tables equal row for row: 4,207,792 generation rows, 246,310
+     intensity steps and as many intervals, 101,070 prices, 120,000 factor
+     draws and the other three dimensions. Every value is bit-identical
+     except in `fact_intensity`, whose largest difference is 7.6e-16
+     relative, what floating-point sums taken in another order give.
 
 ---
 
@@ -920,7 +939,7 @@ each block.
 | WE 2, 17./18.10. | Modul 4a, SQL | **Stage 3.** Backfill DE-LU and FR, coverage checked per year |
 | WE 3, 24./25.10. | Modul 4b, Tableau | **Stage 4.** Every factor checked by hand against AR5 Table A.III.2. Repository public |
 | WE 4, 31.10./01.11. | Modul 5a, Tableau LOD | **Stage 5.** The deterministic intensity on the backfill; Checkpoint 5 (its week plot done on 24.10., the Electricity Maps cross-check on 25.10.) |
-| WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10., but for the rebuild from a clean clone) |
+| WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10.) |
 | WE 6, 14./15.11. | Modul 6, Machine Learning | **Stage 6.** The intensity fact with a first Monte Carlo interval: the first defensible number (done on 25.10.) |
 | WE 7, 21./22.11. | Modul 7, DAX and APIs | One Power BI page showing that number, read from the `exports/` Parquet; README draft |
 | WE 8, 28./29.11. | Modul 9, Green IT | Buffer. The marginal-versus-average intensity section, the limitation an experienced interviewer opens first. A one-page work plan for Modul 10 |

@@ -87,8 +87,8 @@ Named here rather than left for a reader to discover.
 
 | | Status |
 |---|---|
-| dbt facts | **built 25.10.2026**: `fact_generation`, `fact_intensity` and `fact_price`, green on the 2021–2025 A75 and A44 data and on fixtures in CI, and equal to the Python parser and the stage 5 check (RUNBOOK Checkpoint 6); `fact_intensity` carries the 90% Monte Carlo interval of every step it reports. Not yet: a rebuild from a clean clone, which waits for `curated/sample/`. `stg_entsoe__load` and `stg_entsoe__flows` are disabled until A65 and A11 are pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
-| `curated/sample/` | **absent.** From a clean clone, `dbt build` has no data to read; `pytest src/transform/test_dbt_models.py` builds the models on fixtures instead |
+| dbt facts | **built 25.10.2026**: `fact_generation`, `fact_intensity` and `fact_price`, green on the 2021–2025 A75 and A44 data and on fixtures in CI, and equal to the Python parser and the stage 5 check (RUNBOOK Checkpoint 6); `fact_intensity` carries the 90% Monte Carlo interval of every step it reports. Rebuilt from a clean clone the same day, in a new environment, with the payloads verified against `raw/manifest.csv`: every mart table equal row for row. `stg_entsoe__load` and `stg_entsoe__flows` are disabled until A65 and A11 are pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
+| `curated/sample/` | **absent**, and it cannot hold real data: ENTSO-E's list of data open for reuse has neither A75 nor A44 (see **Licence**). It will be synthetic, built from the test fixtures, so that a clone builds without a token. Until then, from a clean clone, `pytest src/transform/test_dbt_models.py` builds the models on fixtures |
 | Load-shifting decision model | **not started** — the question the project exists to answer |
 | Quarto report, GitHub Pages | **not started** |
 | Power BI dashboard | **not started**; it will read the exported Parquet. The Azure portability excursion was dropped in October 2026 and is archived in `archive/azure-excursion/` |
@@ -117,8 +117,9 @@ it does not add it to the analysis yet.
 No subscription, no licence and no free tier is required to run any of it.
 `git clone` then `pytest` works today, and it builds the dbt models on
 fixtures. `dbt build` on real data needs the payloads, which are not
-redistributed (see **Licence**): pull and land them with a token, or wait for
-`curated/sample/`, which is planned. Stated here rather than discovered after
+redistributed (see **Licence**): pull and land them with a token. The planned
+`curated/sample/` will be synthetic: it will let a clone build without a
+token, not reproduce the figures. Stated here rather than discovered after
 cloning.
 
 The architecture is defined in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
@@ -563,7 +564,7 @@ conftest.py         makes `pytest` work from the repo root
 requirements-figures.txt  figure libraries, not installed in CI
 
 planned, not present yet — see RUNBOOK.md:
-curated/sample/     bounded sample so `git clone && dbt build` runs tokenless
+curated/sample/     synthetic sample so `git clone && dbt build` runs tokenless
 report/             Quarto source → GitHub Pages
 docs/METHODOLOGY.md assurance write-up
 ```
@@ -583,5 +584,11 @@ against the sources before relying on them.
 `manifest.csv` — the provenance record, with the token redacted — is committed.
 Anyone re-running the ingestion obtains the data themselves, under the ENTSO-E
 Transparency Platform's own terms of use, which this repository's licence does
-not and cannot grant. The same will apply to `curated/sample/` once it exists:
-a sample of ENTSO-E-derived values carries ENTSO-E's terms, not MIT.
+not and cannot grant. Checked on 25.10.2026: under the Transparency
+Platform's Terms of Use (29.03.2023, in force since 01.11.2023), only the data
+on ENTSO-E's List of Data available for reuse (18.10.2023) is open, under
+CC BY 4.0, and that list has neither generation per production type (A75) nor
+day-ahead prices (A44); any other re-use needs the prior agreement of each
+Primary Owner of Data (clause 3.1). A sample of the values used here would
+therefore need those owners' agreement, so `curated/sample/` will be
+synthetic.
