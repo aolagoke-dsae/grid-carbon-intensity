@@ -19,5 +19,10 @@ select
     ef_max_g_kwh,
     confidence                   as ef_confidence,
     source                       as ef_source_citation,
-    ef_median_g_kwh is not null  as is_priced
+    -- intensity.Factor.priced's rule: a median AND a band. Until 25.10.2026
+    -- a median alone priced a fuel here; every row of the factor file has
+    -- both or neither, so no figure moved.
+    ef_median_g_kwh is not null
+      and ef_min_g_kwh is not null
+      and ef_max_g_kwh is not null as is_priced
 from src

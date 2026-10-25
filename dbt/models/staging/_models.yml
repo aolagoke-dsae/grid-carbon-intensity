@@ -23,3 +23,12 @@ models:
           - accepted_values:
               arguments:
                 values: ['A01', 'A03']
+  - name: stg_entsoe__prices
+    description: >
+      Stated A44 points, renamed and cast, position resolved to ts_utc, and
+      one curve kept per delivery period (trap 5): the var a44_curve, default
+      1, the curve that equals SMARD filter 4169. A period with one curve is
+      kept whatever the var says.
+    columns:
+      - name: classification_sequence
+        description: The curve's id within the payload; NULL where a zone publishes one curve.

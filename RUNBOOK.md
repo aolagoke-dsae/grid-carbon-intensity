@@ -30,10 +30,10 @@ has been pulled.*
 | Ingestion client (Energy-Charts) | yes, 25.10.2026 | the monthly backfill: which months a year needs, what counts as data, stored months not fetched again | **yes** — every month of 2024–2025, 25.10.2026; tracks our parse at r = 0.9995 and 0.9997 (Checkpoint 5) |
 | Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **yes** — DE-LU and FR 2021–2025, 17. and 18.10.2026 |
 | Parser, A44 prices (trap 5) | yes | yes | **yes** — the DE-LU payloads of 2021–2025; curve 1 equals SMARD 4169 to the cent in every year, 19.10.2026 |
-| Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; two weeks of 2025 plotted and their shape checked, 24.10.2026; checked against Electricity Maps' published figures, 25.10.2026; the Monte Carlo interval and the fact table **not yet** |
-| Stage checks (2, 3, 4, 5) | yes; 2 and 5 rewritten 17.10. so they can fail; 3 counts either leg and measures time since 18.10. | yes, each made to fail | **all four** on the 2021–2025 A75 pulls, 18.10.2026 |
+| Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; two weeks of 2025 plotted and their shape checked, 24.10.2026; checked against Electricity Maps' published figures, 25.10.2026; in `fact_intensity` since 25.10.2026, equal to the stage 5 check at every step; the Monte Carlo interval **not yet** |
+| Stage checks (2–6) | yes; 2 and 5 rewritten 17.10. so they can fail; 3 counts either leg and measures time since 18.10.; 6 written 25.10. | yes, each made to fail | **all five**: 2–5 on the 2021–2025 A75 pulls, 18.10.2026; 6 on the marts built from them, 25.10.2026 |
 | T-SQL schema + DQ views (Azure) | archived 17.10.2026 in `archive/azure-excursion/` | — | never: DuckDB cannot run them |
-| dbt models | yes — 10 models (8 enabled), 7 singular tests (1 disabled), 9 generic | built on fixtures in CI and compared with the Python parser | **yes** — the 2021–2025 A75 and A44 data, 18.10.2026: 23 nodes green; rebuilt 19.10.2026 with the Itten coal rows, `dim_production_type` equal to the factor file row for row |
+| dbt models | yes — 15 models (13 enabled), 10 singular tests (1 disabled), 31 generic; the three facts since 25.10.2026 | built on fixtures in CI and compared with the Python parser, the facts also with the stage 5 check | **yes** — the 2021–2025 A75 and A44 data, 18.10.2026: 23 nodes green; rebuilt 19.10.2026 with the Itten coal rows, `dim_production_type` equal to the factor file row for row; with the facts, 25.10.2026: 53 nodes green, and Checkpoint 6 passes but for the rebuild from a clean clone |
 | CI | yes, `.github/workflows/pipeline.yml` | — | **yes**, green on 3.11 and 3.14 |
 | Version control | yes — MIT; public since 20.10.2026, ahead of the planned WE 3 (<https://github.com/aolagoke-dsae/grid-carbon-intensity>) | — | — |
 
@@ -480,10 +480,18 @@ print(check_stage5_intensity(rows, factors, values, sparse))
   production-based 362.5, and −27.1 for imports to their flow-traced 335.4. Both
   sides are life-cycle.
 - Measured on the 2021–2025 pulls (18.10.2026), at median factors: DE-LU
-  83–622 gCO2e/kWh per quarter-hour, yearly medians 356, 378, 315, 310 and 309;
-  with lignite and hard coal at Germany's values (19.10.2026), 93–764 and 432,
+  83–622 gCO2e/kWh per quarter-hour, yearly medians 356, 378, 314, 309 and 309;
+  with lignite and hard coal at Germany's values (19.10.2026), 93–763 and 432,
   464, 376, 367 and 366. France 15–117 per step, medians 47, 70, 41, 28 and 27;
-  with hard coal at Germany's value, 15–124 and 48, 71, 41, 28 and 27. Withheld,
+  with hard coal at Germany's value, 15–123 and 48, 71, 41, 28 and 27.
+  (Corrected 25.10.2026, when Checkpoint 6 recomputed every step in Python and
+  in SQL alike. Four figures had been written one too high: the maxima 764 and
+  124, which are 763.47, DE-LU on 24.01.2023 at 22:15 UTC, and 123.47, France
+  on 30.11.2022 at 19:00 UTC; and the 2023 and 2024 medians at the first
+  factors, 315 and 310, which are 314.47 and 309.46 with lignite and hard coal
+  put back on AR5's coal row. The parser, the checks, the coverage files and
+  the payloads are those of the runs that wrote them, so the difference is not
+  explained.) Withheld,
   each at a
   recorded source gap: 10 and 31 quarter-hours in DE-LU in 2024 and 2025, and
   413 hours in France in 2023, most in offshore wind's first weeks. (The
@@ -566,19 +574,77 @@ three dimensions, built green on the 2025 data. The facts are this stage's
 work. The T-SQL schema written for the Azure excursion is archived in
 `archive/azure-excursion/`; DuckDB cannot run it.
 
+**The facts, 25 October 2026.** Three, each at its own grain, each row
+carrying `source_sha256`, the key of its retrieval in `raw/manifest.csv`:
+
+- `fact_generation`: one row per zone, production type, direction and step,
+  exactly the rows `entsoe_parse.parse()` produces, with energy, the median
+  factor and, for priced generation, emissions;
+- `fact_intensity`: one row per generation step, the SQL twin of Checkpoint 5.
+  The intensity is withheld where a series the zone publishes is missing
+  (`int_generation_partial_steps`, the twin of `incomplete_steps`) and where
+  series of different resolution meet, and every value stands beside its
+  priced share;
+- `fact_price`: one day-ahead price per zone and delivery step, the curve
+  trap 5 selects, with A03's repeated prices carried forward
+  (`int_prices_gapfilled`).
+
+Three singular tests guard them: one row per grain; every row's digest among
+the manifest's accepted retrievals; every intensity recomputed from the
+gap-filled legs and the factor file, which also fails on a value reported at
+a partial or mixed-resolution step. `dim_production_type` prices a fuel by
+`intensity.py`'s rule since the same day, a median and a band; a median alone
+had priced it, and no row of the factor file tells the two apart. The Monte
+Carlo interval joins `fact_intensity` in WE 6, and
+`assert_deterministic_within_mc_interval` stays disabled until it does.
+
 **Checkpoint 6**
 
-- `dbt build` green; `dbt docs generate` produces a lineage graph
-- Mart row count equals the parsed row count **exactly**
+```python
+import duckdb
+from pathlib import Path
+from src.checks.validate import check_stage6_marts, load_coverage_policy
+from src.transform.entsoe_parse import parse
+from src.transform.intensity import load_factors
+from src.transform.xml_to_parquet import current_payloads, zones_outside_analysis
+skip = zones_outside_analysis()
+payloads = ((x.parts[2], int(x.parts[3]), parse(x.read_text(encoding="utf-8")))
+            for x in current_payloads(Path("raw/A75")) if x.parts[2] not in skip)
+con = duckdb.connect("warehouse/grid.duckdb", read_only=True)
+print(check_stage6_marts(con, payloads, load_factors("config/ipcc_ar5_factors.csv"),
+                         load_coverage_policy()[0]))
+```
+
+- `dbt build` green; `dbt docs generate` produces a lineage graph. **Done
+  25.10.2026** on the 2021–2025 A75 and A44 data: 53 nodes green, 13 models
+  and 40 tests, with DuckDB 1.5.6 and again with 2.0.0 from the same landed
+  parquet; the catalog lists all 13 relations, and every model is documented
+- Mart row count equals the parsed row count **exactly**. **Done 25.10.2026**:
+  `check_stage6_marts` returns `True` on all ten zone-years. `fact_generation`
+  holds the parser's 4,207,792 rows, the same keys and the same MW, and
+  `fact_intensity` passes Checkpoint 5 at every one of its 246,310 steps: 454
+  withheld from a partial mix, none where resolutions meet, the yearly DE-LU
+  points 410.6, 441.6, 384.8, 357.4 and 352.1 gCO2e/kWh as in
+  `docs/FACTOR_CHECK.md`. `fact_price` holds 101,070 steps, 1,010 of them
+  carried forward
 - Every fact row resolves to its retrieval in the ingest manifest: every
-  landed row carries `source_sha256`, and the intermediate models pass it on
+  landed row carries `source_sha256`, and the intermediate models pass it on.
+  **Done 25.10.2026**: `assert_every_fact_row_resolves_to_the_manifest`
+  passes on `fact_generation` and `fact_price`, and `fact_intensity` is summed
+  from the first; on fixtures it fails when a retrieval is missing from the
+  manifest
 - `select count(*) from main_marts.dim_production_type where ef_source_citation is null or trim(ef_source_citation) = ''`
   returns 0, and so does
   `select count(*) from main_marts.dim_production_type where is_priced and lower(ef_source_citation) like '%placeholder%'`.
   Until 17 October 2026 the first query named the wrong schema and would have
-  passed oil's placeholder anyway
+  passed oil's placeholder anyway. **Done 25.10.2026**, inside
+  `check_stage6_marts`
 - `git clone` + `dbt build` reproduces the warehouse from scratch on a machine
-  that has never seen the project. That is the property the whole standard exists for.
+  that has never seen the project. That is the property the whole standard
+  exists for. **Not yet.** The payloads are not in git, so a clone builds on
+  real data only after a pull with a token; `curated/sample/` is planned for
+  this. What holds today: a clone builds every model on fixtures (CI), and two
+  environments built the same warehouse from the same landed parquet.
 
 ---
 
@@ -751,7 +817,7 @@ each block.
 | WE 2, 17./18.10. | Modul 4a, SQL | **Stage 3.** Backfill DE-LU and FR, coverage checked per year |
 | WE 3, 24./25.10. | Modul 4b, Tableau | **Stage 4.** Every factor checked by hand against AR5 Table A.III.2. Repository public |
 | WE 4, 31.10./01.11. | Modul 5a, Tableau LOD | **Stage 5.** The deterministic intensity on the backfill; Checkpoint 5 (its week plot done on 24.10., the Electricity Maps cross-check on 25.10.) |
-| WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt |
+| WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10., but for the rebuild from a clean clone) |
 | WE 6, 14./15.11. | Modul 6, Machine Learning | **Stage 6.** The intensity fact with a first Monte Carlo interval: the first defensible number |
 | WE 7, 21./22.11. | Modul 7, DAX and APIs | One Power BI page showing that number, read from the `exports/` Parquet; README draft |
 | WE 8, 28./29.11. | Modul 9, Green IT | Buffer. The marginal-versus-average intensity section, the limitation an experienced interviewer opens first. A one-page work plan for Modul 10 |

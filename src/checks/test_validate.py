@@ -15,6 +15,7 @@ from validate import (
     check_stage3_coverage,
     check_stage4_factors,
     check_stage5_intensity,
+    check_stage6_marts,
     incomplete_steps,
     load_coverage_policy,
 )
@@ -343,9 +344,77 @@ def test_stage5_refuses_resolutions_meeting_at_one_step():
     assert not ok and "different resolution" in msg, msg
 
 
+def test_stage5_accepts_a_step_where_resolutions_meet_if_it_is_withheld():
+    """Withheld, the step reports no wrong number, so it passes, as a partial
+    step does; fact_intensity withholds such steps (25.10.2026)."""
+    rows = _mix_rows(steps=4) + [{"zone": "DE", "psr": "B04", "direction": "generation",
+                                  "ts_utc": dt.datetime(2026, 1, 5, tzinfo=UTC),
+                                  "step_hours": 1.0, "mw": 10.0, "mwh": 10.0}]
+    values = _values(rows)
+    values[("DE", dt.datetime(2026, 1, 5, tzinfo=UTC))] = None
+    ok, msg = check_stage5_intensity(rows, FACTORS, values)
+    assert ok and "1 withheld where resolutions meet" in msg, msg
+
+
 def test_stage4_still_fails_on_a_fuel_with_no_row_at_all():
     factors = {"B02": Factor(psr_type="B02", fuel="Lignite", median=820,
                              lo=740, hi=910, confidence="high", source="AR5")}
     rows = [{"psr": "B08", "direction": "generation"}]   # Peat, as in IE-SEM
     ok, msg = check_stage4_factors(rows, factors)
     assert not ok and "B08" in msg
+
+
+def _warehouse(rows, values, citation="AR5 Table A.III.2"):
+    """The three marts check_stage6_marts reads, in an in-memory DuckDB."""
+    import duckdb
+    con = duckdb.connect()
+    con.sql("create schema main_marts")
+    con.sql("create table main_marts.dim_zone as select 'DE' as zone_eic, 'Europe/Berlin' as iana_tz")
+    con.sql("create table main_marts.fact_generation (zone_eic varchar, psr_type varchar, "
+            "direction varchar, ts_utc timestamp, mw double)")
+    for r in rows:
+        con.sql(f"insert into main_marts.fact_generation values ('{r['zone']}', '{r['psr']}', "
+                f"'{r['direction']}', '{r['ts_utc'].replace(tzinfo=None)}', {r['mw']})")
+    con.sql("create table main_marts.fact_intensity (zone_eic varchar, ts_utc timestamp, "
+            "intensity_g_kwh double)")
+    for (zone, ts), v in values.items():
+        con.sql(f"insert into main_marts.fact_intensity values ('{zone}', "
+                f"'{ts.replace(tzinfo=None)}', {'null' if v is None else v})")
+    con.sql("create table main_marts.dim_production_type (psr_type varchar, "
+            "ef_source_citation varchar, is_priced boolean)")
+    for psr, f in FACTORS.items():
+        cite = "placeholder" if citation is None and f.priced else (citation or "unpriced: why")
+        con.sql(f"insert into main_marts.dim_production_type values ('{psr}', '{cite}', {f.priced})")
+    return con
+
+
+def test_stage6_accepts_marts_that_hold_the_parsed_rows():
+    rows = _mix_rows(steps=4)
+    ok, msg = check_stage6_marts(_warehouse(rows, _values(rows)), [("DE", 2026, rows)], FACTORS)
+    assert ok and "12 rows" in msg, msg
+
+
+@pytest.mark.parametrize("change", ["lost row", "extra row", "other mw", "other intensity"])
+def test_stage6_fails_on_a_mart_that_differs_from_the_parser(change):
+    """Prevents: a mart row count or a value that drifts from the parser while
+    every dbt test, which reads only the warehouse, still passes."""
+    rows = _mix_rows(steps=4)
+    mart_rows, values = [dict(r) for r in rows], _values(rows)
+    if change == "lost row":
+        mart_rows.pop()
+    elif change == "extra row":
+        mart_rows.append({**mart_rows[0], "psr": "B16"})
+    elif change == "other mw":
+        mart_rows[0]["mw"] += 1.0
+    else:
+        first = min(values)
+        values[first] += 1.0
+    ok, msg = check_stage6_marts(_warehouse(mart_rows, values), [("DE", 2026, rows)], FACTORS)
+    assert not ok, msg
+
+
+def test_stage6_fails_on_a_factor_priced_from_a_placeholder():
+    rows = _mix_rows(steps=4)
+    ok, msg = check_stage6_marts(_warehouse(rows, _values(rows), citation=None),
+                                 [("DE", 2026, rows)], FACTORS)
+    assert not ok and "placeholder" in msg, msg

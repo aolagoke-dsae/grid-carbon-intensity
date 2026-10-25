@@ -56,12 +56,12 @@ generation per type (A75) for DE-LU and FR, 2025 on 17 October 2026 and
 18 October, and every SMARD price week of 2021–2025 on 19 October; load (A65)
 has not been fetched. The A75 parser and the stage 2–5 checks have
 run on all ten zone-years, stage 5 on the median-factor intensity. Landed, the
-2021–2025 A75 and A44 data build green through the dbt project,
-23 nodes on 18 October 2026 and again on 19 October with the new coal rows,
-and CI builds every model on fixtures and checks
-it against the Python parser. The
-fact tables, the Monte Carlo interval on real data and the report are not
-built. **What is not built** has the detail.
+2021–2025 A75 and A44 data build green through the dbt project to its three
+fact tables, 53 nodes on 25 October 2026: the generation fact holds the
+parser's rows exactly, and the intensity fact equals the stage 5 check at
+every step (stage 6). CI builds every model on fixtures and checks it against
+the Python parser. The Monte Carlo interval on real data and the report are
+not built. **What is not built** has the detail.
 
 The acceptance criterion that governs the whole build: **the deterministic
 point estimate must fall inside the sampled 90% interval.** The deterministic
@@ -86,7 +86,7 @@ Named here rather than left for a reader to discover.
 
 | | Status |
 |---|---|
-| dbt facts | **not built.** Staging, the three intermediate models and the three dimensions stand: built green on the 2021–2025 A75 and A44 data on 18.10.2026, and on fixtures in CI. `stg_entsoe__load` and `stg_entsoe__flows` are disabled until A65 and A11 are pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
+| dbt facts | **built 25.10.2026**: `fact_generation`, `fact_intensity` and `fact_price`, green on the 2021–2025 A75 and A44 data and on fixtures in CI, and equal to the Python parser and the stage 5 check (RUNBOOK Checkpoint 6). Not yet: the Monte Carlo interval in `fact_intensity` (WE 6), and a rebuild from a clean clone, which waits for `curated/sample/`. `stg_entsoe__load` and `stg_entsoe__flows` are disabled until A65 and A11 are pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
 | `curated/sample/` | **absent.** From a clean clone, `dbt build` has no data to read; `pytest src/transform/test_dbt_models.py` builds the models on fixtures instead |
 | Load-shifting decision model | **not started** — the question the project exists to answer |
 | Quarto report, GitHub Pages | **not started** |
@@ -100,7 +100,8 @@ the A75 parser with its four traps, tested on fixtures including both
 daylight-saving transition days and run on the real 2021–2025 pulls for DE-LU
 and FR; the A44 price parser with the fifth, run on the real 2021–2025 payloads for both zones; the raw
 parquet landing, with both domains and the source digest on every row; the dbt
-staging, intermediate and dimension models, checked against the Python parser;
+project from staging to the three facts, checked against the Python parser and
+the stage 5 check;
 Monte Carlo uncertainty with the sensitivity shares; the stage checkpoints,
 each with a test that makes it fail; and CI across Python 3.11 and 3.14.
 
@@ -452,12 +453,12 @@ supplies 3% of the energy, 23% of the variance and 13% of the interval width.
 
 ## Tests
 
-`pytest` — 186 tests, all green: 157 test functions, some parametrised. Ten
+`pytest` — 202 tests, all green: 170 test functions, some parametrised. Ten
 read real payloads in `raw/`: four the 7.5 MB 2025 A44 file, six the A44 files
 of 2021–2025 with the SMARD weeks. They **skip in CI**, because `raw/*` is
-gitignored. Seven build the dbt models with dbt-duckdb and run in CI's dbt job
-only; the unit-test job reports 169 passed, 10 skipped. A local run with `raw/`
-populated reports 186 passed.
+gitignored. Ten build the dbt models with dbt-duckdb and run in CI's dbt job
+only; the unit-test job reports 182 passed, 10 skipped. A local run with `raw/`
+populated reports 202 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
@@ -477,13 +478,14 @@ at least one test fail.
 | `src/transform/test_prices_parse.py` | 25 | Trap 5 and the A44 parser, including 4 transition-day cases and the 4 real-payload checks |
 | `src/transform/test_dst.py` | 13 | Daylight-saving arithmetic of the validation calendar, `validate.expected_steps` |
 | `src/transform/test_intensity.py` | 34 | The uncertainty propagation, the factor handling and the sensitivity shares |
-| `src/checks/test_validate.py` | 27 | The stage checkpoints, including whole missing days, the coverage policy and the stage 5 recomputation |
+| `src/checks/test_validate.py` | 34 | The stage checkpoints, including whole missing days, the coverage policy, the stage 5 recomputation and the stage 6 comparison of the marts with the parser |
 | `src/ingest/test_entsoe_client.py` | 9 | Token redaction in exceptions and the manifest; yearly requests that cover the local year |
 | `src/ingest/test_smard_client.py` | 5 | The SMARD backfill: the 53 weeks 2025 needs, a week ending at New Year left to the year before, both clock-change weeks, stored weeks not fetched again, failed ones fetched again |
+| `src/ingest/test_energycharts_client.py` | 6 | The Energy-Charts backfill: whole months, what counts as data, the rate limit, stored months not fetched again, failed ones fetched again |
 | `src/transform/test_smard_parse.py` | 17 | SMARD weeks read strictly, six malformed shapes refused; the newest accepted retrieval of each week; hourly means of complete hours only; the agreement measure used against the two A44 curves; six real-data checks that curve 1 is SMARD's to the cent in every year 2021–2025 and curve 2 is not |
 | `src/ingest/test_raw_store.py` | 12 | `raw/` is append-only: a failed pull never replaces data, every retrieval is kept, the smoke scripts report the status they actually got |
 | `src/transform/test_xml_to_parquet.py` | 13 | The landing: stated points only, both domains, dtypes, provenance and the digest check, the newest accepted retrieval of each year, zones outside the analysis left in `raw/` |
-| `src/transform/test_dbt_models.py` | 7 | The dbt models on landed fixtures, step by step against `parse()`; a deleted day and an empty A01 position fail their tests |
+| `src/transform/test_dbt_models.py` | 10 | The dbt models on landed fixtures, step by step against `parse()`; the facts against the parser, the stage 5 check and `parse_prices()`; a deleted day, an empty A01 position and a retrieval missing from the manifest fail their tests |
 
 The test that matters most: **the deterministic point estimate must fall
 inside the Monte Carlo interval built around it.** If it falls outside, the
@@ -512,9 +514,9 @@ src/ingest/         ENTSO-E, SMARD and Energy-Charts clients → raw/ + manifest
 src/transform/      A75 parser, A44 price parser, SMARD reader, parquet
                     landing, intensity, uncertainty
 src/checks/         stage checkpoint functions, importable and testable
-dbt/                10 models (8 enabled), 7 singular tests (1 disabled) and
-                    9 generic ones; built on fixtures in CI and on the real
-                    2025 data — see What is not built
+dbt/                15 models (13 enabled), three of them facts, 10 singular
+                    tests (1 disabled) and 31 generic ones; built on fixtures
+                    in CI and on the real 2021–2025 data — RUNBOOK Stage 6
 docs/               ARCHITECTURE.md, the standard; RESOURCES.md, reading by stage;
                     FACTOR_CHECK.md and THIRD_ZONE.md, decisions with their
                     evidence; EM_CROSSCHECK.md, the comparison with Electricity

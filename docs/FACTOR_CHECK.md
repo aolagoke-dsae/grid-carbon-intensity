@@ -177,8 +177,9 @@ With B02 at 1,060 (1,000–1,350) and B05 at 1,040 (861–1,320):
 
 The deterministic point stays inside its interval in both zones in every
 year, and 20,000 draws move the bounds by under 0.3%. Per quarter-hour, DE-LU
-runs 93–764 gCO2eq/kWh with yearly medians of 432, 464, 376, 367 and 366, and
-France 15–124 with 48, 71, 41, 28 and 27 (Checkpoint 5).
+runs 93–763 gCO2eq/kWh with yearly medians of 432, 464, 376, 367 and 366, and
+France 15–123 with 48, 71, 41, 28 and 27 (Checkpoint 5; the maxima corrected
+on 25.10.2026 from 764 and 124, see the RUNBOOK there).
 
 One table prices both zones, so French hard coal carries Germany's value. The
 same figure gives France 1.25; at 0.1–0.8% of French priced generation,

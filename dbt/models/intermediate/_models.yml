@@ -12,3 +12,13 @@ models:
     description: Generation and consumption legs side by side; a full outer join, so a pump-only step keeps its consumption.
   - name: int_generation_energy
     description: MW times step_hours, per direction.
+  - name: int_generation_partial_steps
+    description: >
+      The generation steps at which a series the zone publishes is missing
+      and config/sparse_series.csv does not exempt it, with the missing series
+      named: the SQL twin of validate.incomplete_steps. fact_intensity
+      withholds the intensity of these steps.
+  - name: int_prices_gapfilled
+    description: >
+      Every step of every price period of the curve stg_entsoe__prices keeps;
+      an A03 price that repeats is carried forward, an A01 price never is.

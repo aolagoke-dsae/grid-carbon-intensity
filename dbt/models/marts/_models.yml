@@ -19,3 +19,122 @@ models:
                 quote: false
   - name: dim_production_type
     description: The factor bands of config/ipcc_ar5_factors.csv, read in place.
+    columns:
+      - name: psr_type
+        data_tests: [unique, not_null]
+      - name: ef_source_citation
+        description: Every row cites its source, priced or not (tests/assert_every_factor_has_a_source.sql).
+      - name: is_priced
+        description: A median and a band, the rule of intensity.Factor.priced; an unpriced fuel enters no intensity.
+  - name: fact_generation
+    description: >
+      One row per zone, production type, direction and step: exactly the rows
+      entsoe_parse.parse() produces. Energy, the median factor, and emissions
+      for priced generation; source_sha256 keys the row's retrieval in
+      raw/manifest.csv.
+    columns:
+      - name: zone_eic
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: zone_eic
+      - name: psr_type
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_production_type')
+                field: psr_type
+      - name: direction
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['generation', 'consumption']
+      - name: ts_utc
+        description: Start of the step, UTC.
+        data_tests: [not_null]
+      - name: local_date
+        description: The zone's calendar day the step starts in, from dim_zone's time zone.
+        data_tests: [not_null]
+      - name: mw
+        description: Mean power over the step; carried forward where an A03 series repeats a value.
+        data_tests: [not_null]
+      - name: mwh
+        description: mw times step_hours. A quarter-hour of 100 MW is 25 MWh.
+      - name: is_priced_generation
+        description: Generation of a fuel that dim_production_type prices; only these rows enter an intensity.
+      - name: ef_median_g_kwh
+        description: The fuel's median life-cycle factor, gCO2e/kWh, from config/ipcc_ar5_factors.csv.
+      - name: emissions_kg
+        description: mwh times ef_median_g_kwh (MWh times g/kWh is kg); NULL unless is_priced_generation.
+      - name: was_carried
+        description: TRUE where the step was not stated and A03 carried the last stated value forward.
+      - name: source_sha256
+        description: The SHA-256 of the retrieval the row came from, its key in raw/manifest.csv.
+        data_tests: [not_null]
+  - name: fact_intensity
+    description: >
+      The deterministic intensity of every generation step, at median factors
+      over the priced share of generation; withheld where a series the zone
+      publishes is missing or where series of different resolution meet. The
+      SQL twin of RUNBOOK Checkpoint 5.
+    columns:
+      - name: zone_eic
+        data_tests: [not_null]
+      - name: ts_utc
+        data_tests: [not_null]
+      - name: local_date
+        data_tests: [not_null]
+      - name: step_hours
+        description: The step's length in hours, 0.25 at PT15M and 1 at PT60M.
+      - name: is_mixed_resolution
+        description: TRUE where series of different resolution meet at the step; its intensity is withheld.
+      - name: total_mwh
+        description: Generation in the step, every fuel, priced or not.
+        data_tests: [not_null]
+      - name: priced_mwh
+        description: The part of total_mwh whose fuel carries a factor.
+        data_tests: [not_null]
+      - name: priced_share_pct
+        description: 100 times priced_mwh over total_mwh, the share of the step's generation the intensity describes.
+      - name: emissions_kg
+        description: Life-cycle emissions of the priced generation at median factors.
+      - name: is_partial
+        description: TRUE where a series the zone publishes is missing at the step (int_generation_partial_steps).
+      - name: missing_psr_types
+        description: The missing series of a partial step, comma-separated.
+      - name: intensity_g_kwh
+        description: >
+          emissions_kg / priced_mwh, gCO2e/kWh. NULL where the step is partial,
+          mixes resolutions or has no priced energy.
+  - name: fact_price
+    description: >
+      One day-ahead price per zone and delivery step: the curve trap 5 selects,
+      A03 repeats carried forward. source_sha256 keys the row's retrieval in
+      raw/manifest.csv.
+    columns:
+      - name: zone_eic
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: zone_eic
+      - name: ts_utc
+        data_tests: [not_null]
+      - name: local_date
+        data_tests: [not_null]
+      - name: resolution
+        description: The market time unit, PT60M or PT15M.
+      - name: price_eur_mwh
+        description: NULL only where an A01 price is missing, a data error.
+        data_tests: [not_null]
+      - name: classification_sequence
+        description: The curve kept (trap 5); NULL where the zone publishes one curve.
+      - name: was_carried
+        description: TRUE where the step was not stated and A03 carried the last stated price forward.
+      - name: source_sha256
+        description: The SHA-256 of the retrieval the row came from, its key in raw/manifest.csv.
+        data_tests: [not_null]

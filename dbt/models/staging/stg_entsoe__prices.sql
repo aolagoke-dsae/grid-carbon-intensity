@@ -83,8 +83,10 @@ picked as (
 select
     zone_eic,
     classification_sequence,
+    curve_type,
     resolution,
     cast(step_hours as double)          as step_hours,
+    cast(n_steps as integer)            as n_steps,
     cast(period_start_utc as timestamp) as period_start_utc,
     cast(position as integer)           as position,
     cast(quantity as double)            as price_eur_mwh,
@@ -92,5 +94,6 @@ select
     -- reaches 100 on the 25-hour day. Keeping both columns under distinct
     -- names is the whole point of the rename.
     cast(period_start_utc as timestamp)
-      + to_milliseconds(cast(step_hours * (position - 1) * 3600000 as bigint)) as ts_utc
+      + to_milliseconds(cast(step_hours * (position - 1) * 3600000 as bigint)) as ts_utc,
+    source_sha256
 from picked

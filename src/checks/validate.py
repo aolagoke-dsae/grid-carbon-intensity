@@ -12,6 +12,7 @@ import datetime as dt
 import math
 import re
 import xml.etree.ElementTree as ET
+import zoneinfo
 from collections import Counter, defaultdict
 
 RES_HOURS = {"PT15M": 0.25, "PT30M": 0.5, "PT60M": 1.0, "PT1H": 1.0}
@@ -349,9 +350,12 @@ def check_stage5_intensity(rows, factors: dict, values: dict,
       - a value that differs from the recomputed mean: MWh on one side of
         the ratio and MW on the other, a consumption leg in the mix, a
         factor other than the median;
-      - negative or missing generation energy, and series at different
-        resolutions sharing a step, where a per-step mix would put a whole
-        hour of energy into one quarter-hour.
+      - negative or missing generation energy;
+      - a value reported where series at different resolutions share a step:
+        a per-step mix would put a whole hour of energy into one quarter-hour,
+        so such a step is withheld, like a partial one, unless the series are
+        resampled first. Until 25.10.2026 any such step failed the check,
+        withheld or not; fact_intensity withholds them.
 
     It replaces check_stage5_plausibility. Its 0-1000 bounds could not see a
     units error: a weighted mean is unchanged when every weight is scaled,
@@ -371,10 +375,12 @@ def check_stage5_intensity(rows, factors: dict, values: dict,
     problems = []
     if bad_energy:
         problems.append(f"{bad_energy} generation rows with negative or missing energy")
-    mixed = sorted(k for k, s in steps.items() if len(s) > 1)
-    if mixed:
-        problems.append(f"{len(mixed)} steps where series of different resolution meet, "
-                        f"first {mixed[0]}; resample before mixing")
+    mixed = {k for k, s in steps.items() if len(s) > 1}
+    reported_mixed = sorted(k for k in mixed if values.get(k) is not None)
+    if reported_mixed:
+        problems.append(f"{len(reported_mixed)} values reported where series of different "
+                        f"resolution meet, first {reported_mixed[0]}; withhold them, or "
+                        "resample before mixing")
     missing = sorted(set(mixes) - set(values))
     extra = sorted(set(values) - set(mixes))
     if missing:
@@ -393,7 +399,7 @@ def check_stage5_intensity(rows, factors: dict, values: dict,
         priced = {p: e for p, e in mix.items() if p in factors and factors[p].priced}
         energy_tot[k[0]] += sum(mix.values())
         priced_tot[k[0]] += sum(priced.values())
-        if k in partial:
+        if k in partial or k in mixed:
             continue
         tot = sum(priced.values())
         want = sum(e * factors[p].median for p, e in priced.items()) / tot if tot > 0 else None
@@ -415,5 +421,82 @@ def check_stage5_intensity(rows, factors: dict, values: dict,
     share = ", ".join(f"{z} {priced_tot[z] / energy_tot[z]:.1%}" for z in sorted(energy_tot, key=str)
                       if energy_tot[z] > 0)
     rng = f"range {min(shown):.0f}-{max(shown):.0f} gCO2e/kWh; " if shown else ""
+    where = f"; {len(mixed)} withheld where resolutions meet" if mixed else ""
     return True, (f"{len(shown)} steps equal the median-factor mean of a complete mix; "
-                  f"{len(partial)} withheld from a partial mix; {rng}priced share of energy: {share}")
+                  f"{len(partial)} withheld from a partial mix{where}; {rng}"
+                  f"priced share of energy: {share}")
+
+
+def _same(a, b) -> bool:
+    if a is None or b is None:
+        return a is None and b is None
+    return math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-9)
+
+
+def check_stage6_marts(con, payloads, factors: dict, sparse=frozenset()) -> tuple[bool, str]:
+    """Do the marts hold what the parser and Checkpoint 5 compute? RUNBOOK
+    Checkpoint 6.
+
+    con: a DuckDB connection to the warehouse dbt built.
+    payloads: (zone_eic, year, rows) for every landed zone-year, the rows of
+        entsoe_parse.parse() on its newest accepted A75 retrieval. A generator
+        keeps one year in memory at a time.
+
+    For each zone-year, inside its local calendar year:
+      - main_marts.fact_generation holds exactly the parser's rows: the same
+        (fuel, direction, step) keys, so the mart's row count equals the
+        parser's, and the same MW;
+      - main_marts.fact_intensity passes check_stage5_intensity on them, so
+        the SQL intensity is the Python one, step for step.
+    And main_marts.dim_production_type cites a source on every row and prices
+    nothing from a placeholder: the two queries of Checkpoint 6.
+    """
+    tz_of = dict(con.sql("select zone_eic, iana_tz from main_marts.dim_zone").fetchall())
+    problems, rows_total, years = [], 0, 0
+    for zone, year, rows in payloads:
+        years += 1
+        if zone not in tz_of:
+            problems.append(f"{zone} {year}: no row in dim_zone")
+            continue
+        tz = zoneinfo.ZoneInfo(tz_of[zone])
+        lo = dt.datetime(year, 1, 1, tzinfo=tz).astimezone(dt.timezone.utc).replace(tzinfo=None)
+        hi = dt.datetime(year + 1, 1, 1, tzinfo=tz).astimezone(dt.timezone.utc).replace(tzinfo=None)
+        where = f"zone_eic = '{zone}' and ts_utc >= '{lo:%Y-%m-%d %H:%M:%S}' and ts_utc < '{hi:%Y-%m-%d %H:%M:%S}'"
+        mart = {(p, d, ts): mw for p, d, ts, mw in con.sql(
+            f"select psr_type, direction, ts_utc, mw from main_marts.fact_generation where {where}"
+        ).fetchall()}
+        parsed = {(r["psr"], r["direction"], r["ts_utc"].replace(tzinfo=None)): r["mw"] for r in rows}
+        rows_total += len(mart)
+        if len(parsed) != len(rows):
+            problems.append(f"{zone} {year}: the parser states {len(rows) - len(parsed):,} keys twice")
+        if mart.keys() != parsed.keys():
+            problems.append(f"{zone} {year}: {len(mart):,} mart rows against {len(rows):,} parsed; "
+                            f"{len(parsed.keys() - mart.keys()):,} missing, "
+                            f"{len(mart.keys() - parsed.keys()):,} extra")
+        else:
+            off = sum(1 for k, mw in parsed.items() if not _same(mart[k], mw))
+            if off:
+                problems.append(f"{zone} {year}: {off:,} rows with another MW than the parser's")
+        values = {(zone, ts.replace(tzinfo=dt.timezone.utc)): v for ts, v in con.sql(
+            f"select ts_utc, intensity_g_kwh from main_marts.fact_intensity where {where}"
+        ).fetchall()}
+        ok5, msg5 = check_stage5_intensity(rows, factors, values, sparse)
+        if not ok5:
+            problems.append(f"{zone} {year}: fact_intensity fails Checkpoint 5: {msg5}")
+    [(uncited,)] = con.sql(
+        "select count(*) from main_marts.dim_production_type "
+        "where ef_source_citation is null or trim(ef_source_citation) = ''").fetchall()
+    [(placeholder,)] = con.sql(
+        "select count(*) from main_marts.dim_production_type "
+        "where is_priced and lower(ef_source_citation) like '%placeholder%'").fetchall()
+    if uncited:
+        problems.append(f"{uncited} factor rows without a source")
+    if placeholder:
+        problems.append(f"{placeholder} priced factor rows citing a placeholder")
+    if not years:
+        problems.append("no payloads to check")
+    if problems:
+        return False, "; ".join(problems)
+    return True, (f"{years} zone-years: fact_generation equals the parser row for row "
+                  f"({rows_total:,} rows), fact_intensity passes Checkpoint 5, every factor "
+                  "row cites a source and none is priced from a placeholder")
