@@ -598,6 +598,30 @@ had priced it, and no row of the factor file tells the two apart. The Monte
 Carlo interval joins `fact_intensity` in WE 6, and
 `assert_deterministic_within_mc_interval` stays disabled until it does.
 
+**The interval, rule fixed on 25.10.2026 before the first run.** One set of
+factor draws serves every step, stored with its seed in `dim_factor_draw`: a
+factor's error is the same in every hour, so a day, a year or the saving of a
+load shift takes its interval from the same draws at every step it spans.
+Drawn afresh at each step, those errors would average out and such intervals
+would come out far too narrow; a single step's interval is the same either
+way. Each reported step's 90% interval is the 5th to 95th percentile of its
+mix under the stored draws (`intensity.step_intervals`, run in a dbt Python
+model), set beside the point in `fact_intensity`.
+
+1. **Draws.** 2,000, if every reported step's 5th and 95th percentiles move
+   by less than 1% when the draws are raised to 20,000: Checkpoint 8's
+   convergence criterion, applied step by step. Otherwise the smaller of
+   5,000 and 10,000 that meets it; if neither does, 10,000, with the largest
+   movement stated.
+2. **The point inside.** The deterministic point lies inside its interval at
+   every reported step (`assert_deterministic_within_mc_interval`). A step
+   where it does not fails the build.
+3. **The join.** DE-LU's yearly intervals, computed in SQL from the stored
+   draws over the steps that report an intensity, agree within 1% at both
+   bounds with those in `docs/FACTOR_CHECK.md`, which were drawn on each
+   year's mix with 10,000 draws. A larger gap means the draws or the energy
+   are joined wrongly, and nothing is reported until it is explained.
+
 **Checkpoint 6**
 
 ```python
