@@ -25,9 +25,9 @@ has been pulled.*
 
 | | Written | Unit-tested | Run against real data |
 |---|---|---|---|
-| Ingestion client (ENTSO-E) | yes | token redaction, the append-only raw store, local-year windows | **A44 and A75** — A44 06.10.2026; A75 for DE-LU and FR, 2025 on 17.10.2026 and 2021–2024 on 18.10.2026; A65 not yet fetched |
+| Ingestion client (ENTSO-E) | yes | token redaction, the append-only raw store, local-year windows | **A44 and A75** — A44 06.10.2026; A75 for DE-LU and FR, 2025 on 17.10.2026 and 2021–2024 on 18.10.2026; for Germany alone, 2024–2025, on 25.10.2026; A65 not yet fetched |
 | Ingestion client (SMARD) | yes | the yearly backfill: which weeks a year needs, stored weeks not fetched again | **yes** — one week 06.10.2026; every week of 2021–2025, hourly and quarter-hourly, 19.10.2026 |
-| Ingestion client (Energy-Charts) | yes, 25.10.2026 | the monthly backfill: which months a year needs, what counts as data, stored months not fetched again | not yet: for the hour-by-hour check of Checkpoint 5 |
+| Ingestion client (Energy-Charts) | yes, 25.10.2026 | the monthly backfill: which months a year needs, what counts as data, stored months not fetched again | **yes** — every month of 2024–2025, 25.10.2026; tracks our parse at r = 0.9995 and 0.9997 (Checkpoint 5) |
 | Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **yes** — DE-LU and FR 2021–2025, 17. and 18.10.2026 |
 | Parser, A44 prices (trap 5) | yes | yes | **yes** — the DE-LU payloads of 2021–2025; curve 1 equals SMARD 4169 to the cent in every year, 19.10.2026 |
 | Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; two weeks of 2025 plotted and their shape checked, 24.10.2026; checked against Electricity Maps' published figures, 25.10.2026; the Monte Carlo interval and the fact table **not yet** |
@@ -516,6 +516,15 @@ python -m src.ingest.energycharts_client 2024 2025
 python notebooks/em_crosscheck.py
 python notebooks/energy_charts.py
 ```
+
+**Pulled and run 25.10.2026.** Both rules held. Germany alone moves our
+intensity at Electricity Maps' factors by 0.19–0.24%, so Luxembourg is not
+the cause of the gap. Energy-Charts' generation, priced with our factors,
+tracks our parse of Germany alone hour by hour: r = 0.9995 (2024) and 0.9997
+(2025), best unshifted, means 2.5% and 1.0% lower; the levels part on gas,
+hard coal, solar, run-of-river and waste. Our generation data are confirmed;
+what remains of the gap to Electricity Maps is how they average a year and
+what their processing does (`docs/EM_CROSSCHECK.md`).
 
 **This is the free/local gate.** Everything to here costs nothing. Nothing
 after it should start until this passes.

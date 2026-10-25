@@ -1,12 +1,18 @@
-# Against Electricity Maps: the cross-check and the difference explained
+# Cross-checks against Electricity Maps and Energy-Charts
 
-RUNBOOK Checkpoint 5. **Run on 25.10.2026. The timing agrees; the level is
-not settled.** The rule, committed in `6ee3cf2` before the first run, failed:
-recomputed with Electricity Maps' own factors, our parse lands 7.2% (2024) and
-4.8% (2025) above their published production-based means. Their extreme hours
-and days are extreme in our series too, and seven of their eight seasonal
-peaks and troughs fall on our hours. On energy-weighted means the gap is 2.9% and 0.4%, but
-their page does not say which mean it reports.
+RUNBOOK Checkpoint 5. **Run on 25.10.2026. Our generation data and their
+timing are confirmed; the level against Electricity Maps is settled only up to
+how they average a year.** The first rule, committed in `6ee3cf2` before its
+run, failed: recomputed with Electricity Maps' own factors, our parse lands
+7.2% (2024) and 4.8% (2025) above their published production-based means, as
+plain means of hours. On energy-weighted means the gap is 2.9% and 0.4%, and
+their page does not say which mean it reports. Their extreme hours and days
+are extreme in our series too, and seven of their eight seasonal peaks and
+troughs fall on our hours. Two follow-up checks, their rules committed in
+`f5e4d8e` before the data was pulled, both held: Germany alone, the area they
+use, moves our figure by 0.2%, so Luxembourg is not the cause; and Fraunhofer
+ISE's Energy-Charts generation, priced with our factors, tracks ours hour by
+hour at r = 0.9995 and 0.9997, its means 2.5% and 1.0% lower.
 
 ## What was accessible
 
@@ -122,11 +128,61 @@ energy-weighted, 4.8% and 7.2% if it is a plain mean. Three causes remain
 open and cannot be told apart from public data: Luxembourg in our area, their
 validation and gap-filling, and the factors' vintage (those cited are the
 files of 25.10.2026, which may postdate the page). Their production-based
-hourly series would settle it. Two public routes are set up instead, each with
-its rule committed before the data (25.10.2026): an A75 pull for Germany
-alone, `10Y1001A1001A83F`, the area they use (rule 5 of
-`notebooks/em_crosscheck.py`), and Fraunhofer ISE's Energy-Charts generation
-for Germany, set against our parse hour by hour (`notebooks/energy_charts.py`).
+hourly series would settle it. Two public routes were set up instead, each
+with its rule committed before the data (`f5e4d8e`), and both have run.
+
+## Germany alone, rule 5
+
+A75 for `10Y1001A1001A83F`, pulled 25.10.2026 (2024 twice; the newer retrieval
+is read), every hour of both years complete. The prediction, committed before
+the pull, was that the area moves C by less than 1%. It holds: without
+Luxembourg, C rises by 0.19–0.24%, so the area is not a cause of the gap.
+Rule 3, applied to Germany alone unchanged, still fails on plain means.
+
+| Year | Mean | C, DE-LU | C, Germany alone | Change | Theirs, production-based | Germany alone against it |
+|---|---|---:|---:|---:|---:|---:|
+| 2024 | plain | 394.3 | 395.1 | +0.19% | 367.8 | +7.4% |
+| 2024 | energy-weighted | 378.5 | 379.3 | +0.21% | 367.8 | +3.1% |
+| 2025 | plain | 379.8 | 380.5 | +0.20% | 362.5 | +5.0% |
+| 2025 | energy-weighted | 364.0 | 364.9 | +0.24% | 362.5 | +0.7% |
+
+## Hour by hour against Energy-Charts
+
+Fraunhofer ISE's Energy-Charts publishes Germany's public net generation by
+source every quarter-hour. It publishes no intensity, so
+`notebooks/energy_charts.py` prices its mix and our parse of Germany alone
+with the same factors, ours, hour by hour. 24 months were pulled on 25.10.2026,
+all HTTP 200, and every series name was covered by the map written before the
+pull. The rule: the two agree if their hourly intensities correlate at r ≥
+0.98, correlate best unshifted against shifts of up to two hours, and have
+means within 3%.
+
+| Year | Hours in both | Ours | Energy-Charts | Difference | r | r at −1 h, +1 h | Verdict |
+|---|---:|---:|---:|---:|---:|---|---|
+| 2024 | 8,784 | 376.1 | 366.7 | −2.5% | 0.9995 | 0.9792, 0.9793 | agree |
+| 2025 | 8,760 | 371.1 | 367.5 | −1.0% | 0.9997 | 0.9770, 0.9769 | agree |
+
+The mean absolute hourly difference is 9.5 (2024) and 4.3 (2025) gCO₂e/kWh. The
+hours line up: the correlation peaks unshifted and falls to 0.98 an hour either
+way. The levels part on a few fuels. Energy-Charts counts less gas (−18.2% in
+2025, −23.4% in 2024), hard coal (−5.5%, −13.1%), solar (−5.0%, −5.4%) and
+onshore wind (−1.6%, −1.7%), and more run-of-river (+19.7%, +30.1%) and waste
+(+58.9%, +41.1%, unpriced). Lignite, offshore wind, coal-derived gas, oil,
+pumped storage, reservoir hydro and other are the same to within 0.5%, and
+ENTSO-E's other renewable (0.7–0.9 TWh, unpriced) has no counterpart. Less gas
+and hard coal, and more run-of-river, outweigh less solar, so Energy-Charts'
+intensity is the lower one.
+
+## What the follow-ups settle
+
+Our generation data are not the cause of the gap: an independent compilation
+agrees with them hour by hour, and differs in level by less than the gap, in
+the direction that would narrow it. Nor is the area. What remains is how
+Electricity Maps averages a year and what its own processing does. If their
+mean is energy-weighted, the like-for-like gap on Germany alone is 0.7% in 2025
+and 3.1% in 2024, and the 2024 remainder is open, with the factors' vintage the
+candidate. If it is a plain mean, the gap is 5.0% and 7.4%, more than any
+difference between the two generation datasets.
 
 ## The difference, explained
 
@@ -174,4 +230,6 @@ Sources: Electricity Maps, Grid in Review 2025: Germany, and
 electricitymaps-contrib (`DATA_SOURCES.md`, `config/zones/DE.yaml`,
 `config/defaults.yaml`, `electricitymap/contrib/parsers/ENTSOE.py`), read on
 25.10.2026. No data of theirs is stored in this repository beyond the
-published figures cited above.
+published figures cited above. Energy-Charts.info (Fraunhofer ISE), public net
+electricity generation for Germany, CC BY 4.0, retrieved 25.10.2026; the
+monthly responses are in `raw/`, git-ignored, and in `raw/manifest.csv`.

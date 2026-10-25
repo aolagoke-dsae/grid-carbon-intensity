@@ -392,9 +392,12 @@ their factors and coverage, our parse lands 0.4% above their production-based
 hours, and their page does not say which. The gap from 352.1 to 335.4 is their
 factors (+9.8, mostly coal), the generation we leave unpriced (+2.2), a
 residual (−1.5) and imports (−27.1); both sides use life-cycle factors.
-Details, and 2024, in `docs/EM_CROSSCHECK.md`. Two pulls are set up to settle
-the level, their rules committed first: Germany alone, the area they use, and
-Fraunhofer ISE's Energy-Charts generation, compared hour by hour.
+Details, and 2024, in `docs/EM_CROSSCHECK.md`. Two follow-up checks, their
+rules committed before the pulls, both held: Germany alone, the area they use,
+moves the figure by 0.2%, and Fraunhofer ISE's Energy-Charts generation, priced
+with our factors, tracks ours hour by hour (r = 0.9995 and 0.9997, means 2.5%
+and 1.0% lower). Our generation data are confirmed; what remains is how they
+average a year.
 
 ## The interval is the deliverable
 
