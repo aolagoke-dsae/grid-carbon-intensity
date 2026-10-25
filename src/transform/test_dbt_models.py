@@ -18,6 +18,10 @@ Since 25.10.2026 the three facts as well: fact_generation must hold exactly
 the parser's rows, fact_intensity must pass the Python Checkpoint 5 check,
 fact_price must be parse_prices' expansion of the selected curve, and every
 fact row must resolve to a retrieval in the fixture's raw/manifest.csv.
+Since the same day the Monte Carlo interval: dim_factor_draw must hold
+intensity.py's draws for the project's seed, every reported step's interval
+must be its parsed mix under them (check_stage6_marts), and a point moved out
+of its interval must fail the acceptance test.
 
 Needs dbt-core and dbt-duckdb (requirements.txt). Skipped where dbt cannot be
 imported, unless REQUIRE_DBT=1, as in CI's dbt job.
@@ -43,13 +47,14 @@ except Exception as e:  # noqa: BLE001 - any import failure means no dbt here
     pytest.skip(f"dbt cannot be imported here: {e}", allow_module_level=True)
 
 import duckdb
+import numpy as np
 
 import raw_store
 import xml_to_parquet as X
 from entsoe_parse import parse
 from entsoe_prices_parse import parse_prices
-from intensity import load_factors
-from validate import check_stage5_intensity, load_coverage_policy
+from intensity import load_factors, shared_factor_draws
+from validate import check_stage5_intensity, check_stage6_marts, load_coverage_policy
 
 REPO = Path(__file__).resolve().parents[2]
 NS75 = "urn:iec62325.351:tc57wg16:451-6:generationloaddocument:3:0"
@@ -163,6 +168,8 @@ def _project(root, payloads, unrecorded=()):
             })
     X.land_tree(root / "raw", root / "raw" / "parquet")
     shutil.copytree(REPO / "config", root / "config")
+    # The dbt Python models load src/transform/intensity.py from GRID_ROOT.
+    shutil.copytree(REPO / "src", root / "src", ignore=shutil.ignore_patterns("__pycache__", "test_*.py"))
     with (root / "config" / "sparse_series.csv").open("a", encoding="utf-8", newline="") as fh:
         fh.write(f'{FR},B18,,2026-10-25,2026-10-18,"fixture: not published before 26.10.2026"\n')
     (root / "warehouse").mkdir()
@@ -215,7 +222,9 @@ def test_every_model_and_test_passes_on_the_fixtures(built):
             "assert_step_count_per_local_day", "assert_no_consumption_in_generation_total",
             "fact_generation", "fact_intensity", "fact_price", "int_generation_partial_steps",
             "int_prices_gapfilled", "assert_intensity_recomputed_from_the_mix",
-            "assert_every_fact_row_resolves_to_the_manifest", "assert_one_row_per_fact_grain"
+            "assert_every_fact_row_resolves_to_the_manifest", "assert_one_row_per_fact_grain",
+            "dim_factor_draw", "int_intensity_interval", "assert_deterministic_within_mc_interval",
+            "assert_every_factor_draw_inside_its_band"
             } <= set(results)
 
 
@@ -327,6 +336,67 @@ def test_the_price_fact_is_the_selected_curve_expanded(built):
     assert got == want
     assert len(got) == 24
     assert con.sql("select count(*) from main_marts.fact_price where was_carried").fetchall() == [(23,)]
+
+
+def _mc_vars():
+    """(mc_draws, mc_seed), the project vars of dbt/dbt_project.yml."""
+    import yaml
+    v = yaml.safe_load((REPO / "dbt" / "dbt_project.yml").read_text(encoding="utf-8"))["vars"]
+    return int(v["mc_draws"]), int(v["mc_seed"])
+
+
+def test_the_factor_draws_are_the_samplers_with_the_projects_seed(built):
+    """dim_factor_draw holds intensity.shared_factor_draws for the project's
+    mc_draws and mc_seed, one row per draw and priced fuel: the sampling
+    stays in Python, and the warehouse stores what it drew."""
+    _, con, _, _, root = built
+    n, seed = _mc_vars()
+    fuels, want = shared_factor_draws(load_factors(root / "config" / "ipcc_ar5_factors.csv"), n, seed)
+    got = con.sql("select psr_type, draw_id, ef_g_kwh, mc_seed from main_marts.dim_factor_draw "
+                  "order by psr_type, draw_id").fetchall()
+    assert len(got) == n * len(fuels)
+    assert [p for p, *_ in got[::n]] == fuels
+    assert {s for *_, s in got} == {seed}
+    assert np.allclose(np.array([e for _, _, e, _ in got]).reshape(len(fuels), n).T, want,
+                       rtol=1e-12, atol=0)
+
+
+def test_the_marts_pass_checkpoint_6_with_the_interval(built):
+    """The whole Checkpoint 6 check on the fixture warehouse: the generation
+    fact against the parser, the point against Checkpoint 5, and each
+    reported step's interval against its parsed mix under the stored draws,
+    the point inside it, no interval where the point is withheld."""
+    _, con, payloads, _, root = built
+    factors = load_factors(root / "config" / "ipcc_ar5_factors.csv")
+    sparse, _ = load_coverage_policy(sparse_csv=root / "config" / "sparse_series.csv",
+                                     gaps_csv=root / "config" / "source_gaps.csv")
+    ok, message = check_stage6_marts(
+        con, [(zone, 2026, parse(text)) for doc, zone, text in payloads if doc == "A75"], factors, sparse)
+    assert ok, message
+    n, seed = _mc_vars()
+    assert f"{n:,} stored draws of seed {seed}" in message, message
+    [(banded, withheld)] = con.sql(
+        "select count(intensity_p05_g_kwh), count(*) filter (where intensity_g_kwh is null) "
+        "from main_marts.fact_intensity").fetchall()
+    assert banded > 0 and withheld > 0
+
+
+def test_a_point_outside_its_interval_fails_the_acceptance_test(tmp_path):
+    """RUNBOOK Checkpoint 7, break one on purpose, for the criterion the whole
+    build answers to: move one reported step's 5th percentile above its point
+    and assert_deterministic_within_mc_interval must fail on that step."""
+    _project(tmp_path, [("A75", DE, _de()), ("A75", FR, _fr()), ("A44", DE, _a44())])
+    run, proc = _dbt(tmp_path, "run")
+    assert {s for s, _ in run.values()} == {"success"}, proc.stdout[-3000:]
+    con = duckdb.connect(str(tmp_path / "warehouse" / "grid.duckdb"))
+    try:
+        con.sql("update main_marts.fact_intensity set intensity_p05_g_kwh = intensity_g_kwh + 1 "
+                "where ts_utc = (select min(ts_utc) from main_marts.fact_intensity "
+                "where intensity_g_kwh is not null)")
+    finally:
+        con.close()
+    tests, proc = _dbt(tmp_path, "test", "--select", "assert_deterministic_within_mc_interval")
+    assert tests == {"assert_deterministic_within_mc_interval": ("fail", 1)}, proc.stdout[-3000:]
 
 
 def test_a_deleted_day_and_an_empty_a01_position_fail_their_tests(tmp_path):

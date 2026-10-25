@@ -14,13 +14,17 @@ import numpy as np
 import pytest
 
 from intensity import (
+    MC_SEED,
     Z_BAND,
     Factor,
     describe_sampling,
     energy_by_fuel,
     factor_matrix,
+    intensity_draws,
     load_factors,
     sample_factor,
+    shared_factor_draws,
+    step_intervals,
     summarise,
     variance_contribution,
 )
@@ -375,3 +379,56 @@ def test_a_single_varying_fuel_owns_all_of_the_spread(factors):
     assert [r["psr_type"] for r in shares] == ["B14"]
     assert shares[0]["variance_share"] == pytest.approx(1.0)
     assert shares[0]["width_share"] == pytest.approx(1.0)
+
+
+# --------------------------------------------------------------------------
+# One set of draws for every step (WE 6): what the warehouse stores in
+# dim_factor_draw and int_intensity_interval computes with
+# --------------------------------------------------------------------------
+def test_shared_draws_are_the_priced_fuels_under_the_seed(factors):
+    """The priced fuels in sorted order, each column drawn as factor_matrix
+    draws it; the same seed gives the same draws, another seed others."""
+    fuels, draws = shared_factor_draws(factors, 500, 11)
+    assert fuels == sorted(p for p, f in factors.items() if f.priced)
+    assert np.array_equal(draws, factor_matrix(fuels, factors, 500, np.random.default_rng(11)))
+    assert np.array_equal(draws, shared_factor_draws(factors, 500, 11)[1])
+    assert not np.array_equal(draws, shared_factor_draws(factors, 500, 12)[1])
+    assert np.array_equal(shared_factor_draws(factors, 50)[1], shared_factor_draws(factors, 50, MC_SEED)[1])
+
+
+def test_a_steps_interval_is_its_mix_under_the_shared_draws(factors):
+    """Each row of step_intervals is what intensity_draws gives that step's
+    mix under the same factor draws, however the steps are blocked; a step
+    without priced energy gets no interval."""
+    fuels, draws = shared_factor_draws(factors, 4000, 5)
+    mixes = [{"B02": 300.0, "B04": 500.0, "B19": 900.0}, {"B14": 7000.0, "B12": 300.0, "B16": 50.0}, {}]
+    energy = np.array([[m.get(p, 0.0) for p in fuels] for m in mixes])
+    got = step_intervals(energy, draws, budget=4000)        # one step per block
+    assert np.allclose(got, step_intervals(energy, draws), rtol=1e-12, atol=0, equal_nan=True)
+    for m, row in zip(mixes[:2], got):
+        w = np.array([m.get(p, 0.0) for p in fuels])
+        assert row == pytest.approx(np.percentile(draws @ w / w.sum(), [5, 50, 95]), rel=1e-12)
+    assert np.isnan(got[2]).all()
+
+
+def test_a_shared_draw_keeps_a_years_interval_as_wide_as_its_errors(factors):
+    """Prevents: drawing each step afresh. A factor's error is the same in
+    every hour, so the mean of a hundred identical hours is exactly as
+    uncertain as one of them. Drawn independently per hour, the errors
+    average out and the interval shrinks about tenfold."""
+    mix = {"B02": 300.0, "B04": 500.0, "B19": 900.0}
+    fuels, draws = shared_factor_draws(factors, 4000)
+    w = np.array([mix.get(p, 0.0) for p in fuels])
+    one = step_intervals(w[None, :], draws)[0]
+    year = step_intervals(np.tile(w, (100, 1)).sum(axis=0)[None, :], draws)[0]
+    rng = np.random.default_rng(1)
+    hourly = np.stack([intensity_draws(mix, factors, 4000, rng)[0] for _ in range(100)])
+    width_independent = np.subtract(*np.percentile(hourly.mean(axis=0), [95, 5]))
+    assert year == pytest.approx(one, rel=1e-12)
+    assert width_independent < (one[2] - one[0]) / 5
+
+
+def test_step_intervals_refuses_energy_and_draws_of_different_fuels(factors):
+    fuels, draws = shared_factor_draws(factors, 10)
+    with pytest.raises(ValueError):
+        step_intervals(np.ones((2, len(fuels) - 1)), draws)

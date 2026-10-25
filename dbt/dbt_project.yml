@@ -30,6 +30,12 @@ clean-targets: ["target", "dbt_packages"]
 # models/staging/stg_entsoe__prices.sql.
 vars:
   a44_curve: 1
+  # The Monte Carlo draws every step shares (models/marts/dim_factor_draw.py).
+  # The count is fixed by the rule in RUNBOOK Stage 6, the seed is
+  # src/transform/intensity.py's MC_SEED. Override per run, for Checkpoint 8's
+  # convergence check:  dbt build --vars '{mc_draws: 20000}'
+  mc_draws: 10000
+  mc_seed: 20260917
 
 models:
   grid_intensity:

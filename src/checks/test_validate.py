@@ -9,7 +9,7 @@ import datetime as dt
 
 import pytest
 
-from intensity import Factor
+from intensity import Factor, shared_factor_draws, step_intervals
 from validate import (
     check_stage2_parse,
     check_stage3_coverage,
@@ -364,9 +364,30 @@ def test_stage4_still_fails_on_a_fuel_with_no_row_at_all():
     assert not ok and "B08" in msg
 
 
-def _warehouse(rows, values, citation="AR5 Table A.III.2"):
-    """The three marts check_stage6_marts reads, in an in-memory DuckDB."""
+DRAWS = 200
+
+
+def _band(rows, values, fuels, draws):
+    """Each reported step's (p05, p50, p95) under the draws, as the warehouse
+    computes it."""
+    import numpy as np
+    reported = sorted(k for k, v in values.items() if v is not None)
+    energy = np.zeros((len(reported), len(fuels)))
+    for r in rows:
+        k = (r["zone"], r["ts_utc"])
+        if k in values and values[k] is not None and r["psr"] in fuels and r["direction"] == "generation":
+            energy[reported.index(k), fuels.index(r["psr"])] += r["mwh"]
+    return {k: tuple(q) for k, q in zip(reported, step_intervals(energy, draws).tolist())}
+
+
+def _warehouse(rows, values, citation="AR5 Table A.III.2", band=None, draws=None, seed=7):
+    """The marts check_stage6_marts reads, in an in-memory DuckDB. draws:
+    (fuels, matrix) for dim_factor_draw, by default shared_factor_draws of
+    FACTORS for `seed`; band: {step: (p05, p50, p95)}, by default each
+    reported step's interval under those draws."""
     import duckdb
+    fuels, d = shared_factor_draws(FACTORS, DRAWS, seed) if draws is None else draws
+    band = _band(rows, values, fuels, d) if band is None else band
     con = duckdb.connect()
     con.sql("create schema main_marts")
     con.sql("create table main_marts.dim_zone as select 'DE' as zone_eic, 'Europe/Berlin' as iana_tz")
@@ -376,22 +397,29 @@ def _warehouse(rows, values, citation="AR5 Table A.III.2"):
         con.sql(f"insert into main_marts.fact_generation values ('{r['zone']}', '{r['psr']}', "
                 f"'{r['direction']}', '{r['ts_utc'].replace(tzinfo=None)}', {r['mw']})")
     con.sql("create table main_marts.fact_intensity (zone_eic varchar, ts_utc timestamp, "
-            "intensity_g_kwh double)")
+            "intensity_g_kwh double, intensity_p05_g_kwh double, intensity_p50_g_kwh double, "
+            "intensity_p95_g_kwh double)")
     for (zone, ts), v in values.items():
-        con.sql(f"insert into main_marts.fact_intensity values ('{zone}', "
-                f"'{ts.replace(tzinfo=None)}', {'null' if v is None else v})")
+        cells = [v, *band.get((zone, ts), (None, None, None))]
+        con.sql(f"insert into main_marts.fact_intensity values ('{zone}', '{ts.replace(tzinfo=None)}', "
+                + ", ".join("null" if c is None else repr(float(c)) for c in cells) + ")")
     con.sql("create table main_marts.dim_production_type (psr_type varchar, "
             "ef_source_citation varchar, is_priced boolean)")
     for psr, f in FACTORS.items():
         cite = "placeholder" if citation is None and f.priced else (citation or "unpriced: why")
         con.sql(f"insert into main_marts.dim_production_type values ('{psr}', '{cite}', {f.priced})")
+    con.sql("create table main_marts.dim_factor_draw (draw_id integer, psr_type varchar, "
+            "ef_g_kwh double, mc_seed integer)")
+    con.sql("insert into main_marts.dim_factor_draw values " + ", ".join(
+        f"({i + 1}, '{p}', {float(d[i, j])!r}, {seed})"
+        for j, p in enumerate(fuels) for i in range(d.shape[0])))
     return con
 
 
 def test_stage6_accepts_marts_that_hold_the_parsed_rows():
     rows = _mix_rows(steps=4)
     ok, msg = check_stage6_marts(_warehouse(rows, _values(rows)), [("DE", 2026, rows)], FACTORS)
-    assert ok and "12 rows" in msg, msg
+    assert ok and "12 rows" in msg and "4 reported steps" in msg and "200 stored draws of seed 7" in msg, msg
 
 
 @pytest.mark.parametrize("change", ["lost row", "extra row", "other mw", "other intensity"])
@@ -418,3 +446,42 @@ def test_stage6_fails_on_a_factor_priced_from_a_placeholder():
     ok, msg = check_stage6_marts(_warehouse(rows, _values(rows), citation=None),
                                  [("DE", 2026, rows)], FACTORS)
     assert not ok and "placeholder" in msg, msg
+
+
+
+@pytest.mark.parametrize("change", ["other interval", "point outside", "interval when withheld",
+                                    "no interval"])
+def test_stage6_fails_on_an_interval_that_is_not_its_mix_under_the_draws(change):
+    """Prevents: an interval joined to the wrong step or the wrong fuel, a
+    point that escapes it, or one reported where the point is withheld.
+    Step 1 lacks its gas, so the point there is withheld."""
+    rows = _mix_rows(steps=4, drop={("B04", 1)})
+    values = _values(rows, skip={("DE", rows[0]["ts_utc"] + dt.timedelta(hours=0.25))})
+    fuels, d = shared_factor_draws(FACTORS, DRAWS, 7)
+    band = _band(rows, values, fuels, d)
+    first, partial = min(band), ("DE", rows[0]["ts_utc"] + dt.timedelta(hours=0.25))
+    if change == "other interval":
+        band[first] = (band[first][0], band[first][1], band[first][2] + 1.0)
+    elif change == "point outside":
+        band[first] = tuple(values[first] + x for x in (1.0, 2.0, 3.0))
+    elif change == "interval when withheld":
+        band[partial] = band[first]
+    else:
+        del band[first]
+    ok, msg = check_stage6_marts(_warehouse(rows, values, band=band), [("DE", 2026, rows)],
+                                 FACTORS, frozenset())
+    assert not ok, msg
+    assert {"other interval": "differ from the percentiles", "point outside": "outside their interval",
+            "interval when withheld": "withheld steps carry", "no interval": "differ"}[change] in msg, msg
+
+
+def test_stage6_fails_on_draws_that_are_not_the_seeds():
+    """Prevents: intervals that agree with stored draws which are not the
+    published bands' draws for the stated seed."""
+    rows = _mix_rows(steps=4)
+    fuels, d = shared_factor_draws(FACTORS, DRAWS, 7)
+    d = d.copy()
+    d[0, 0] *= 1.01
+    ok, msg = check_stage6_marts(_warehouse(rows, _values(rows), draws=(fuels, d)),
+                                 [("DE", 2026, rows)], FACTORS)
+    assert not ok and "differs from the 200 draws of seed 7 in 1 values" in msg, msg

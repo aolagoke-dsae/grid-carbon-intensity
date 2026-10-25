@@ -85,6 +85,10 @@ Z_BAND = 1.959963984540054  # standard normal quantile at 1 - BAND_TAIL
 
 METHOD_VERSION = "intensity-2.0.0"
 
+# The seed of summarise(), variance_contribution() and the draws the
+# warehouse stores (dim_factor_draw).
+MC_SEED = 20260917
+
 
 @dataclass(frozen=True)
 class Factor:
@@ -205,6 +209,51 @@ def factor_matrix(
     return np.column_stack([factors[p].quantile(z[:, j]) for j, p in enumerate(psrs)])
 
 
+def shared_factor_draws(
+    factors: dict[str, Factor], n_draws: int, seed: int = MC_SEED
+) -> tuple[list[str], np.ndarray]:
+    """One draw of every priced factor per row, shared by every step.
+
+    Returns (fuels, draws): the priced fuels, sorted, and their draws, shape
+    (n_draws, len(fuels)), column j for fuels[j].
+
+    A factor's error is the same in every hour: if lignite's true factor is
+    1,200, it is 1,200 all year. So a figure that spans several steps -- a
+    day, a year, the saving of a load shift -- must use the same draw at
+    every step it spans. Drawing each step afresh lets those errors average
+    out and makes such an interval far too narrow; one step's own interval
+    is the same either way. The warehouse stores these draws in
+    dim_factor_draw, so any total can take its interval in SQL.
+    """
+    fuels = sorted(p for p, f in factors.items() if f.priced)
+    return fuels, factor_matrix(fuels, factors, n_draws, np.random.default_rng(seed))
+
+
+def step_intervals(energy: np.ndarray, draws: np.ndarray, budget: int = 10_000_000) -> np.ndarray:
+    """The 5th, 50th and 95th percentiles of each step's intensity under
+    shared draws, in gCO2e/kWh.
+
+    energy: priced MWh, shape (n_steps, n_fuels), its columns in the order
+    of draws, shape (n_draws, n_fuels), from shared_factor_draws. Returns
+    shape (n_steps, 3); NaN where a step has no priced energy. Each row is
+    what intensity_draws gives the step's mix under the same factor draws.
+    Steps are taken in blocks of about `budget` values, so memory stays flat
+    however long the series.
+    """
+    energy = np.asarray(energy, dtype=float)
+    draws = np.asarray(draws, dtype=float)
+    if energy.ndim != 2 or draws.ndim != 2 or energy.shape[1] != draws.shape[1]:
+        raise ValueError(f"energy {energy.shape} and draws {draws.shape} do not share their fuels")
+    out = np.full((energy.shape[0], 3), np.nan)
+    total = energy.sum(axis=1)
+    rows = np.flatnonzero(total > 0)
+    block = max(1, budget // max(draws.shape[0], 1))
+    for start in range(0, rows.size, block):
+        r = rows[start:start + block]
+        out[r] = np.percentile((energy[r] / total[r, None]) @ draws.T, [5, 50, 95], axis=1).T
+    return out
+
+
 def describe_sampling(factors: dict[str, Factor]) -> list[dict]:
     """What was sampled how, and why. Belongs in the methodology document."""
     rows = []
@@ -300,7 +349,7 @@ def summarise(
     mix: dict[str, float],
     factors: dict[str, Factor],
     n_draws: int = 10_000,
-    seed: int = 20260917,
+    seed: int = MC_SEED,
 ) -> dict:
     """One fact_intensity row: median, 90% interval, coverage, provenance."""
     rng = np.random.default_rng(seed)
@@ -334,7 +383,7 @@ def variance_contribution(
     mix: dict[str, float],
     factors: dict[str, Factor],
     n_draws: int = 10_000,
-    seed: int = 20260917,
+    seed: int = MC_SEED,
 ) -> list[dict]:
     """First-order sensitivity: which fuel's factor the interval is made of.
 

@@ -433,6 +433,57 @@ def _same(a, b) -> bool:
     return math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-9)
 
 
+def _stored_draws(con):
+    """(fuels, draws (n_draws, n_fuels), seeds, problem) from main_marts.dim_factor_draw."""
+    import numpy as np
+    try:
+        stored = con.sql("select psr_type, draw_id, ef_g_kwh, mc_seed from main_marts.dim_factor_draw "
+                         "order by psr_type, draw_id").fetchall()
+    except Exception as e:  # noqa: BLE001 - a warehouse built before 25.10.2026 has no draws
+        return [], None, set(), f"main_marts.dim_factor_draw cannot be read ({type(e).__name__}); rebuild"
+    fuels = list(dict.fromkeys(r[0] for r in stored))
+    n = len(stored) // len(fuels) if fuels else 0
+    ids = [r[1] for r in stored]
+    seeds = {r[3] for r in stored}
+    if not fuels or len(stored) != n * len(fuels) or ids != list(range(1, n + 1)) * len(fuels):
+        return fuels, None, seeds, "dim_factor_draw is not one row per draw 1..n for every fuel"
+    return fuels, np.array([r[2] for r in stored], dtype=float).reshape(len(fuels), n).T, seeds, None
+
+
+def _interval_problems(rows, values: dict, band: dict, fuels: list, draws, step_intervals) -> tuple:
+    """(steps checked, problems): each reported step's (p05, p50, p95) must be
+    step_intervals of its parsed priced mix under the stored draws, the point
+    inside; a withheld step carries none."""
+    import numpy as np
+    col = {p: j for j, p in enumerate(fuels)}
+    mix = defaultdict(dict)
+    for r in rows:
+        if r["direction"] == "generation" and r["psr"] in col and r["mwh"] is not None:
+            k = (r.get("zone"), r["ts_utc"])
+            mix[k][r["psr"]] = mix[k].get(r["psr"], 0.0) + r["mwh"]
+    reported = sorted(k for k, v in values.items() if v is not None)
+    energy = np.zeros((len(reported), len(fuels)))
+    for i, k in enumerate(reported):
+        for p, e in mix.get(k, {}).items():
+            energy[i, col[p]] = e
+    want = step_intervals(energy, draws)
+    got = np.array([[np.nan if b is None else b for b in band.get(k, (None,) * 3)] for k in reported],
+                   dtype=float).reshape(-1, 3)
+    out = []
+    off = [k for k, ok in zip(reported, np.isclose(got, want, rtol=1e-9, atol=1e-9).all(axis=1)) if not ok]
+    if off:
+        out.append(f"{len(off):,} intervals differ from the percentiles of their mix under the "
+                   f"stored draws, first {off[0]}")
+    outside = [k for k, (p05, _, p95) in zip(reported, got)
+               if not p05 - 1e-9 * max(abs(p05), 1) <= values[k] <= p95 + 1e-9 * max(abs(p95), 1)]
+    if outside:
+        out.append(f"{len(outside):,} points outside their interval, first {outside[0]}")
+    banded = sorted(k for k, v in values.items() if v is None and any(b is not None for b in band[k]))
+    if banded:
+        out.append(f"{len(banded):,} withheld steps carry an interval, first {banded[0]}")
+    return len(reported), out
+
+
 def check_stage6_marts(con, payloads, factors: dict, sparse=frozenset()) -> tuple[bool, str]:
     """Do the marts hold what the parser and Checkpoint 5 compute? RUNBOOK
     Checkpoint 6.
@@ -447,12 +498,37 @@ def check_stage6_marts(con, payloads, factors: dict, sparse=frozenset()) -> tupl
         (fuel, direction, step) keys, so the mart's row count equals the
         parser's, and the same MW;
       - main_marts.fact_intensity passes check_stage5_intensity on them, so
-        the SQL intensity is the Python one, step for step.
-    And main_marts.dim_production_type cites a source on every row and prices
-    nothing from a placeholder: the two queries of Checkpoint 6.
+        the SQL intensity is the Python one, step for step;
+      - every step it reports carries the 5th, 50th and 95th percentiles of
+        its parsed priced mix under the stored factor draws, with the point
+        inside them, and a step it withholds carries none (since 25.10.2026).
+    And main_marts.dim_factor_draw holds the draws
+    intensity.shared_factor_draws gives for its own count and seed, so the
+    intervals rest on the published bands; main_marts.dim_production_type
+    cites a source on every row and prices nothing from a placeholder: the
+    two queries of Checkpoint 6.
     """
+    try:                        # imported as src.checks.validate from the repository root
+        from src.transform.intensity import shared_factor_draws, step_intervals
+    except ImportError:         # imported with src/checks and src/transform on sys.path
+        from intensity import shared_factor_draws, step_intervals
+    import numpy as np
+
     tz_of = dict(con.sql("select zone_eic, iana_tz from main_marts.dim_zone").fetchall())
-    problems, rows_total, years = [], 0, 0
+    problems, rows_total, years, banded = [], 0, 0, 0
+    fuels, draws, seeds, bad_draws = _stored_draws(con)
+    if bad_draws is None and len(seeds) != 1:
+        bad_draws = f"dim_factor_draw names {len(seeds)} seeds"
+    if bad_draws is None:
+        [seed] = seeds
+        want_fuels, want = shared_factor_draws(factors, draws.shape[0], seed)
+        if want_fuels != fuels:
+            bad_draws = f"dim_factor_draw draws {fuels}, the factor table prices {want_fuels}"
+        elif not np.allclose(draws, want, rtol=1e-12, atol=0):
+            bad_draws = (f"dim_factor_draw differs from the {draws.shape[0]:,} draws of seed {seed} "
+                         f"in {int((~np.isclose(draws, want, rtol=1e-12, atol=0)).sum()):,} values")
+    if bad_draws:
+        problems.append(bad_draws)
     for zone, year, rows in payloads:
         years += 1
         if zone not in tz_of:
@@ -477,12 +553,18 @@ def check_stage6_marts(con, payloads, factors: dict, sparse=frozenset()) -> tupl
             off = sum(1 for k, mw in parsed.items() if not _same(mart[k], mw))
             if off:
                 problems.append(f"{zone} {year}: {off:,} rows with another MW than the parser's")
-        values = {(zone, ts.replace(tzinfo=dt.timezone.utc)): v for ts, v in con.sql(
-            f"select ts_utc, intensity_g_kwh from main_marts.fact_intensity where {where}"
-        ).fetchall()}
+        fact = con.sql(
+            "select ts_utc, intensity_g_kwh, intensity_p05_g_kwh, intensity_p50_g_kwh, "
+            f"intensity_p95_g_kwh from main_marts.fact_intensity where {where}").fetchall()
+        values = {(zone, ts.replace(tzinfo=dt.timezone.utc)): v for ts, v, *_ in fact}
+        band = {(zone, ts.replace(tzinfo=dt.timezone.utc)): tuple(b) for ts, _, *b in fact}
         ok5, msg5 = check_stage5_intensity(rows, factors, values, sparse)
         if not ok5:
             problems.append(f"{zone} {year}: fact_intensity fails Checkpoint 5: {msg5}")
+        if draws is not None:
+            n, found = _interval_problems(rows, values, band, fuels, draws, step_intervals)
+            banded += n
+            problems += [f"{zone} {year}: {p}" for p in found]
     [(uncited,)] = con.sql(
         "select count(*) from main_marts.dim_production_type "
         "where ef_source_citation is null or trim(ef_source_citation) = ''").fetchall()
@@ -498,5 +580,7 @@ def check_stage6_marts(con, payloads, factors: dict, sparse=frozenset()) -> tupl
     if problems:
         return False, "; ".join(problems)
     return True, (f"{years} zone-years: fact_generation equals the parser row for row "
-                  f"({rows_total:,} rows), fact_intensity passes Checkpoint 5, every factor "
-                  "row cites a source and none is priced from a placeholder")
+                  f"({rows_total:,} rows), fact_intensity passes Checkpoint 5, and each of its "
+                  f"{banded:,} reported steps carries its mix's interval under the "
+                  f"{draws.shape[0]:,} stored draws of seed {seed}, the point inside; every "
+                  "factor row cites a source and none is priced from a placeholder")

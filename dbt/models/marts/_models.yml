@@ -26,6 +26,34 @@ models:
         description: Every row cites its source, priced or not (tests/assert_every_factor_has_a_source.sql).
       - name: is_priced
         description: A median and a band, the rule of intensity.Factor.priced; an unpriced fuel enters no intensity.
+  - name: dim_factor_draw
+    description: >
+      The Monte Carlo draws of every priced emission factor, one row per draw
+      and fuel, drawn once by intensity.shared_factor_draws and shared by
+      every step: a factor's error is the same in every hour, so any total
+      takes its interval from these rows. Weight each draw's factors by the
+      total's energy by fuel and take the percentiles over draw_id.
+    config:
+      mc_draws: "{{ var('mc_draws') }}"
+      mc_seed: "{{ var('mc_seed') }}"
+    columns:
+      - name: draw_id
+        description: 1 to the draw count, the project var mc_draws.
+        data_tests: [not_null]
+      - name: psr_type
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_production_type')
+                field: psr_type
+      - name: ef_g_kwh
+        description: The fuel's factor in this draw, gCO2e/kWh, inside its published band.
+        data_tests: [not_null]
+      - name: mc_seed
+        description: The seed of the draws, the project var mc_seed.
+      - name: method_version
+        description: The sampling method of src/transform/intensity.py, METHOD_VERSION.
   - name: fact_generation
     description: >
       One row per zone, production type, direction and step: exactly the rows
@@ -76,10 +104,11 @@ models:
         data_tests: [not_null]
   - name: fact_intensity
     description: >
-      The deterministic intensity of every generation step, at median factors
-      over the priced share of generation; withheld where a series the zone
-      publishes is missing or where series of different resolution meet. The
-      SQL twin of RUNBOOK Checkpoint 5.
+      The intensity of every generation step, at median factors over the
+      priced share of generation, with its 90% Monte Carlo interval; both
+      withheld where a series the zone publishes is missing or where series of
+      different resolution meet. The point is the SQL twin of RUNBOOK
+      Checkpoint 5.
     columns:
       - name: zone_eic
         data_tests: [not_null]
@@ -109,6 +138,14 @@ models:
         description: >
           emissions_kg / priced_mwh, gCO2e/kWh. NULL where the step is partial,
           mixes resolutions or has no priced energy.
+      - name: intensity_p05_g_kwh
+        description: The 5th percentile of the step's intensity under the shared factor draws; NULL with the point.
+      - name: intensity_p50_g_kwh
+        description: The median of those draws, above the point where the bands reach further up than down.
+      - name: intensity_p95_g_kwh
+        description: The 95th percentile; the point lies between p05 and p95 (tests/assert_deterministic_within_mc_interval.sql).
+      - name: mc_draws
+        description: The number of factor draws behind the interval.
   - name: fact_price
     description: >
       One day-ahead price per zone and delivery step: the curve trap 5 selects,

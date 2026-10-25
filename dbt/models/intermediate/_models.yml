@@ -22,3 +22,10 @@ models:
     description: >
       Every step of every price period of the curve stg_entsoe__prices keeps;
       an A03 price that repeats is carried forward, an A01 price never is.
+  - name: int_intensity_interval
+    description: >
+      The 5th, 50th and 95th percentiles of every generation step's intensity
+      under the factor draws of dim_factor_draw, computed by
+      intensity.step_intervals from the step's priced energy by fuel. A step
+      without priced energy has no row; fact_intensity withholds the rest
+      where it withholds the point.
