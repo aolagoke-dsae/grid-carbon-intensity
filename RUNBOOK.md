@@ -718,9 +718,34 @@ print(check_stage6_marts(con, payloads, load_factors("config/ipcc_ar5_factors.cs
 - `git clone` + `dbt build` reproduces the warehouse from scratch on a machine
   that has never seen the project. That is the property the whole standard
   exists for. **Not yet.** The payloads are not in git, so a clone builds on
-  real data only after a pull with a token; `curated/sample/` is planned for
-  this. What holds today: a clone builds every model on fixtures (CI), and two
-  environments built the same warehouse from the same landed parquet.
+  real data only after a pull with a token. What holds today: a clone builds
+  every model on fixtures (CI), and two environments built the same warehouse
+  from the same landed parquet.
+
+  `curated/sample/` cannot carry real data (checked 25.10.2026). Under
+  ENTSO-E's Terms of Use (29.03.2023, in force since 01.11.2023) only the
+  data on its List of Data available for reuse (18.10.2023) is open, under
+  CC BY 4.0, and that list holds neither generation per production type (A75)
+  nor day-ahead prices (A44); any other re-use needs the prior agreement of
+  each Primary Owner of Data (clause 3.1). The sample will be synthetic,
+  built from the test fixtures, so that a clone builds without a token. That
+  shows the code runs, not that the figures reproduce.
+
+  **The rebuild, rule fixed on 25.10.2026 before the run.** A clean clone of
+  the commit that carries this rule, in a new directory, with a new virtual
+  environment installed from `requirements.txt`, run with no environment
+  variable but `PATH`, `HOME`, `GRID_ROOT` and `DO_NOT_TRACK` (which turns off
+  dbt's usage statistics), and with nothing from the working copy but the
+  twenty payloads the pipeline reads: the newest accepted A75 and A44
+  retrieval of each zone-year, each checked against its SHA-256 in the
+  committed `manifest.csv`. The commands are this runbook's, as written; the
+  landing and `dbt build` may run in parts that together cover every payload
+  and every node. It reproduces the warehouse if
+  1. `dbt build` is green;
+  2. the Checkpoint 6 snippet above returns `True` on all ten zone-years;
+  3. every table of the marts, and `int_intensity_interval`, equals the
+     working copy's build of 25.10.2026 row for row: the same keys and the
+     same text, numbers within 1e-9 relative.
 
 ---
 
