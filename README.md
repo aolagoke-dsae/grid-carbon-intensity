@@ -88,7 +88,7 @@ Named here rather than left for a reader to discover.
 | | Status |
 |---|---|
 | dbt facts | **built 25.10.2026**: `fact_generation`, `fact_intensity` and `fact_price`, green on the 2021–2025 A75 and A44 data and on fixtures in CI, and equal to the Python parser and the stage 5 check (RUNBOOK Checkpoint 6); `fact_intensity` carries the 90% Monte Carlo interval of every step it reports. Rebuilt from a clean clone the same day, in a new environment, with the payloads verified against `raw/manifest.csv`: every mart table equal row for row. `stg_entsoe__load` and `stg_entsoe__flows` are disabled until A65 and A11 are pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
-| `curated/sample/` | **absent**, and it cannot hold real data: ENTSO-E's list of data open for reuse has neither A75 nor A44 (see **Licence**). It will be synthetic, built from the test fixtures, so that a clone builds without a token. Until then, from a clean clone, `pytest src/transform/test_dbt_models.py` builds the models on fixtures |
+| `curated/sample/` | **built 25.10.2026, synthetic.** It cannot hold real data: ENTSO-E's list of data open for reuse has neither A75 nor A44 (see **Licence**). So it holds the dbt fixtures' payloads, every number invented, and `dbt build --target sample` builds every model from it on a clean clone, as CI's dbt job does on every push. It shows that the code runs, not the figures |
 | Load-shifting decision model | **not started** — the question the project exists to answer |
 | Quarto report, GitHub Pages | **not started** |
 | Power BI dashboard | **not started**; it will read the exported Parquet. The Azure portability excursion was dropped in October 2026 and is archived in `archive/azure-excursion/` |
@@ -116,11 +116,19 @@ it does not add it to the analysis yet.
 
 No subscription, no licence and no free tier is required to run any of it.
 `git clone` then `pytest` works today, and it builds the dbt models on
-fixtures. `dbt build` on real data needs the payloads, which are not
-redistributed (see **Licence**): pull and land them with a token. The planned
-`curated/sample/` will be synthetic: it will let a clone build without a
-token, not reproduce the figures. Stated here rather than discovered after
-cloning.
+fixtures. Without a token, the synthetic sample in `curated/sample/` builds
+the whole warehouse:
+
+```bash
+pip install -r requirements.txt
+cp dbt/profiles.example.yml dbt/profiles.yml
+mkdir -p warehouse
+GRID_ROOT=. dbt build --project-dir dbt --profiles-dir dbt --target sample
+```
+
+That shows the code runs; it reproduces no figure. `dbt build` on real data
+needs the payloads, which are not redistributed (see **Licence**): pull and
+land them with a token. Stated here rather than discovered after cloning.
 
 The architecture is defined in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
@@ -477,20 +485,21 @@ move by up to 1.0%.
 
 ## Tests
 
-`pytest` — 214 tests, all green: 179 test functions, some parametrised. Ten
+`pytest` — 218 tests, all green: 183 test functions, some parametrised. Ten
 read real payloads in `raw/`: four the 7.5 MB 2025 A44 file, six the A44 files
 of 2021–2025 with the SMARD weeks. They **skip in CI**, because `raw/*` is
-gitignored. Thirteen build the dbt models with dbt-duckdb and run in CI's dbt
-job only; the unit-test job reports 191 passed, 10 skipped. A local run with
-`raw/` populated reports 214 passed.
+gitignored. Fourteen build the dbt models with dbt-duckdb and run in CI's dbt
+job only; the unit-test job reports 194 passed, 10 skipped. A local run with
+`raw/` populated reports 218 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
 on — on every push and once a week. Its dbt job parses the project, which
 resolves every model, source, `ref` and test without touching data, and then
-builds every enabled model on landed fixtures and compares the result with
-the Python parser step by step (`test_dbt_models.py`). Until 17 October 2026
-CI only parsed, so no model had run there.
+builds the committed sample from the clean checkout, as a clone without a
+token would, and every enabled model on landed fixtures, comparing the result
+with the Python parser step by step (`test_dbt_models.py`). Until 17 October
+2026 CI only parsed, so no model had run there.
 
 The checks rewritten on 17 October 2026 and the new dbt tests were also run
 against mutants, copies of the code with one fix reverted: every mutant makes
@@ -509,7 +518,8 @@ at least one test fail.
 | `src/transform/test_smard_parse.py` | 17 | SMARD weeks read strictly, six malformed shapes refused; the newest accepted retrieval of each week; hourly means of complete hours only; the agreement measure used against the two A44 curves; six real-data checks that curve 1 is SMARD's to the cent in every year 2021–2025 and curve 2 is not |
 | `src/ingest/test_raw_store.py` | 12 | `raw/` is append-only: a failed pull never replaces data, every retrieval is kept, the smoke scripts report the status they actually got |
 | `src/transform/test_xml_to_parquet.py` | 13 | The landing: stated points only, both domains, dtypes, provenance and the digest check, the newest accepted retrieval of each year, zones outside the analysis left in `raw/` |
-| `src/transform/test_dbt_models.py` | 13 | The dbt models on landed fixtures, step by step against `parse()`; the facts against the parser, the stage 5 and 6 checks and `parse_prices()`; the stored draws against the sampler; a deleted day, an empty A01 position, a retrieval missing from the manifest and a point moved out of its interval fail their tests |
+| `src/transform/test_dbt_models.py` | 14 | The dbt models on landed fixtures, step by step against `parse()`; the facts against the parser, the stage 5 and 6 checks and `parse_prices()`; the stored draws against the sampler; a deleted day, an empty A01 position, a retrieval missing from the manifest and a point moved out of its interval fail their tests; the committed sample builds with the `sample` target |
+| `src/transform/test_sample_data.py` | 3 | The synthetic sample: committed as its builder makes it, every payload recorded and none carrying a real value, the real `raw/` never rewritten |
 
 The test that matters most: **the deterministic point estimate must fall
 inside the Monte Carlo interval built around it.** If it falls outside, the
@@ -557,14 +567,15 @@ raw/                append-only landing, git-ignored: one folder per document,
                     _failed/; manifest.csv is committed
 raw/parquet/        stated points per document type, git-ignored, rebuilt with
                     `python -m src.transform.xml_to_parquet`
-curated/            Parquet outputs, git-ignored
+curated/            Parquet outputs, git-ignored, but for sample/
+curated/sample/     the synthetic sample: payloads, manifest and parquet for
+                    `dbt build --target sample`, every number invented
 archive/            the dropped Azure excursion: its procedure and T-SQL,
                     kept for reference, run nowhere
 conftest.py         makes `pytest` work from the repo root
 requirements-figures.txt  figure libraries, not installed in CI
 
 planned, not present yet — see RUNBOOK.md:
-curated/sample/     synthetic sample so `git clone && dbt build` runs tokenless
 report/             Quarto source → GitHub Pages
 docs/METHODOLOGY.md assurance write-up
 ```
@@ -590,5 +601,5 @@ on ENTSO-E's List of Data available for reuse (18.10.2023) is open, under
 CC BY 4.0, and that list has neither generation per production type (A75) nor
 day-ahead prices (A44); any other re-use needs the prior agreement of each
 Primary Owner of Data (clause 3.1). A sample of the values used here would
-therefore need those owners' agreement, so `curated/sample/` will be
-synthetic.
+therefore need those owners' agreement, so `curated/sample/` is synthetic:
+every number in it is invented, and it is MIT like the code.

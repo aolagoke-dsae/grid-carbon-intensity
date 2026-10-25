@@ -13,6 +13,7 @@ As of 25 October 2026:
 | `models/intermediate/` | 6 models, `_models.yml` | Traps 1, 2 and 4, where the lineage graph can show them: A03 carry-forward with A01 left empty, for generation and for prices; the direction split as a full outer join; MW to MWh. The steps a missing series leaves partial, the twin of `validate.incomplete_steps`. And `int_intensity_interval`, a Python model: each step's 5th, 50th and 95th percentile under the shared factor draws. |
 | `models/marts/` | 4 dimensions, 3 facts, `_models.yml` | `dim_zone` and `dim_production_type` read `config/` in place. `dim_date` is a generated calendar holding the length of every local day (trap 3). `dim_factor_draw`, a Python model, holds the Monte Carlo draws of every priced factor that every step shares. `fact_generation` holds exactly the parser's rows with energy and emissions, `fact_intensity` the intensity of every generation step, the twin of Checkpoint 5, with its 90% interval, and `fact_price` one day-ahead price per step. Every fact row carries `source_sha256`, its retrieval's key in `raw/manifest.csv`. |
 | `tests/` | 11 singular tests, plus 35 generic ones in the `_models.yml` files | Each encodes an error that yields a *plausible number* rather than a crash. |
+| `macros/` | `raw_dir()` | `raw/`, or the synthetic sample in `curated/sample/raw/` on the `sample` target. |
 
 ## Checked against the Python parser
 
@@ -110,6 +111,15 @@ GRID_ROOT=. dbt build --project-dir dbt --profiles-dir dbt     # from the reposi
 No `dbt deps`: the project uses no packages. `dbt_utils` was declared and
 never used, so CI depended on hub.getdbt.com for nothing.
 
-From a clean clone, without `raw/`, run
-`python -m pytest src/transform/test_dbt_models.py`: it lands fixtures and
+From a clean clone, without `raw/` or a token, build the synthetic sample in
+`curated/sample/` (every number invented; `curated/sample/README.md`):
+
+```bash
+GRID_ROOT=. dbt build --project-dir dbt --profiles-dir dbt --target sample
+```
+
+The `sample` target of `profiles.example.yml` reads `curated/sample/raw/` in
+place of `raw/` (`macros/raw_dir.sql`) and writes `warehouse/sample.duckdb`,
+so the real warehouse is never touched; CI's dbt job runs it on every push.
+`python -m pytest src/transform/test_dbt_models.py` lands the fixtures and
 builds every model on them, as CI does.

@@ -9,3 +9,10 @@ grid_intensity:
       # listing it made dbt try to download it (audit B7).
       path: "{{ env_var('GRID_ROOT', '..') }}/warehouse/grid.duckdb"
       threads: 4
+    # A clone without an ENTSO-E token: --target sample builds the synthetic
+    # sample in curated/sample/ into its own file, so the real warehouse is
+    # never touched (src/transform/sample_data.py).
+    sample:
+      type: duckdb
+      path: "{{ env_var('GRID_ROOT', '..') }}/warehouse/sample.duckdb"
+      threads: 4

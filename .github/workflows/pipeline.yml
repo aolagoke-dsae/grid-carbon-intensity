@@ -70,6 +70,14 @@ jobs:
         working-directory: dbt
         run: dbt parse --profiles-dir .
 
+      # The synthetic sample in curated/sample/, built from the clean checkout
+      # as a reader's clone has it: no token, no landing, no fixtures. It
+      # shows that the code runs; the real figures need the ENTSO-E pulls.
+      - name: dbt build on the committed sample, as a clone without a token
+        env:
+          GRID_ROOT: "."
+        run: dbt build --project-dir dbt --profiles-dir dbt --target sample
+
       # Lands fixture payloads, builds every enabled model with dbt-duckdb and
       # compares the SQL with the Python parser step by step, then deletes a
       # day and checks that the coverage test fails. Until 17.10.2026 CI only

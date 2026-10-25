@@ -7,10 +7,11 @@
     a column here, not a comment (docs/ARCHITECTURE.md, honesty rule 3).
 
     fact_intensity is built from fact_generation alone, so it is covered
-    through it.                                                               */
+    through it. On the `sample` target the manifest is the synthetic
+    sample's (macros/raw_dir.sql).                                            */
 with accepted as (
     select distinct sha256
-    from read_csv('{{ env_var("GRID_ROOT", "..") }}/raw/manifest.csv',
+    from read_csv('{{ raw_dir() }}/manifest.csv',
                   header = true, all_varchar = true)
     where rejected = '0'
 ),

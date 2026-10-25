@@ -39,7 +39,7 @@ has been pulled.*
 
 `raw/` holds the A44 and A75 payloads and the SMARD price weeks of 2021–2025
 (and one of 2026), all in `manifest.csv`.
-`curated/` is still empty. `docs/` holds ARCHITECTURE.md and RESOURCES.md, the
+`curated/` holds only the synthetic sample, `curated/sample/`. `docs/` holds ARCHITECTURE.md and RESOURCES.md, the
 decision records FACTOR_CHECK.md and THIRD_ZONE.md, the cross-check
 EM_CROSSCHECK.md, and in `figures/` each figure beside a CSV of what it draws.
 
@@ -554,6 +554,9 @@ mkdir -p warehouse
 GRID_ROOT=. dbt build --project-dir dbt --profiles-dir dbt     # from the repository root
 # PowerShell:  $env:GRID_ROOT = "."; dbt build --project-dir dbt --profiles-dir dbt
 # or from dbt/, where GRID_ROOT defaults to "..":  dbt build --profiles-dir .
+
+# without a token: the synthetic sample in curated/sample/, into warehouse/sample.duckdb
+GRID_ROOT=. dbt build --project-dir dbt --profiles-dir dbt --target sample
 ```
 
 **Inspecting the warehouse.** `duckdb -ui` opens a local UI on
@@ -721,16 +724,18 @@ print(check_stage6_marts(con, payloads, load_factors("config/ipcc_ar5_factors.cs
   new environment rather than on a new machine, and with the payloads brought
   over and verified rather than pulled again. The payloads are not in git, so
   a clone builds on real data only after a pull with a token; without one, a
-  clone builds every model on fixtures (CI).
+  clone builds the whole warehouse from the synthetic sample (below).
 
   `curated/sample/` cannot carry real data (checked 25.10.2026). Under
   ENTSO-E's Terms of Use (29.03.2023, in force since 01.11.2023) only the
   data on its List of Data available for reuse (18.10.2023) is open, under
   CC BY 4.0, and that list holds neither generation per production type (A75)
   nor day-ahead prices (A44); any other re-use needs the prior agreement of
-  each Primary Owner of Data (clause 3.1). The sample will be synthetic,
-  built from the test fixtures, so that a clone builds without a token. That
-  shows the code runs, not that the figures reproduce.
+  each Primary Owner of Data (clause 3.1). The sample is synthetic, built
+  from the test fixtures on the same day (`src/transform/sample_data.py`):
+  `dbt build --target sample` builds every node from it on a clean clone,
+  and CI's dbt job does so on every push. That shows the code runs, not that
+  the figures reproduce.
 
   **The rebuild, rule fixed on 25.10.2026 before the run.** A clean clone of
   the commit that carries this rule, in a new directory, with a new virtual

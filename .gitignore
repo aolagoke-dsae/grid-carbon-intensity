@@ -11,10 +11,10 @@ entsoe_token.txt
 raw/*
 !raw/manifest.csv
 
-# curated Parquet: ignore the full backfill. curated/sample/, planned and not
-# there yet, is the exception: a synthetic sample, since ENTSO-E's terms do not
-# open A75 or A44 for re-use (README, Licence), so that `git clone && dbt
-# build` will work for someone with no ENTSO-E token.
+# curated Parquet: ignore the full backfill. curated/sample/ is the
+# exception: the synthetic sample, since ENTSO-E's terms do not open A75 or
+# A44 for re-use (README, Licence), so that `dbt build --target sample` works
+# on a clone with no ENTSO-E token.
 curated/*
 !curated/sample/
 

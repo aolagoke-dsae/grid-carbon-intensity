@@ -15,8 +15,11 @@ sources:
     # No freshness block (removed 17.10.2026, audit B9): the landed columns
     # carry delivery periods, not load times, so a historical year read as
     # stale for ever, and nothing ran `dbt source freshness` anyway.
+    #
+    # The `sample` target reads the synthetic sample in curated/sample/raw/
+    # instead, the choice macros/raw_dir.sql makes for the SQL.
     meta:
-      external_location: "{{ env_var('GRID_ROOT', '..') }}/raw/parquet/{name}.parquet"
+      external_location: "{{ env_var('GRID_ROOT', '..') }}/{{ 'curated/sample/raw' if target.name == 'sample' else 'raw' }}/parquet/{name}.parquet"
     tables:
       - name: a75
         description: Aggregated generation per production type (16.1.B & C)
