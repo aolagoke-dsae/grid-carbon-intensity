@@ -392,7 +392,9 @@ their factors and coverage, our parse lands 0.4% above their production-based
 hours, and their page does not say which. The gap from 352.1 to 335.4 is their
 factors (+9.8, mostly coal), the generation we leave unpriced (+2.2), a
 residual (−1.5) and imports (−27.1); both sides use life-cycle factors.
-Details, and 2024, in `docs/EM_CROSSCHECK.md`.
+Details, and 2024, in `docs/EM_CROSSCHECK.md`. Two pulls are set up to settle
+the level, their rules committed first: Germany alone, the area they use, and
+Fraunhofer ISE's Energy-Charts generation, compared hour by hour.
 
 ## The interval is the deliverable
 
@@ -503,7 +505,7 @@ quarter-hour fails four more.
 ```
 config/             zones, coverage exemptions, recorded source gaps and
                     emission factors: CSV, read by Python and dbt alike
-src/ingest/         ENTSO-E and SMARD clients → raw/ + manifest.csv
+src/ingest/         ENTSO-E, SMARD and Energy-Charts clients → raw/ + manifest.csv
 src/transform/      A75 parser, A44 price parser, SMARD reader, parquet
                     landing, intensity, uncertainty
 src/checks/         stage checkpoint functions, importable and testable
@@ -516,8 +518,8 @@ docs/               ARCHITECTURE.md, the standard; RESOURCES.md, reading by stag
                     Maps; figures/, each PNG beside a CSV of what it draws
 notebooks/          percent-cell exploration, nothing load-bearing: Stages 0–2
                     interactively, the third-zone diagnostic, the price-curve
-                    check, the Stage 5 week plot, the Electricity Maps
-                    cross-check
+                    check, the Stage 5 week plot, the Electricity Maps and
+                    Energy-Charts cross-checks
 .github/workflows/  pipeline.yml — pytest on 3.11 and 3.14; dbt parse and a
                     build on fixtures; weekly
 raw/                append-only landing, git-ignored: one folder per document,

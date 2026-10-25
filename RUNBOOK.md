@@ -27,6 +27,7 @@ has been pulled.*
 |---|---|---|---|
 | Ingestion client (ENTSO-E) | yes | token redaction, the append-only raw store, local-year windows | **A44 and A75** — A44 06.10.2026; A75 for DE-LU and FR, 2025 on 17.10.2026 and 2021–2024 on 18.10.2026; A65 not yet fetched |
 | Ingestion client (SMARD) | yes | the yearly backfill: which weeks a year needs, stored weeks not fetched again | **yes** — one week 06.10.2026; every week of 2021–2025, hourly and quarter-hourly, 19.10.2026 |
+| Ingestion client (Energy-Charts) | yes, 25.10.2026 | the monthly backfill: which months a year needs, what counts as data, stored months not fetched again | not yet: for the hour-by-hour check of Checkpoint 5 |
 | Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **yes** — DE-LU and FR 2021–2025, 17. and 18.10.2026 |
 | Parser, A44 prices (trap 5) | yes | yes | **yes** — the DE-LU payloads of 2021–2025; curve 1 equals SMARD 4169 to the cent in every year, 19.10.2026 |
 | Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; two weeks of 2025 plotted and their shape checked, 24.10.2026; checked against Electricity Maps' published figures, 25.10.2026; the Monte Carlo interval and the fact table **not yet** |
@@ -490,6 +491,31 @@ print(check_stage5_intensity(rows, factors, values, sparse))
   consumption leg only, counted as partial.) These figures cover the priced
   share of generation only, DE-LU 94.9–95.6% and France 97.7–98.5%
   (Checkpoint 4).
+
+**Two pulls to settle the level (25.10.2026).** Both rules are committed
+before the data. Rule 5 of `notebooks/em_crosscheck.py` takes Germany alone,
+`10Y1001A1001A83F`, the area Electricity Maps uses; it is in
+`config/zones.csv` outside the analysis, so nothing lands in the warehouse.
+`notebooks/energy_charts.py` sets Fraunhofer ISE's public net generation for
+Germany against our parse of it, hour by hour (Energy-Charts.info, CC BY 4.0).
+The first needs the token; the second does not, and takes about twelve
+minutes at the API's two requests a minute:
+
+```python
+import os
+from dotenv import load_dotenv
+from src.ingest.entsoe_client import generation_per_type
+load_dotenv()
+for year in (2024, 2025):
+    row = generation_per_type("10Y1001A1001A83F", year, os.environ["ENTSOE_TOKEN"])
+    print(year, row["http_status"], row["rejected"], row["bytes"])
+```
+
+```bash
+python -m src.ingest.energycharts_client 2024 2025
+python notebooks/em_crosscheck.py
+python notebooks/energy_charts.py
+```
 
 **This is the free/local gate.** Everything to here costs nothing. Nothing
 after it should start until this passes.

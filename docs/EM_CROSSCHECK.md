@@ -122,7 +122,11 @@ energy-weighted, 4.8% and 7.2% if it is a plain mean. Three causes remain
 open and cannot be told apart from public data: Luxembourg in our area, their
 validation and gap-filling, and the factors' vintage (those cited are the
 files of 25.10.2026, which may postdate the page). Their production-based
-hourly series would settle it, and so would an A75 pull for `10Y1001A1001A83F`.
+hourly series would settle it. Two public routes are set up instead, each with
+its rule committed before the data (25.10.2026): an A75 pull for Germany
+alone, `10Y1001A1001A83F`, the area they use (rule 5 of
+`notebooks/em_crosscheck.py`), and Fraunhofer ISE's Energy-Charts generation
+for Germany, set against our parse hour by hour (`notebooks/energy_charts.py`).
 
 ## The difference, explained
 

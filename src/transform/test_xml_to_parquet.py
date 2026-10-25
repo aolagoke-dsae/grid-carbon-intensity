@@ -200,6 +200,8 @@ def test_zones_outside_the_analysis_stay_in_raw(tmp_path):
 
 
 def test_the_command_line_skips_exactly_the_zones_outside_the_analysis():
+    """The three third-zone candidates, and Germany alone, pulled for the
+    Electricity Maps and Energy-Charts cross-checks (docs/EM_CROSSCHECK.md)."""
     assert X.zones_outside_analysis() == {
-        "10YNL----------L", "10YPL-AREA-----S", "10Y1001A1001A59C",
+        "10YNL----------L", "10YPL-AREA-----S", "10Y1001A1001A59C", "10Y1001A1001A83F",
     }

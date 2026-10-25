@@ -134,11 +134,11 @@ SPARSE, _ = load_coverage_policy()
 
 
 # %%
-def complete_hours(year: int) -> tuple[Path, dict, int]:
+def complete_hours(year: int, eic: str = EIC) -> tuple[Path, dict, int]:
     """The year's complete UTC hours, {hour: {psr: MWh}}, and how many hours
     the payload states at all (rule 1)."""
     a75 = ROOT / "raw" / "A75"
-    xml = [p for p in current_payloads(a75) if p.parent == a75 / EIC / str(year)][0]
+    xml = [p for p in current_payloads(a75) if p.parent == a75 / eic / str(year)][0]
     rows = parse(xml.read_text(encoding="utf-8"))
     partial = incomplete_steps(rows, SPARSE)
     length = {(r["zone"], r["ts_utc"]): r["step_hours"] for r in rows if r["direction"] == "generation"}
@@ -400,3 +400,44 @@ for year in YEARS:
     print(f"{year}, C on their direct factors: plain {plain(direct):.1f}, energy-weighted "
           f"{energy_weighted(direct):.1f}, against their production-based "
           f"{EM_MEAN[year]['production-based']}")
+
+
+# %% [markdown]
+# ## Extended on 25.10.2026, before the pull of Germany alone
+#
+# 5. **Germany alone.** Their area is Germany alone, `10Y1001A1001A83F`; ours
+#    is DE-LU. Prediction, stated before the pull: Luxembourg's generation is
+#    small, so C on Germany alone differs from C on DE-LU by less than 1% in
+#    each year, on both means. Rule 3 is then applied to Germany alone,
+#    unchanged. If the area moves C by 1% or more, it is a cause of the gap,
+#    by that much.
+#
+# The pull: `generation_per_type("10Y1001A1001A83F", year, token)` for 2024 and
+# 2025 (RUNBOOK, Checkpoint 5). Until it is in, this cell says so.
+
+# %%
+DE_ALONE = "10Y1001A1001A83F"
+if not all((ROOT / "raw" / "A75" / DE_ALONE / str(y)).is_dir() for y in YEARS):
+    print(f"\n{DE_ALONE} is not pulled yet for {YEARS}; rule 5 waits for it.")
+else:
+    print("\n| Year | Mean | C, DE-LU | C, Germany alone | Change | Theirs, production-based "
+          "| Germany alone against it |")
+    print("|---|---|---:|---:|---:|---:|---:|")
+    held, within = [], []
+    for year in YEARS:
+        xml, hours, stated = complete_hours(year, DE_ALONE)
+        alone = {h: weighted(m, versions(year)["C"]) for h, m in hours.items()}
+        prod = EM_MEAN[year]["production-based"]
+        for label, value, dl in (("plain", plain(alone), DATA[year]["means"]["C"][0]),
+                                 ("energy-weighted", energy_weighted(alone), DATA[year]["means"]["C"][1])):
+            change = value / dl - 1
+            held.append(abs(change) < 0.01)
+            if label == "plain":
+                within.append(abs(value / prod - 1) <= TOLERANCE)
+            print(f"| {year} | {label} | {dl:.1f} | {value:.1f} | {100 * change:+.2f}% | {prod} "
+                  f"| {100 * (value / prod - 1):+.1f}% |")
+        print(f"   {xml.relative_to(ROOT).as_posix()}: {len(hours):,} complete hours of {stated:,}")
+    print(f"\nRule 5, the area moves C by less than 1%: {'holds' if all(held) else 'fails'}.")
+    print(f"Rule 3 on Germany alone: {'within' if all(within) else 'outside'} "
+          f"±{100 * TOLERANCE:.0f}% of their production-based mean "
+          f"{'in both years' if all(within) else 'in at least one year'}.")
