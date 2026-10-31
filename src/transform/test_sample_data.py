@@ -13,11 +13,6 @@ import sample_data
 REPO = Path(__file__).resolve().parents[2]
 COMMITTED = REPO / "curated" / "sample" / "raw"
 
-# The values test_parse.py lifted from a real DE-LU A75 payload (B15 and the
-# B10 pumping leg), and their rounded forms, which the dbt fixtures carried
-# until 25.10.2026.
-REAL_VALUES = ("74.267", "71.451", "72.415", "73.008", "115.8084", "113.1906", "115.8", "113.2")
-
 
 def test_the_committed_sample_is_what_the_builder_makes(tmp_path, monkeypatch):
     """Prevents: a sample that drifts from its builder, or from the dbt
@@ -37,8 +32,8 @@ def test_the_committed_sample_is_what_the_builder_makes(tmp_path, monkeypatch):
 
 
 def test_every_payload_is_synthetic_and_recorded():
-    """Every payload has its manifest row, digest and synthetic URL, and none
-    carries a value of the real payload test_parse.py quotes."""
+    """Every payload has its manifest row and a synthetic URL, and carries the
+    invented trap 1 series of sample_data.B15."""
     with (COMMITTED / "manifest.csv").open(newline="", encoding="utf-8") as fh:
         rows = {r["path"]: r for r in csv.DictReader(fh)}
     payloads = sorted(COMMITTED.rglob("*.xml"))
@@ -46,8 +41,10 @@ def test_every_payload_is_synthetic_and_recorded():
     for xml in payloads:
         row = rows[xml.relative_to(REPO).as_posix()]
         assert row["url"].startswith("synthetic://") and row["rejected"] == "0"
-        text = xml.read_text(encoding="utf-8")
-        assert not [v for v in REAL_VALUES if f">{v}<" in text], xml.name
+    de = (COMMITTED / "A75" / sample_data.DE / "2026").glob("*.xml")
+    text = next(de).read_text(encoding="utf-8")
+    assert all(f"<position>{p}</position><quantity>{q}</quantity>" in text
+               for p, q in sample_data.B15.items())
 
 
 def test_the_builder_refuses_a_raw_that_is_not_a_sample(tmp_path, monkeypatch):

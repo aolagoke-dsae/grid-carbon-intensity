@@ -380,14 +380,29 @@ def _band(rows, values, fuels, draws):
     return {k: tuple(q) for k, q in zip(reported, step_intervals(energy, draws).tolist())}
 
 
-def _warehouse(rows, values, citation="AR5 Table A.III.2", band=None, draws=None, seed=7):
+def _year(rows, values, fuels, draws):
+    """(n_reported, point, p05, p50, p95) of the reported steps' summed mix."""
+    import numpy as np
+    energy = np.zeros(len(fuels))
+    for r in rows:
+        k = (r["zone"], r["ts_utc"])
+        if values.get(k) is not None and r["psr"] in fuels and r["direction"] == "generation":
+            energy[fuels.index(r["psr"])] += r["mwh"]
+    point = float(energy @ np.array([FACTORS[p].median for p in fuels]) / energy.sum())
+    return (sum(v is not None for v in values.values()), point,
+            *step_intervals(energy[None, :], draws)[0].tolist())
+
+
+def _warehouse(rows, values, citation="AR5 Table A.III.2", band=None, draws=None, seed=7, year=None):
     """The marts check_stage6_marts reads, in an in-memory DuckDB. draws:
     (fuels, matrix) for dim_factor_draw, by default shared_factor_draws of
     FACTORS for `seed`; band: {step: (p05, p50, p95)}, by default each
-    reported step's interval under those draws."""
+    reported step's interval under those draws; year: the 2026 row of
+    fact_intensity_year, by default the reported steps' summed mix."""
     import duckdb
     fuels, d = shared_factor_draws(FACTORS, DRAWS, seed) if draws is None else draws
     band = _band(rows, values, fuels, d) if band is None else band
+    year = _year(rows, values, fuels, d) if year is None else year
     con = duckdb.connect()
     con.sql("create schema main_marts")
     con.sql("create table main_marts.dim_zone as select 'DE' as zone_eic, 'Europe/Berlin' as iana_tz")
@@ -408,6 +423,11 @@ def _warehouse(rows, values, citation="AR5 Table A.III.2", band=None, draws=None
     for psr, f in FACTORS.items():
         cite = "placeholder" if citation is None and f.priced else (citation or "unpriced: why")
         con.sql(f"insert into main_marts.dim_production_type values ('{psr}', '{cite}', {f.priced})")
+    con.sql("create table main_marts.fact_intensity_year (zone_eic varchar, year integer, "
+            "n_reported bigint, intensity_g_kwh double, intensity_p05_g_kwh double, "
+            "intensity_p50_g_kwh double, intensity_p95_g_kwh double)")
+    con.sql("insert into main_marts.fact_intensity_year values ('DE', 2026, "
+            + ", ".join(repr(float(c)) if isinstance(c, float) else str(c) for c in year) + ")")
     con.sql("create table main_marts.dim_factor_draw (draw_id integer, psr_type varchar, "
             "ef_g_kwh double, mc_seed integer)")
     con.sql("insert into main_marts.dim_factor_draw values " + ", ".join(
@@ -473,6 +493,20 @@ def test_stage6_fails_on_an_interval_that_is_not_its_mix_under_the_draws(change)
     assert not ok, msg
     assert {"other interval": "differ from the percentiles", "point outside": "outside their interval",
             "interval when withheld": "withheld steps carry", "no interval": "differ"}[change] in msg, msg
+
+
+@pytest.mark.parametrize("change", ["other point", "other interval", "other count"])
+def test_stage6_fails_on_a_yearly_figure_that_is_not_its_steps_mix(change):
+    """Prevents: the published yearly number drifting from the steps it sums,
+    while every step-level check still passes."""
+    rows = _mix_rows(steps=4)
+    values = _values(rows)
+    n, point, p05, p50, p95 = _year(rows, values, *shared_factor_draws(FACTORS, DRAWS, 7))
+    year = {"other point": (n, point + 0.5, p05, p50, p95),
+            "other interval": (n, point, p05, p50, p95 + 0.5),
+            "other count": (n - 1, point, p05, p50, p95)}[change]
+    ok, msg = check_stage6_marts(_warehouse(rows, values, year=year), [("DE", 2026, rows)], FACTORS)
+    assert not ok and "DE 2026" in msg and ("yearly figure" in msg or "counts" in msg), msg
 
 
 def test_stage6_fails_on_draws_that_are_not_the_seeds():

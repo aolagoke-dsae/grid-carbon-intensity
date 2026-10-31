@@ -421,11 +421,11 @@ draw([{"title": f"Summer: the sunniest week, {dates(SUMMER_WEEK)}",
      OUT / f"{STEM}.png",
      title="Midday lows in summer, night-time highs in a still winter week",
      notes=(f"Carbon intensity of generation, DE-LU, {YEAR}: life-cycle gCO₂e per kWh at the "
-            "median IPCC AR5 factors, over the priced share of generation.\n"
+            "median factors, over the priced share of generation.\n"
             "Quarter-hours, local time. Dots: each day's lowest quarter-hour in summer, its "
             "highest in winter. Shading: where the check expects them."),
      source=("Source: ENTSO-E Transparency Platform, actual generation per production type "
-             f"(A75), retrieved {retrieved}. Factors: config/ipcc_ar5_factors.csv.\n"
+             f"(A75), retrieved {retrieved}. Factors: IPCC AR5; lignite and hard coal, Itten et al. 2023.\n"
              "Gaps: quarter-hours withheld at a recorded source gap. "
              f"Values: {STEM}.csv; rule and check: notebooks/stage5_week.py."))
 

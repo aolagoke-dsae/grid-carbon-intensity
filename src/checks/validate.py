@@ -451,9 +451,10 @@ def _stored_draws(con):
 
 
 def _interval_problems(rows, values: dict, band: dict, fuels: list, draws, step_intervals) -> tuple:
-    """(steps checked, problems): each reported step's (p05, p50, p95) must be
-    step_intervals of its parsed priced mix under the stored draws, the point
-    inside; a withheld step carries none."""
+    """(steps checked, problems, energy): each reported step's (p05, p50, p95)
+    must be step_intervals of its parsed priced mix under the stored draws, the
+    point inside; a withheld step carries none. energy: the reported steps'
+    priced MWh by fuel, summed, in the order of `fuels`."""
     import numpy as np
     col = {p: j for j, p in enumerate(fuels)}
     mix = defaultdict(dict)
@@ -481,7 +482,30 @@ def _interval_problems(rows, values: dict, band: dict, fuels: list, draws, step_
     banded = sorted(k for k, v in values.items() if v is None and any(b is not None for b in band[k]))
     if banded:
         out.append(f"{len(banded):,} withheld steps carry an interval, first {banded[0]}")
-    return len(reported), out
+    return len(reported), out, energy.sum(axis=0)
+
+
+def _year_problems(con, zone, year, n_reported, energy, fuels, draws, factors, step_intervals) -> list:
+    """main_marts.fact_intensity_year for the zone-year must hold the point
+    and the interval of its reported steps' summed mix under the same draws."""
+    import numpy as np
+    found = con.sql(
+        "select n_reported, intensity_g_kwh, intensity_p05_g_kwh, intensity_p50_g_kwh, "
+        f"intensity_p95_g_kwh from main_marts.fact_intensity_year where zone_eic = '{zone}' "
+        f"and year = {year}").fetchall()
+    if len(found) != 1:
+        return [f"{len(found)} rows in fact_intensity_year"]
+    n, *got = found[0]
+    if not n_reported:
+        return [] if n == 0 and all(g is None for g in got) else ["a yearly figure without a reported step"]
+    medians = np.array([factors[p].median for p in fuels])
+    want = [float(energy @ medians / energy.sum()), *step_intervals(energy[None, :], draws)[0]]
+    if n != n_reported:
+        return [f"fact_intensity_year counts {n:,} reported steps, fact_intensity {n_reported:,}"]
+    if any(g is None for g in got) or not np.allclose(got, want, rtol=1e-9, atol=1e-9):
+        return [f"the yearly figure {got} is not its steps' mix under the stored draws, "
+                f"{[round(w, 6) for w in want]}"]
+    return []
 
 
 def check_stage6_marts(con, payloads, factors: dict, sparse=frozenset()) -> tuple[bool, str]:
@@ -501,7 +525,10 @@ def check_stage6_marts(con, payloads, factors: dict, sparse=frozenset()) -> tupl
         the SQL intensity is the Python one, step for step;
       - every step it reports carries the 5th, 50th and 95th percentiles of
         its parsed priced mix under the stored factor draws, with the point
-        inside them, and a step it withholds carries none (since 25.10.2026).
+        inside them, and a step it withholds carries none (since 25.10.2026);
+      - main_marts.fact_intensity_year holds the point and the interval of
+        the reported steps' summed mix under the same draws (since
+        31.10.2026).
     And main_marts.dim_factor_draw holds the draws
     intensity.shared_factor_draws gives for its own count and seed, so the
     intervals rest on the published bands; main_marts.dim_production_type
@@ -562,8 +589,9 @@ def check_stage6_marts(con, payloads, factors: dict, sparse=frozenset()) -> tupl
         if not ok5:
             problems.append(f"{zone} {year}: fact_intensity fails Checkpoint 5: {msg5}")
         if draws is not None:
-            n, found = _interval_problems(rows, values, band, fuels, draws, step_intervals)
+            n, found, energy = _interval_problems(rows, values, band, fuels, draws, step_intervals)
             banded += n
+            found += _year_problems(con, zone, year, n, energy, fuels, draws, factors, step_intervals)
             problems += [f"{zone} {year}: {p}" for p in found]
     [(uncited,)] = con.sql(
         "select count(*) from main_marts.dim_production_type "
@@ -582,5 +610,6 @@ def check_stage6_marts(con, payloads, factors: dict, sparse=frozenset()) -> tupl
     return True, (f"{years} zone-years: fact_generation equals the parser row for row "
                   f"({rows_total:,} rows), fact_intensity passes Checkpoint 5, and each of its "
                   f"{banded:,} reported steps carries its mix's interval under the "
-                  f"{draws.shape[0]:,} stored draws of seed {seed}, the point inside; every "
-                  "factor row cites a source and none is priced from a placeholder")
+                  f"{draws.shape[0]:,} stored draws of seed {seed}, the point inside, as does "
+                  "each yearly figure; every factor row cites a source and none is priced from "
+                  "a placeholder")

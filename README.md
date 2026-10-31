@@ -91,7 +91,7 @@ Named here rather than left for a reader to discover.
 | `curated/sample/` | **built 25.10.2026, synthetic.** It cannot hold real data: ENTSO-E's list of data open for reuse has neither A75 nor A44 (see **Licence**). So it holds the dbt fixtures' payloads, every number invented, and `dbt build --target sample` builds every model from it on a clean clone, as CI's dbt job does on every push. It shows that the code runs, not the figures |
 | Load-shifting decision model | **not started** — the question the project exists to answer |
 | Quarto report, GitHub Pages | **not started** |
-| Power BI dashboard | **not started**; it will read the exported Parquet. The Azure portability excursion was dropped in October 2026 and is archived in `archive/azure-excursion/` |
+| Power BI dashboard | **not started**; it will read the marts that every build writes to `exports/` as Parquet, since 31.10.2026, `fact_intensity_year` for the yearly figure. The Azure portability excursion was dropped in October 2026 and is archived in `archive/azure-excursion/` |
 | Sobol sensitivity of the saving | **not built**. For the intensity alone, `variance_contribution()` reports first-order variance shares — for this linear model, its first-order Sobol indices — and each fuel's share of the 90% interval width |
 | Cross-border flow (A11) import adjustment | **not built**; intensity is average, not marginal |
 | Trap 5, the two competing A44 price curves | **handled** 08.10.2026 — `entsoe_prices_parse.py`, `xml_to_parquet.py` and the curve filter in `stg_entsoe__prices.sql`. DE-LU carries both curves in every year from 2021, France one; the filter keeps every delivery period (18.10.2026). Which curve is the market's was settled on 19.10.2026: curve 1, the default, which equals SMARD filter 4169 to the cent at every hour and quarter-hour of 2021–2025 |
@@ -467,8 +467,9 @@ same in every hour, so a day, a year or the saving of a load shift takes its
 interval from the same draws at every step it spans; drawn afresh at each
 step, the errors would average out and such intervals would come out far too
 narrow. `fact_intensity` carries each reported step's 90% interval beside its
-point. The yearly figures, energy-weighted over the reported steps, in
-gCO₂e/kWh, generation-based and over the priced share of generation:
+point, and `fact_intensity_year` the yearly figures, energy-weighted over the
+reported steps, in gCO₂e/kWh, generation-based and over the priced share of
+generation:
 
 | Year | DE-LU | France |
 |---|---|---|
@@ -485,12 +486,12 @@ move by up to 1.0%.
 
 ## Tests
 
-`pytest` — 218 tests, all green: 183 test functions, some parametrised. Ten
+`pytest` — 222 tests, all green: 185 test functions, some parametrised. Ten
 read real payloads in `raw/`: four the 7.5 MB 2025 A44 file, six the A44 files
 of 2021–2025 with the SMARD weeks. They **skip in CI**, because `raw/*` is
-gitignored. Fourteen build the dbt models with dbt-duckdb and run in CI's dbt
-job only; the unit-test job reports 194 passed, 10 skipped. A local run with
-`raw/` populated reports 218 passed.
+gitignored. Fifteen build the dbt models with dbt-duckdb and run in CI's dbt
+job only; the unit-test job reports 197 passed, 10 skipped. A local run with
+`raw/` populated reports 222 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
@@ -511,14 +512,14 @@ at least one test fail.
 | `src/transform/test_prices_parse.py` | 25 | Trap 5 and the A44 parser, including 4 transition-day cases and the 4 real-payload checks |
 | `src/transform/test_dst.py` | 13 | Daylight-saving arithmetic of the validation calendar, `validate.expected_steps` |
 | `src/transform/test_intensity.py` | 38 | The uncertainty propagation, the factor handling, the sensitivity shares, and the draws every step shares |
-| `src/checks/test_validate.py` | 39 | The stage checkpoints, including whole missing days, the coverage policy, the stage 5 recomputation and the stage 6 comparison of the marts and their intervals with the parser |
+| `src/checks/test_validate.py` | 42 | The stage checkpoints, including whole missing days, the coverage policy, the stage 5 recomputation and the stage 6 comparison of the marts, their intervals and the yearly figures with the parser |
 | `src/ingest/test_entsoe_client.py` | 9 | Token redaction in exceptions and the manifest; yearly requests that cover the local year |
 | `src/ingest/test_smard_client.py` | 5 | The SMARD backfill: the 53 weeks 2025 needs, a week ending at New Year left to the year before, both clock-change weeks, stored weeks not fetched again, failed ones fetched again |
 | `src/ingest/test_energycharts_client.py` | 6 | The Energy-Charts backfill: whole months, what counts as data, the rate limit, stored months not fetched again, failed ones fetched again |
 | `src/transform/test_smard_parse.py` | 17 | SMARD weeks read strictly, six malformed shapes refused; the newest accepted retrieval of each week; hourly means of complete hours only; the agreement measure used against the two A44 curves; six real-data checks that curve 1 is SMARD's to the cent in every year 2021–2025 and curve 2 is not |
 | `src/ingest/test_raw_store.py` | 12 | `raw/` is append-only: a failed pull never replaces data, every retrieval is kept, the smoke scripts report the status they actually got |
 | `src/transform/test_xml_to_parquet.py` | 13 | The landing: stated points only, both domains, dtypes, provenance and the digest check, the newest accepted retrieval of each year, zones outside the analysis left in `raw/` |
-| `src/transform/test_dbt_models.py` | 14 | The dbt models on landed fixtures, step by step against `parse()`; the facts against the parser, the stage 5 and 6 checks and `parse_prices()`; the stored draws against the sampler; a deleted day, an empty A01 position, a retrieval missing from the manifest and a point moved out of its interval fail their tests; the committed sample builds with the `sample` target |
+| `src/transform/test_dbt_models.py` | 15 | The dbt models on landed fixtures, step by step against `parse()`; the facts against the parser, the stage 5 and 6 checks and `parse_prices()`; the stored draws against the sampler; a deleted day, an empty A01 position, a retrieval missing from the manifest and a point moved out of its interval fail their tests; every mart exported to Parquet; the committed sample builds with the `sample` target and exports nothing |
 | `src/transform/test_sample_data.py` | 3 | The synthetic sample: committed as its builder makes it, every payload recorded and none carrying a real value, the real `raw/` never rewritten |
 
 The test that matters most: **the deterministic point estimate must fall
@@ -548,14 +549,17 @@ src/ingest/         ENTSO-E, SMARD and Energy-Charts clients → raw/ + manifest
 src/transform/      A75 parser, A44 price parser, SMARD reader, parquet
                     landing, intensity, uncertainty
 src/checks/         stage checkpoint functions, importable and testable
-dbt/                17 models (15 enabled), three of them facts and two in
-                    Python, 11 singular tests and 35 generic ones; built on
+dbt/                18 models (16 enabled), four of them facts and two in
+                    Python, 11 singular tests and 38 generic ones; built on
                     fixtures in CI and on the real 2021–2025 data — RUNBOOK
                     Stage 6
+exports/            the marts as Parquet for Power BI, written by every build
+                    but the sample's; git-ignored but for its README
 docs/               ARCHITECTURE.md, the standard; RESOURCES.md, reading by stage;
                     FACTOR_CHECK.md and THIRD_ZONE.md, decisions with their
                     evidence; EM_CROSSCHECK.md, the comparison with Electricity
-                    Maps; figures/, each PNG beside a CSV of what it draws
+                    Maps; figures/, each PNG beside a CSV of what it draws,
+                    with their sources in figures/README.md
 notebooks/          percent-cell exploration, nothing load-bearing: Stages 0–2
                     interactively, the third-zone diagnostic, the price-curve
                     check, the Stage 5 week plot, the Electricity Maps and
@@ -591,15 +595,25 @@ citation from IPCC AR5 WG3 Annex III, except lignite and hard coal, which are
 read off a figure in Itten et al. (2023); the file keeps its name. Verify
 against the sources before relying on them.
 
-**The ENTSO-E data is not redistributed here.** `raw/` is git-ignored and only
-`manifest.csv` — the provenance record, with the token redacted — is committed.
-Anyone re-running the ingestion obtains the data themselves, under the ENTSO-E
-Transparency Platform's own terms of use, which this repository's licence does
-not and cannot grant. Checked on 25.10.2026: under the Transparency
-Platform's Terms of Use (29.03.2023, in force since 01.11.2023), only the data
-on ENTSO-E's List of Data available for reuse (18.10.2023) is open, under
-CC BY 4.0, and that list has neither generation per production type (A75) nor
-day-ahead prices (A44); any other re-use needs the prior agreement of each
-Primary Owner of Data (clause 3.1). A sample of the values used here would
-therefore need those owners' agreement, so `curated/sample/` is synthetic:
-every number in it is invented, and it is MIT like the code.
+**The ENTSO-E payloads are not redistributed here.** `raw/` is git-ignored
+and only `manifest.csv` — the provenance record, with the token redacted — is
+committed; the Parquet a build writes to `exports/` stays on the machine that
+built it. Anyone re-running the ingestion obtains the data themselves, under
+the ENTSO-E Transparency Platform's own terms of use, which this repository's
+licence does not and cannot grant. Checked on 25.10.2026: under the
+Transparency Platform's Terms of Use (29.03.2023, in force since 01.11.2023),
+only the data on ENTSO-E's List of Data available for reuse (18.10.2023) is
+open, under CC BY 4.0, and that list has neither generation per production
+type (A75) nor day-ahead prices (A44). Any other re-use needs the prior
+agreement of each Primary Owner of Data, and every re-use names the
+Transparency Platform as the source (clause 3.1).
+
+What is published is derived from those data: the figures, the CSV beside
+each figure with every value it draws, and the results in this README and in
+`docs/`, all naming the ENTSO-E Transparency Platform as their source. Whether
+publishing such results needs the data owners' agreement has not been asked;
+it is to be settled with ENTSO-E before the report goes public (RUNBOOK,
+Stage 10). Nothing else from ENTSO-E is in the repository: `curated/sample/`
+and every test fixture are synthetic, every number in them invented, and MIT
+like the code. Seven values that a test quoted from a real payload until
+31.10.2026 remain in the history of earlier commits.

@@ -146,6 +146,39 @@ models:
         description: The 95th percentile; the point lies between p05 and p95 (tests/assert_deterministic_within_mc_interval.sql).
       - name: mc_draws
         description: The number of factor draws behind the interval.
+  - name: fact_intensity_year
+    description: >
+      The intensity of each zone and local calendar year over the steps
+      fact_intensity reports, at median factors, with its 90% interval from
+      the draws every step shares: the first defensible number, as the table
+      the Power BI page of WE 7 reads.
+    columns:
+      - name: zone_eic
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: zone_eic
+      - name: year
+        description: The zone's local calendar year.
+        data_tests: [not_null]
+      - name: n_steps
+        description: Generation steps in the year.
+      - name: n_reported
+        description: The steps whose intensity is reported; the rest are withheld.
+      - name: priced_share_pct
+        description: The priced share of generation over the reported steps.
+      - name: intensity_g_kwh
+        description: Emissions over priced energy at the median factors, gCO2e/kWh.
+      - name: intensity_p05_g_kwh
+        description: The 5th percentile of the year's intensity under the shared factor draws.
+      - name: intensity_p50_g_kwh
+        description: The median of those draws.
+      - name: intensity_p95_g_kwh
+        description: The 95th percentile; the point lies between p05 and p95.
+      - name: mc_draws
+        description: The number of factor draws behind the interval.
   - name: fact_price
     description: >
       One day-ahead price per zone and delivery step: the curve trap 5 selects,

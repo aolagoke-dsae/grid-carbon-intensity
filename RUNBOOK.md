@@ -1,7 +1,7 @@
 # Project A — Build Runbook
 
 **Grid Carbon Intensity & Load-Shift Optimiser**
-Dr. Adewole Olagoke · started 7 August 2026 · runbook revised 17 October 2026
+Dr. Adewole Olagoke · started 7 August 2026 · runbook revised 31 October 2026
 Gate: Stages 1–6 standing and the first defensible number by **26 November 2026**
 Capstone: Stages 7–8 in Modul 10, the final-project block, **01.–11.12.2026**
 Target: Stage 10 public during Modul IV, before **6 January 2027**
@@ -33,7 +33,7 @@ has been pulled.*
 | Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; two weeks of 2025 plotted and their shape checked, 24.10.2026; checked against Electricity Maps' published figures, 25.10.2026; in `fact_intensity` since 25.10.2026, equal to the stage 5 check at every step, with its 90% Monte Carlo interval from 10,000 shared draws, the point inside it at all 245,856 reported steps |
 | Stage checks (2–6) | yes; 2 and 5 rewritten 17.10. so they can fail; 3 counts either leg and measures time since 18.10.; 6 written 25.10. and extended to the interval the same day | yes, each made to fail | **all five**: 2–5 on the 2021–2025 A75 pulls, 18.10.2026; 6 on the marts built from them, 25.10.2026 |
 | T-SQL schema + DQ views (Azure) | archived 17.10.2026 in `archive/azure-excursion/` | — | never: DuckDB cannot run them |
-| dbt models | yes — 17 models (15 enabled, two of them Python), 11 singular tests, 35 generic; the three facts and the interval since 25.10.2026 | built on fixtures in CI and compared with the Python parser, the facts also with the stage 5 and 6 checks | **yes** — the 2021–2025 A75 and A44 data, 18.10.2026: 23 nodes green; rebuilt 19.10.2026 with the Itten coal rows, `dim_production_type` equal to the factor file row for row; with the facts and the interval, 25.10.2026: 61 nodes green; Checkpoint 6 passed, the rebuild from a clean clone included |
+| dbt models | yes — 18 models (16 enabled, two of them Python), 11 singular tests, 38 generic; the three facts and the interval since 25.10.2026, the yearly fact and the Parquet exports since 31.10.2026 | built on fixtures in CI and compared with the Python parser, the facts also with the stage 5 and 6 checks | **yes** — the 2021–2025 A75 and A44 data, 18.10.2026: 23 nodes green; rebuilt 19.10.2026 with the Itten coal rows, `dim_production_type` equal to the factor file row for row; with the facts and the interval, 25.10.2026: 61 nodes green; Checkpoint 6 passed, the rebuild from a clean clone included |
 | CI | yes, `.github/workflows/pipeline.yml` | — | **yes**, green on 3.11 and 3.14 |
 | Version control | yes — MIT; public since 20.10.2026, ahead of the planned WE 3 (<https://github.com/aolagoke-dsae/grid-carbon-intensity>) | — | — |
 
@@ -101,10 +101,10 @@ plan; see **Schedule against the curriculum** below.
 | 0 | Environment, secrets, git | first commit | €0 | done |
 | 1 | First raw pull with manifest | `raw/A75/<eic>/2025/` | €0 | done — A44 06.10., A75 17.10.2026 |
 | 2 | Parse: A03, direction, DST, MAW | parsed rows in memory | €0 | done — 17.10.2026 |
-| 3 | Backfill and coverage | DE-LU and FR × 6 years in `raw/` | €0 | WE 2–3, by 25.10. |
-| 4 | Emission factors verified | audited `ipcc_ar5_factors.csv` | €0 | WE 3, 24./25.10. |
-| 5 | Deterministic intensity | a defensible number | €0 | WE 4, 31.10./01.11. |
-| 6 | DuckDB warehouse + dbt | tested marts, lineage docs | €0 | WE 5–6, by 15.11. |
+| 3 | Backfill and coverage | DE-LU and FR × 5 years in `raw/` | €0 | done — 17./18.10.2026 |
+| 4 | Emission factors verified | audited `ipcc_ar5_factors.csv` | €0 | done — 18./19.10.2026 |
+| 5 | Deterministic intensity | a defensible number | €0 | done — 18.10.2026, its week plot and cross-checks 24./25.10. |
+| 6 | DuckDB warehouse + dbt | tested marts, lineage docs, the first Monte Carlo interval | €0 | done — 25.10.2026 |
 | 7 | Quality gate | every dbt test green on the backfill | €0 | Modul 10, 01.–11.12. |
 | 8 | Monte Carlo and Sobol | 90% interval + drivers | €0 | Modul 10, 01.–11.12. |
 | 9 | Orchestration (GitHub Actions) | unattended daily runs | €0 | Modul IV, from 14.12. |
@@ -674,6 +674,14 @@ select zone_eic, year, quantile_cont(g_kwh, 0.05) as p05, quantile_cont(g_kwh, 0
 from draws group by all order by all;
 ```
 
+**The yearly fact and the exports, 31.10.2026.** `fact_intensity_year`
+holds the table above, built by the same SQL, and every mart is written to
+`exports/` as Parquet for Power BI (`dbt/macros/export_parquet.sql`), on every
+target but the sample's. On the 2021–2025 data: 65 nodes green;
+`check_stage6_marts` also recomputes each yearly figure from the parser's rows
+and returns `True` on all ten zone-years; the eight files hold their tables row
+for row, 93 MB, 75 of them `fact_generation`.
+
 **Checkpoint 6**
 
 ```python
@@ -892,11 +900,20 @@ site renders from the marts and republishes on every scheduled run.
 
 **Secondary: Tableau Public.** A hand-built dashboard on a Parquet extract.
 Tableau Public cannot connect to a live database and publishes everything
-openly, which is fine here — the data is open. Build it during the October
-Tableau module, on this data rather than a supplied training set.
+openly, so it gets what the report publishes and nothing more: results, with
+the ENTSO-E Transparency Platform named as their source. The data is not
+open: A75 and A44 are not on ENTSO-E's list of data open for re-use (README,
+Licence; corrected 31.10.2026, this line said "the data is open"). Build it
+during the October Tableau module, on this data rather than a supplied
+training set.
 
 **Checkpoint 10**
 
+- Before the URL goes public: ENTSO-E has answered whether publishing results
+  derived from A75 and A44, and the values behind each figure, for
+  non-commercial research needs the data owners' prior agreement (Terms of
+  Use, clause 3.1; README, Licence). Ask the Transparency Platform's help
+  centre; added 31.10.2026
 - GitHub Pages URL opens from a signed-out browser
 - README opens with a **screenshot**, not a folder tree
 - `docs/METHODOLOGY.md` written: sources, factor table with citations, the
@@ -946,7 +963,7 @@ each block.
 | WE 4, 31.10./01.11. | Modul 5a, Tableau LOD | **Stage 5.** The deterministic intensity on the backfill; Checkpoint 5 (its week plot done on 24.10., the Electricity Maps cross-check on 25.10.) |
 | WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10.) |
 | WE 6, 14./15.11. | Modul 6, Machine Learning | **Stage 6.** The intensity fact with a first Monte Carlo interval: the first defensible number (done on 25.10.) |
-| WE 7, 21./22.11. | Modul 7, DAX and APIs | One Power BI page showing that number, read from the `exports/` Parquet; README draft |
+| WE 7, 21./22.11. | Modul 7, DAX and APIs | One Power BI page showing that number, read from the `exports/` Parquet; README draft (the exports and `fact_intensity_year`, which holds the number, built on 31.10.) |
 | WE 8, 28./29.11. | Modul 9, Green IT | Buffer. The marginal-versus-average intensity section, the limitation an experienced interviewer opens first. A one-page work plan for Modul 10 |
 | **01.–11.12.** | **Modul 10, final project** | **Stages 7 and 8.** Every dbt test green on the backfill; the decision model with Monte Carlo and Sobol, reproducible with a fixed seed; the ML part on this data, baseline **first** (seasonal naive, same weekday last week; if the model loses to it, document that), then the price-spread forecast; Power BI pages 2 and 3, measures in DAX rather than precomputed in Power Query; README, lineage screenshot, `BENCHMARKS.md`. Submission |
 | 12./13.12. | — | All repositories public; README and lineage checked |
@@ -986,7 +1003,10 @@ PL-300 moved to 14–23 December 2026: DAX is taught into late November.
 
 Reliable Power BI path: dbt writes the mart tables to `exports/` as Parquet and
 Power BI Desktop reads that folder. The DuckDB ODBC route works but carries a
-risk on a submission day that nobody needs.
+risk on a submission day that nobody needs. Built on 31.10.2026: a post-hook on
+every mart (`dbt/macros/export_parquet.sql`), on every target but the sample's.
+A `.pbix` stores the data it imports, so a committed one would publish the
+exports in bulk (README, Licence).
 
 Build on your own machine and accounts, not the school's: its access ends with
 the course.

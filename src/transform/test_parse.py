@@ -6,9 +6,12 @@ now are. Each test names the failure it prevents, because every one of these
 bugs produces a plausible number rather than a crash -- which is the only
 reason they are worth testing at all.
 
-Sample is lifted from a real DE-LU A75 payload (2026-08-07):
-  TS 11 (B15, Other renewable): 5 stated points across 96 steps
+Sample has the shape of a real DE-LU A75 payload (2026-08-07):
+  TS 11 (B15, Other renewable): 5 stated points across 96 steps, at the
+    positions the real series states them
   TS 17 (B10 as outBiddingZone): pumped-storage CONSUMPTION, not generation
+The values are invented since 31.10.2026. The real ones, quoted here until
+then, are not open for re-use under ENTSO-E's terms (README, Licence).
 
 The transition-day and PT60M fixtures further down are synthetic: one series
 at constant power, so every expected count and total can be worked out by hand.
@@ -28,11 +31,11 @@ SAMPLE = """<?xml version="1.0" encoding="UTF-8"?>
 <MktPSRType><psrType>B15</psrType></MktPSRType>
 <Period><timeInterval><start>2026-08-01T00:00Z</start><end>2026-08-02T00:00Z</end></timeInterval>
 <resolution>PT15M</resolution>
-<Point><position>1</position><quantity>74.267</quantity></Point>
-<Point><position>19</position><quantity>71.451</quantity></Point>
-<Point><position>43</position><quantity>72.415</quantity></Point>
-<Point><position>68</position><quantity>71.451</quantity></Point>
-<Point><position>89</position><quantity>73.008</quantity></Point>
+<Point><position>1</position><quantity>70.0</quantity></Point>
+<Point><position>19</position><quantity>72.5</quantity></Point>
+<Point><position>43</position><quantity>71.5</quantity></Point>
+<Point><position>68</position><quantity>72.5</quantity></Point>
+<Point><position>89</position><quantity>73.0</quantity></Point>
 </Period></TimeSeries>
 <TimeSeries><mRID>17</mRID>
 <outBiddingZone_Domain.mRID codingScheme="A01">10Y1001A1001A82H</outBiddingZone_Domain.mRID>
@@ -40,8 +43,8 @@ SAMPLE = """<?xml version="1.0" encoding="UTF-8"?>
 <MktPSRType><psrType>B10</psrType></MktPSRType>
 <Period><timeInterval><start>2026-08-01T00:00Z</start><end>2026-08-02T00:00Z</end></timeInterval>
 <resolution>PT15M</resolution>
-<Point><position>1</position><quantity>115.8084</quantity></Point>
-<Point><position>2</position><quantity>113.1906</quantity></Point>
+<Point><position>1</position><quantity>120.0</quantity></Point>
+<Point><position>2</position><quantity>110.0</quantity></Point>
 </Period></TimeSeries>
 </GL_MarketDocument>"""
 
@@ -69,9 +72,9 @@ def test_a03_gaps_expand_to_full_step_count(rows):
 def test_a03_carries_last_stated_value_forward(rows):
     b15 = _b15(rows)
     # positions 1..18 all carry position 1's value; 19 introduces a new one
-    assert b15[0]["mw"] == pytest.approx(74.267)
-    assert b15[17]["mw"] == pytest.approx(74.267), "position 18 must carry pos 1 forward"
-    assert b15[18]["mw"] == pytest.approx(71.451), "position 19 states a new value"
+    assert b15[0]["mw"] == pytest.approx(70.0)
+    assert b15[17]["mw"] == pytest.approx(70.0), "position 18 must carry pos 1 forward"
+    assert b15[18]["mw"] == pytest.approx(72.5), "position 19 states a new value"
 
 
 def test_a03_series_without_position_one_is_rejected():
@@ -128,7 +131,9 @@ def test_energy_is_power_times_step_hours(rows):
     naive_sum_of_mw = sum(r["mw"] for r in b15)
     true_energy = sum(r["mwh"] for r in b15)
     assert true_energy == pytest.approx(naive_sum_of_mw * 0.25)
-    assert true_energy == pytest.approx(1736.635, abs=1e-3)
+    # 18 quarter-hours at 70.0, 24 at 72.5, 25 at 71.5, 21 at 72.5 and 8 at 73.0
+    assert true_energy == pytest.approx(0.25 * (18 * 70.0 + 24 * 72.5 + 25 * 71.5 + 21 * 72.5 + 8 * 73.0))
+    assert true_energy == pytest.approx(1723.5)
 
 
 # --------------------------------------------------------------------------

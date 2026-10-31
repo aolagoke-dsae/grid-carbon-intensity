@@ -18,6 +18,12 @@ raw/*
 curated/*
 !curated/sample/
 
+# the marts as Parquet for Power BI, written by every dbt build but the
+# sample's (dbt/macros/export_parquet.sql). ENTSO-E-derived data in bulk:
+# only the README is committed (README, Licence).
+exports/*
+!exports/README.md
+
 # notebooks: exploration only. Outputs can embed a token printed by a cell,
 # which .env protection does not cover. Clear outputs before committing.
 .ipynb_checkpoints/

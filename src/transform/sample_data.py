@@ -12,7 +12,7 @@ a day that changes resolution, a series published only while a unit runs,
 and an A44 payload with two price curves. Every number is invented, nothing
 comes from ENTSO-E, and the sample is MIT like the code. Until 25.10.2026 the
 DE-LU fixture carried five B15 points and two pumping values lifted from a
-real payload (test_parse.py); they are invented here as well.
+real payload; they are invented here, and in test_parse.py since 31.10.2026.
 
 From the repository root:
 

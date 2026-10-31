@@ -93,6 +93,7 @@ def _project(root, payloads, unrecorded=()):
     with (root / "config" / "sparse_series.csv").open("a", encoding="utf-8", newline="") as fh:
         fh.write(f'{FR},B18,,2026-10-25,2026-10-18,"fixture: not published before 26.10.2026"\n')
     (root / "warehouse").mkdir()
+    (root / "exports").mkdir()          # the marts' Parquet for Power BI (macros/export_parquet.sql)
     (root / "profiles").mkdir()
     (root / "profiles" / "profiles.yml").write_text(
         "grid_intensity:\n  target: dev\n  outputs:\n    dev:\n      type: duckdb\n"
@@ -144,7 +145,7 @@ def test_every_model_and_test_passes_on_the_fixtures(built):
             "int_prices_gapfilled", "assert_intensity_recomputed_from_the_mix",
             "assert_every_fact_row_resolves_to_the_manifest", "assert_one_row_per_fact_grain",
             "dim_factor_draw", "int_intensity_interval", "assert_deterministic_within_mc_interval",
-            "assert_every_factor_draw_inside_its_band"
+            "assert_every_factor_draw_inside_its_band", "fact_intensity_year"
             } <= set(results)
 
 
@@ -301,6 +302,20 @@ def test_the_marts_pass_checkpoint_6_with_the_interval(built):
     assert banded > 0 and withheld > 0
 
 
+def test_every_mart_is_exported_for_power_bi(built):
+    """Every table of the marts lands in exports/ as Parquet, row for row, for
+    Power BI Desktop to read (RUNBOOK, The gate)."""
+    _, con, _, _, root = built
+    marts = [t for (t,) in con.sql("select table_name from information_schema.tables "
+                                   "where table_schema = 'main_marts' order by 1").fetchall()]
+    assert "fact_intensity_year" in marts and len(marts) == 8
+    assert sorted(p.stem for p in (root / "exports").glob("*.parquet")) == marts
+    for t in marts:
+        [(n,)] = con.sql(f"select count(*) from main_marts.{t}").fetchall()
+        [(m,)] = duckdb.sql(f"select count(*) from '{(root / 'exports' / t).as_posix()}.parquet'").fetchall()
+        assert m == n, t
+
+
 def test_a_point_outside_its_interval_fails_the_acceptance_test(tmp_path):
     """RUNBOOK Checkpoint 7, break one on purpose, for the criterion the whole
     build answers to: move one reported step's 5th percentile above its point
@@ -356,6 +371,7 @@ def test_the_committed_sample_builds_with_the_sample_target(tmp_path):
     )
     env = {**os.environ, "GRID_ROOT": REPO.as_posix(), "DO_NOT_TRACK": "1",
            "DBT_SEND_ANONYMOUS_USAGE_STATS": "false"}
+    exports = {p.name: p.stat().st_mtime_ns for p in (REPO / "exports").glob("*")}
     proc = subprocess.run(
         [sys.executable, "-c", "from dbt.cli.main import cli; cli()", "build", "--target", "sample",
          "--project-dir", str(REPO / "dbt"), "--profiles-dir", str(tmp_path / "profiles"),
@@ -374,3 +390,5 @@ def test_the_committed_sample_builds_with_the_sample_target(tmp_path):
     finally:
         con.close()
     assert sources == 2 and banded > 0
+    # the sample's data is synthetic: it must never overwrite a real export
+    assert {p.name: p.stat().st_mtime_ns for p in (REPO / "exports").glob("*")} == exports
