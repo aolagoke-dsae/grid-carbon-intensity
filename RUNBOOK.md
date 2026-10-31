@@ -34,6 +34,7 @@ has been pulled.*
 | Stage checks (2–6) | yes; 2 and 5 rewritten 17.10. so they can fail; 3 counts either leg and measures time since 18.10.; 6 written 25.10. and extended to the interval the same day | yes, each made to fail | **all five**: 2–5 on the 2021–2025 A75 pulls, 18.10.2026; 6 on the marts built from them, 25.10.2026 |
 | T-SQL schema + DQ views (Azure) | archived 17.10.2026 in `archive/azure-excursion/` | — | never: DuckDB cannot run them |
 | dbt models | yes — 18 models (16 enabled, two of them Python), 11 singular tests, 38 generic; the three facts and the interval since 25.10.2026, the yearly fact and the Parquet exports since 31.10.2026 | built on fixtures in CI and compared with the Python parser, the facts also with the stage 5 and 6 checks | **yes** — the 2021–2025 A75 and A44 data, 18.10.2026: 23 nodes green; rebuilt 19.10.2026 with the Itten coal rows, `dim_production_type` equal to the factor file row for row; with the facts and the interval, 25.10.2026: 61 nodes green; Checkpoint 6 passed, the rebuild from a clean clone included |
+| Decision model | the design only, fixed 31.10.2026 before any shift was computed (`docs/DECISION_MODEL.md`); no code yet | — | no |
 | CI | yes, `.github/workflows/pipeline.yml` | — | **yes**, green on 3.11 and 3.14 |
 | Version control | yes — MIT; public since 20.10.2026, ahead of the planned WE 3 (<https://github.com/aolagoke-dsae/grid-carbon-intensity>) | — | — |
 
@@ -820,7 +821,9 @@ every grain, plus four singular tests that encode the domain:
 factor across its published range. The propagation and the first-order shares
 already exist in NumPy (`src/transform/intensity.py`) and run in CI with
 everything else. What this stage adds is the Sobol analysis of the saving
-itself, where load, price and intensity interact.
+itself, where load, price and intensity interact. Its design was fixed on
+31.10.2026, before any shift was computed: the plant, the decision, the three
+inputs and the rules H1–H3, in `docs/DECISION_MODEL.md`.
 
 The sampling rule is implemented and worth stating in interviews. AR5 gives
 min / median / max per fuel, and most bands reach much further above the median
@@ -844,18 +847,34 @@ variance.
 
 **Checkpoint 8**
 
+*Amended 31.10.2026 with the decision model's design, before any run. The Sobol
+bullet asked of the saving what only the intensity can give, and the
+convergence bullet gave no criterion for an interval that contains zero.*
+
 - The deterministic point (every fuel at its median factor) falls **inside**
-  the resulting 90% interval. If it does not, the sampling is biased.
+  the resulting 90% interval. If it does not, the sampling is biased. For the
+  saving, the point is every input at its centre: n = 4, the median factors and
+  the forecast as made.
 - Re-run with 20,000 draws: interval bounds move less than 1%. That is
-  convergence and you should be able to state it. Measured early for the
-  per-step intervals, 25.10.2026 (Stage 6): at 10,000 draws France's 95th
-  percentile still moves by up to 3.7%, DE-LU's bounds by up to 1.0%
-- Sobol indices sum to approximately 1 and name a dominant driver. A fuel's
-  share grows with its energy share squared and with its band's spread, so
-  gas, biomass or even a small hydro share can lead. In DE-LU it is lignite
-  since 19.10.2026, whose band reaches 290 above its centre; AR5's coal row
-  (740–910), the narrowest band of any fuel, now carries only coal-derived gas.
-  Read the width share beside the variance share before naming the driver.
+  convergence and you should be able to state it. Where an interval contains
+  zero, as a saving's can, the criterion is 1% of its width. If the saving's
+  bounds move more, its figures are given at 20,000 draws, with the movement
+  stated. Measured early for the per-step intervals, 25.10.2026 (Stage 6): at
+  10,000 draws France's 95th percentile still moves by up to 3.7%, DE-LU's
+  bounds by up to 1.0%.
+- For the intensity, Sobol indices sum to approximately 1 and name a dominant
+  driver: the intensity is linear in the factors, so first-order shares account
+  for all of its variance. A fuel's share grows with its energy share squared
+  and with its band's spread, so gas, biomass or even a small hydro share can
+  lead. In DE-LU it is lignite since 19.10.2026, whose band reaches 290 above
+  its centre; AR5's coal row (740–910), the narrowest band of any fuel, now
+  carries only coal-derived gas. Read the width share beside the variance share
+  before naming the driver.
+- For the saving, the first-order sum is reported, not required, and the driver
+  is named by total order. A saving's start is chosen: n and the forecast error
+  interact through the choice, and the factors interact with both. The
+  first-order shares can therefore sum to well below 1, and only the total
+  order counts what an input does through its interactions.
 - B02 and B05 carry German lignite and hard-coal factors, not AR5's coal row:
   done 19.10.2026, from Itten et al. (2023).
 
@@ -964,7 +983,7 @@ each block.
 | WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10.) |
 | WE 6, 14./15.11. | Modul 6, Machine Learning | **Stage 6.** The intensity fact with a first Monte Carlo interval: the first defensible number (done on 25.10.) |
 | WE 7, 21./22.11. | Modul 7, DAX and APIs | One Power BI page showing that number, read from the `exports/` Parquet; README draft (the exports and `fact_intensity_year`, which holds the number, built on 31.10.) |
-| WE 8, 28./29.11. | Modul 9, Green IT | Buffer. The marginal-versus-average intensity section, the limitation an experienced interviewer opens first. A one-page work plan for Modul 10 |
+| WE 8, 28./29.11. | Modul 9, Green IT | Buffer. The marginal-versus-average intensity section, the limitation an experienced interviewer opens first. A one-page work plan for Modul 10. The A65 pull of the day-ahead load forecast, which the ML forecast needs (`docs/DECISION_MODEL.md`) |
 | **01.–11.12.** | **Modul 10, final project** | **Stages 7 and 8.** Every dbt test green on the backfill; the decision model with Monte Carlo and Sobol, reproducible with a fixed seed; the ML part on this data, baseline **first** (seasonal naive, same weekday last week; if the model loses to it, document that), then the price-spread forecast; Power BI pages 2 and 3, measures in DAX rather than precomputed in Power Query; README, lineage screenshot, `BENCHMARKS.md`. Submission |
 | 12./13.12. | — | All repositories public; README and lineage checked |
 | **14.12.–06.01.** | **Modul IV** — PSM I, Praktikumsgespräche | **Stages 9 and 10** in the margin; PL-300 between 14 and 23 December |

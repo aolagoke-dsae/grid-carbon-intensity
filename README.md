@@ -33,10 +33,12 @@ deal. For the same plant shifting the same load within the day, therefore:
 - the **cost saving should exist in both**.
 
 Whether that holds is for the data to say. Each saving will be reported per
-zone with its Monte Carlo interval. One limitation is stated with it from the
-start: the intensity used here is the *average* intensity of the generation
-mix, not the *marginal* intensity of the plant that actually responds to a
-shift, and the two can differ substantially.
+zone with its Monte Carlo interval. How each part is tested was fixed on
+31 October 2026, before any shift was computed, with what was already known
+about the intensity stated beside the rules (`docs/DECISION_MODEL.md`). One
+limitation is stated with it from the start: the intensity used here is the
+*average* intensity of the generation mix, not the *marginal* intensity of the
+plant that actually responds to a shift, and the two can differ substantially.
 
 ## Stack
 
@@ -89,10 +91,10 @@ Named here rather than left for a reader to discover.
 |---|---|
 | dbt facts | **built 25.10.2026**: `fact_generation`, `fact_intensity` and `fact_price`, green on the 2021–2025 A75 and A44 data and on fixtures in CI, and equal to the Python parser and the stage 5 check (RUNBOOK Checkpoint 6); `fact_intensity` carries the 90% Monte Carlo interval of every step it reports. Rebuilt from a clean clone the same day, in a new environment, with the payloads verified against `raw/manifest.csv`: every mart table equal row for row. `stg_entsoe__load` and `stg_entsoe__flows` are disabled until A65 and A11 are pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
 | `curated/sample/` | **built 25.10.2026, synthetic.** It cannot hold real data: ENTSO-E's list of data open for reuse has neither A75 nor A44 (see **Licence**). So it holds the dbt fixtures' payloads, every number invented, and `dbt build --target sample` builds every model from it on a clean clone, as CI's dbt job does on every push. It shows that the code runs, not the figures |
-| Load-shifting decision model | **not started** — the question the project exists to answer |
+| Load-shifting decision model | **design fixed 31.10.2026, before any run** (`docs/DECISION_MODEL.md`): the plant, the decision, the three Monte Carlo inputs and the rules H1–H3. Nothing built yet — the question the project exists to answer |
 | Quarto report, GitHub Pages | **not started** |
 | Power BI dashboard | **not started**; it will read the marts that every build writes to `exports/` as Parquet, since 31.10.2026, `fact_intensity_year` for the yearly figure. The Azure portability excursion was dropped in October 2026 and is archived in `archive/azure-excursion/` |
-| Sobol sensitivity of the saving | **not built**. For the intensity alone, `variance_contribution()` reports first-order variance shares — for this linear model, its first-order Sobol indices — and each fuel's share of the 90% interval width |
+| Sobol sensitivity of the saving | **not built**; designed 31.10.2026: first and total order over the three inputs, the driver named by total order (RUNBOOK Checkpoint 8, amended the same day). For the intensity alone, `variance_contribution()` reports first-order variance shares — for this linear model, its first-order Sobol indices — and each fuel's share of the 90% interval width |
 | Cross-border flow (A11) import adjustment | **not built**; intensity is average, not marginal |
 | Trap 5, the two competing A44 price curves | **handled** 08.10.2026 — `entsoe_prices_parse.py`, `xml_to_parquet.py` and the curve filter in `stg_entsoe__prices.sql`. DE-LU carries both curves in every year from 2021, France one; the filter keeps every delivery period (18.10.2026). Which curve is the market's was settled on 19.10.2026: curve 1, the default, which equals SMARD filter 4169 to the cent at every hour and quarter-hour of 2021–2025 |
 
@@ -557,9 +559,10 @@ exports/            the marts as Parquet for Power BI, written by every build
                     but the sample's; git-ignored but for its README
 docs/               ARCHITECTURE.md, the standard; RESOURCES.md, reading by stage;
                     FACTOR_CHECK.md and THIRD_ZONE.md, decisions with their
-                    evidence; EM_CROSSCHECK.md, the comparison with Electricity
-                    Maps; figures/, each PNG beside a CSV of what it draws,
-                    with their sources in figures/README.md
+                    evidence; DECISION_MODEL.md, the decision model's design,
+                    fixed before any run; EM_CROSSCHECK.md, the comparison with
+                    Electricity Maps; figures/, each PNG beside a CSV of what
+                    it draws, with their sources in figures/README.md
 notebooks/          percent-cell exploration, nothing load-bearing: Stages 0–2
                     interactively, the third-zone diagnostic, the price-curve
                     check, the Stage 5 week plot, the Electricity Maps and
