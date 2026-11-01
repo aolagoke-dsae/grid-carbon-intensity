@@ -101,7 +101,9 @@ Named here rather than left for a reader to discover.
 What *is* built: ingestion with a redacting manifest, run for A44 and SMARD;
 the A75 parser with its four traps, tested on fixtures including both
 daylight-saving transition days and run on the real 2021–2025 pulls for DE-LU
-and FR; the A44 price parser with the fifth, run on the real 2021–2025 payloads for both zones; the raw
+and FR; the A44 price parser with the fifth, run on the real 2021–2025 payloads for both zones; the
+A65 load parser for the actual load and the day-ahead forecast, on fixtures
+only so far; the raw
 parquet landing, with both domains and the source digest on every row; the dbt
 project from staging to the three facts and the interval, checked against
 the Python parser and the stage 5 and 6 checks;
@@ -138,7 +140,7 @@ The architecture is defined in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 | Source | Used for | Access |
 |---|---|---|
-| ENTSO-E Transparency Platform | Generation per production type (A75), day-ahead prices (A44), actual load (A65) | REST API, token |
+| ENTSO-E Transparency Platform | Generation per production type (A75), day-ahead prices (A44), actual load and the day-ahead load forecast (A65, process types A16 and A01) | REST API, token |
 | SMARD (Bundesnetzagentur) | Independent second source. Filter 4169, the day-ahead price, settled trap 5 for 2021–2025 and is pinned by six tests; a reconciliation of generation in dbt is planned, not written | REST, no key |
 | IPCC AR5 WG3 Annex III | Lifecycle emission factors with published ranges, for every priced fuel but lignite and hard coal | `config/ipcc_ar5_factors.csv` |
 | Itten et al. (2023), ZHAW, for the Swiss UVEK life-cycle inventory database | Lignite and hard coal (B02, B05): Germany's values read off Fig. 4.5, the ranges across countries as bands | `config/ipcc_ar5_factors.csv` |
@@ -488,12 +490,12 @@ move by up to 1.0%.
 
 ## Tests
 
-`pytest` — 222 tests, all green: 185 test functions, some parametrised. Ten
+`pytest` — 250 tests, all green: 198 test functions, some parametrised. Ten
 read real payloads in `raw/`: four the 7.5 MB 2025 A44 file, six the A44 files
 of 2021–2025 with the SMARD weeks. They **skip in CI**, because `raw/*` is
 gitignored. Fifteen build the dbt models with dbt-duckdb and run in CI's dbt
-job only; the unit-test job reports 197 passed, 10 skipped. A local run with
-`raw/` populated reports 222 passed.
+job only; the unit-test job reports 225 passed, 10 skipped. A local run with
+`raw/` populated reports 250 passed.
 
 Runs on **Python 3.11 and later**. CI proves both ends of that claim —
 3.11, the oldest version supported, and 3.14, the version it is developed
@@ -512,15 +514,16 @@ at least one test fail.
 |---|---|---|
 | `src/transform/test_parse.py` | 24 | Traps 1–4 in the A75 parser, on fixtures, including both transition days at PT15M and PT60M; A01 gaps left empty; an Acknowledgement or an empty document refused; the direction check against the XML |
 | `src/transform/test_prices_parse.py` | 25 | Trap 5 and the A44 parser, including 4 transition-day cases and the 4 real-payload checks |
+| `src/transform/test_load_parse.py` | 15 | The A65 load parser, on fixtures written before the first pull: the actual load and the day-ahead forecast refused as each other, A03 carried forward, an A01 gap left empty, both clock-change days, and eight other inputs that are not the series asked for refused |
 | `src/transform/test_dst.py` | 13 | Daylight-saving arithmetic of the validation calendar, `validate.expected_steps` |
 | `src/transform/test_intensity.py` | 38 | The uncertainty propagation, the factor handling, the sensitivity shares, and the draws every step shares |
-| `src/checks/test_validate.py` | 42 | The stage checkpoints, including whole missing days, the coverage policy, the stage 5 recomputation and the stage 6 comparison of the marts, their intervals and the yearly figures with the parser |
-| `src/ingest/test_entsoe_client.py` | 9 | Token redaction in exceptions and the manifest; yearly requests that cover the local year |
+| `src/checks/test_validate.py` | 50 | The stage checkpoints, including whole missing days, the coverage policy, the stage 5 recomputation and the stage 6 comparison of the marts, their intervals and the yearly figures with the parser; the three rules of the load pulls, each made to fail |
+| `src/ingest/test_entsoe_client.py` | 11 | Token redaction in exceptions and the manifest; yearly requests that cover the local year; the load forecast stored apart from the actual load |
 | `src/ingest/test_smard_client.py` | 5 | The SMARD backfill: the 53 weeks 2025 needs, a week ending at New Year left to the year before, both clock-change weeks, stored weeks not fetched again, failed ones fetched again |
 | `src/ingest/test_energycharts_client.py` | 6 | The Energy-Charts backfill: whole months, what counts as data, the rate limit, stored months not fetched again, failed ones fetched again |
 | `src/transform/test_smard_parse.py` | 17 | SMARD weeks read strictly, six malformed shapes refused; the newest accepted retrieval of each week; hourly means of complete hours only; the agreement measure used against the two A44 curves; six real-data checks that curve 1 is SMARD's to the cent in every year 2021–2025 and curve 2 is not |
 | `src/ingest/test_raw_store.py` | 12 | `raw/` is append-only: a failed pull never replaces data, every retrieval is kept, the smoke scripts report the status they actually got |
-| `src/transform/test_xml_to_parquet.py` | 13 | The landing: stated points only, both domains, dtypes, provenance and the digest check, the newest accepted retrieval of each year, zones outside the analysis left in `raw/` |
+| `src/transform/test_xml_to_parquet.py` | 16 | The landing: stated points only, both domains, dtypes, provenance and the digest check, the newest accepted retrieval of each year, zones outside the analysis left in `raw/`, the actual load and its forecast landed apart and refused in each other's folder |
 | `src/transform/test_dbt_models.py` | 15 | The dbt models on landed fixtures, step by step against `parse()`; the facts against the parser, the stage 5 and 6 checks and `parse_prices()`; the stored draws against the sampler; a deleted day, an empty A01 position, a retrieval missing from the manifest and a point moved out of its interval fail their tests; every mart exported to Parquet; the committed sample builds with the `sample` target and exports nothing |
 | `src/transform/test_sample_data.py` | 3 | The synthetic sample: committed as its builder makes it, every payload recorded and none carrying a real value, the real `raw/` never rewritten |
 
@@ -548,8 +551,8 @@ quarter-hour fails four more.
 config/             zones, coverage exemptions, recorded source gaps and
                     emission factors: CSV, read by Python and dbt alike
 src/ingest/         ENTSO-E, SMARD and Energy-Charts clients → raw/ + manifest.csv
-src/transform/      A75 parser, A44 price parser, SMARD reader, parquet
-                    landing, intensity, uncertainty
+src/transform/      A75 parser, A44 price parser, A65 load parser, SMARD
+                    reader, parquet landing, intensity, uncertainty
 src/checks/         stage checkpoint functions, importable and testable
 dbt/                18 models (16 enabled), four of them facts and two in
                     Python, 11 singular tests and 38 generic ones; built on

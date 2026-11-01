@@ -176,7 +176,8 @@ def day_ahead_prices(zone_eic: str, year: int, token: str) -> dict:
 
 
 def actual_load(zone_eic: str, year: int, token: str) -> dict:
-    """A65 / processType A16, one local calendar year."""
+    """A65 / processType A16, the actual total load (6.1.A), one local
+    calendar year, under raw/A65/."""
     start, end = _local_year(zone_eic, year)
     params = {
         "documentType": "A65",
@@ -186,4 +187,27 @@ def actual_load(zone_eic: str, year: int, token: str) -> dict:
         "periodEnd": _fmt(end),
     }
     out = RAW / "A65" / zone_eic / f"{year}.xml"
+    return fetch(params, token, out)
+
+
+def load_forecast(zone_eic: str, year: int, token: str) -> dict:
+    """A65 / processType A01, the day-ahead total load forecast (6.1.B), one
+    local calendar year, under raw/A65_A01/.
+
+    The same document type as actual_load, so it is stored apart: raw/ lands
+    the newest retrieval of each folder, and in one folder the two series would
+    replace each other. xml_to_parquet.land_tree checks every payload's process
+    type against its folder. The forecast is due two hours before the
+    day-ahead gate closure (Reg. 543/2013, Art. 6(2)(b)), which is why the
+    decision model may use it at 10:00 the day before (docs/DECISION_MODEL.md).
+    """
+    start, end = _local_year(zone_eic, year)
+    params = {
+        "documentType": "A65",
+        "processType": "A01",
+        "outBiddingZone_Domain": zone_eic,
+        "periodStart": _fmt(start),
+        "periodEnd": _fmt(end),
+    }
+    out = RAW / "A65_A01" / zone_eic / f"{year}.xml"
     return fetch(params, token, out)

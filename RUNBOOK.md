@@ -825,6 +825,68 @@ itself, where load, price and intensity interact. Its design was fixed on
 31.10.2026, before any shift was computed: the plant, the decision, the three
 inputs and the rules H1–H3, in `docs/DECISION_MODEL.md`.
 
+**The load pulls, rules fixed 01.11.2026 before the data.** The ML forecast
+uses the day-ahead total load forecast (A65, process type A01, 6.1.B), which
+is due two hours before the day-ahead gate closure (Reg. 543/2013,
+Art. 6(2)(b); `docs/DECISION_MODEL.md`). The pull is brought forward from WE 8
+so that the ML module, from 09.11., can work on this project's data. The
+actual total load (A65, A16, 6.1.A) comes with it, to check the forecast
+against. Both are one document type, so `raw/` keeps them apart, the forecast
+in `A65_A01/` and the actual load in `A65/`, and `land_tree` refuses a payload
+whose process type is not its folder's. Twenty requests, DE-LU and FR,
+2021–2025:
+
+```python
+import csv, os
+from dotenv import load_dotenv
+from src.ingest.entsoe_client import actual_load, load_forecast
+load_dotenv()
+with open("config/zones.csv", newline="", encoding="utf-8") as fh:
+    zones = [z for z in csv.DictReader(fh) if z["in_analysis"] == "yes"]   # DE_LU and FR
+for z in zones:
+    for year in range(2021, 2026):
+        for pull in (load_forecast, actual_load):
+            row = pull(z["eic"], year, os.environ["ENTSOE_TOKEN"])
+            print(z["key"], year, pull.__name__, row["http_status"], row["rejected"], row["bytes"])
+```
+
+A zone-year passes when both series, read by `entsoe_load_parse.parse_load`
+with A03 positions carried forward, meet three rules
+(`validate.check_load_pulls`):
+
+1. **Whole days.** No step is stated twice, and at most 1% of the local days
+   of the year fall short of their 23, 24 or 25 hours.
+2. **Units.** Every point is in MW (`MAW`).
+3. **The forecast forecasts this load.** Hour by hour, its mean absolute
+   percentage error against the actual load is below 10%, and its mean
+   absolute error is smallest unshifted among shifts of −3 to +3 hours. The
+   10% is loose on purpose: it should fail on a wrong zone, unit or time
+   alignment, not on a forecast that is merely poor.
+
+A zone-year that fails keeps its forecast out of the model until the failure
+is explained. The check, run after the pull:
+
+```python
+import csv
+from pathlib import Path
+from src.ingest.raw_store import current_version
+from src.transform.entsoe_load_parse import parse_load
+from src.checks.validate import check_load_pulls
+
+with open("config/zones.csv", newline="", encoding="utf-8") as fh:
+    zones = [z for z in csv.DictReader(fh) if z["in_analysis"] == "yes"]
+
+def read(folder, zone, year, process):
+    path = current_version(Path("raw", folder, zone, f"{year}.xml"))
+    return parse_load(path.read_text(encoding="utf-8"), process)
+
+for z in zones:
+    for year in range(2021, 2026):
+        ok, msg = check_load_pulls(read("A65_A01", z["eic"], year, "A01"),
+                                   read("A65", z["eic"], year, "A16"), z["tz"], year)
+        print(z["key"], ok, msg)
+```
+
 The sampling rule is implemented and worth stating in interviews. AR5 gives
 min / median / max per fuel, and most bands reach much further above the median
 than below it (nuclear 3.7 / 12 / 110, hydropower 1 / 24 / 2200). Each factor
@@ -983,7 +1045,7 @@ each block.
 | WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10.) |
 | WE 6, 14./15.11. | Modul 6, Machine Learning | **Stage 6.** The intensity fact with a first Monte Carlo interval: the first defensible number (done on 25.10.) |
 | WE 7, 21./22.11. | Modul 7, DAX and APIs | One Power BI page showing that number, read from the `exports/` Parquet; README draft (the exports and `fact_intensity_year`, which holds the number, built on 31.10.) |
-| WE 8, 28./29.11. | Modul 9, Green IT | Buffer. The marginal-versus-average intensity section, the limitation an experienced interviewer opens first. A one-page work plan for Modul 10. The A65 pull of the day-ahead load forecast, which the ML forecast needs (`docs/DECISION_MODEL.md`) |
+| WE 8, 28./29.11. | Modul 9, Green IT | Buffer. The marginal-versus-average intensity section, the limitation an experienced interviewer opens first. A one-page work plan for Modul 10. (The A65 load pulls, planned here on 31.10., were brought forward to 01.11., before the ML module: Stage 8) |
 | **01.–11.12.** | **Modul 10, final project** | **Stages 7 and 8.** Every dbt test green on the backfill; the decision model with Monte Carlo and Sobol, reproducible with a fixed seed; the ML part on this data, baseline **first** (seasonal naive, same weekday last week; if the model loses to it, document that), then the price-spread forecast; Power BI pages 2 and 3, measures in DAX rather than precomputed in Power Query; README, lineage screenshot, `BENCHMARKS.md`. Submission |
 | 12./13.12. | — | All repositories public; README and lineage checked |
 | **14.12.–06.01.** | **Modul IV** — PSM I, Praktikumsgespräche | **Stages 9 and 10** in the margin; PL-300 between 14 and 23 December |

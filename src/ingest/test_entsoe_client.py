@@ -75,7 +75,8 @@ def _capture(monkeypatch):
 
 @pytest.mark.parametrize(
     "fn, doc",
-    [(C.generation_per_type, "A75"), (C.day_ahead_prices, "A44"), (C.actual_load, "A65")],
+    [(C.generation_per_type, "A75"), (C.day_ahead_prices, "A44"), (C.actual_load, "A65"),
+     (C.load_forecast, "A65")],
 )
 def test_a_yearly_request_covers_the_local_year_not_the_utc_year(monkeypatch, fn, doc):
     """Prevents: local 1 January losing its first hour (92 of 96 steps in the
@@ -84,6 +85,20 @@ def test_a_yearly_request_covers_the_local_year_not_the_utc_year(monkeypatch, fn
     fn("10Y1001A1001A82H", 2025, TOKEN)
     assert seen["documentType"] == doc
     assert (seen["periodStart"], seen["periodEnd"]) == ("202412312300", "202512312300")
+
+
+def test_the_load_forecast_is_stored_apart_from_the_actual_load(monkeypatch):
+    """Prevents: the day-ahead forecast and the actual load, one document type,
+    sharing a folder, where the newer retrieval of either would land as the
+    other."""
+    calls = []
+    monkeypatch.setattr(C, "fetch", lambda params, token, out: calls.append((params, out)) or {})
+    C.load_forecast("10Y1001A1001A82H", 2025, TOKEN)
+    C.actual_load("10Y1001A1001A82H", 2025, TOKEN)
+    (forecast, f_out), (actual, a_out) = calls
+    assert (forecast["processType"], actual["processType"]) == ("A01", "A16")
+    assert f_out.relative_to(C.RAW).parts[0] == "A65_A01"
+    assert a_out.relative_to(C.RAW).parts[0] == "A65"
 
 
 def test_each_zone_gets_its_own_local_midnight(monkeypatch):

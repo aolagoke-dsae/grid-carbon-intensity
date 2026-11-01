@@ -6,11 +6,14 @@ checkpoint that cannot fail on correct data is worse than no checkpoint: it
 sends you debugging a parser that works.
 """
 import datetime as dt
+import math
+import zoneinfo
 
 import pytest
 
 from intensity import Factor, shared_factor_draws, step_intervals
 from validate import (
+    check_load_pulls,
     check_stage2_parse,
     check_stage3_coverage,
     check_stage4_factors,
@@ -519,3 +522,66 @@ def test_stage6_fails_on_draws_that_are_not_the_seeds():
     ok, msg = check_stage6_marts(_warehouse(rows, _values(rows), draws=(fuels, d)),
                                  [("DE", 2026, rows)], FACTORS)
     assert not ok and "differs from the 200 draws of seed 7 in 1 values" in msg, msg
+
+
+# --------------------------------------------------------------------------
+# The load pulls (rules fixed 01.11.2026, before the data)
+# --------------------------------------------------------------------------
+def _load(year=2025, tz="Europe/Berlin", step_h=1.0, lag_h=0, scale=1.0, wobble=0.0,
+          unit="MAW", drop=()):
+    """A year of synthetic load: a daily swing of 12 GW around 50 GW, at the
+    stated resolution, optionally late by lag_h, scaled, off by a wobble of
+    a few percent, or without the local days in `drop`."""
+    z = zoneinfo.ZoneInfo(tz)
+    t = dt.datetime(year, 1, 1, tzinfo=z).astimezone(UTC)
+    end = dt.datetime(year + 1, 1, 1, tzinfo=z).astimezone(UTC)
+    rows, i = [], 0
+    while t < end:
+        s = t - dt.timedelta(hours=lag_h)
+        mw = 50_000 + 12_000 * math.sin(2 * math.pi * (s.hour + s.minute / 60 - 9) / 24)
+        if t.astimezone(z).date() not in drop:
+            rows.append({"ts_utc": t, "mw": scale * mw * (1 + wobble * math.sin(0.37 * i)),
+                         "step_hours": step_h, "unit": unit})
+        t += dt.timedelta(hours=step_h)
+        i += 1
+    return rows
+
+
+@pytest.mark.parametrize("actual_step, forecast_step", [(1.0, 1.0), (0.25, 1.0)])
+def test_load_pulls_pass_on_a_forecast_of_this_load(actual_step, forecast_step):
+    """Both clock-change days count at their own length, at either resolution."""
+    ok, msg = check_load_pulls(_load(step_h=forecast_step, wobble=0.02),
+                               _load(step_h=actual_step), "Europe/Berlin", 2025)
+    assert ok, msg
+    assert "forecast 365/365 whole days; actual 365/365 whole days" in msg
+    assert "best shift +0 h" in msg
+
+
+def test_load_pulls_fail_on_a_forecast_an_hour_late():
+    """Prevents: a forecast stamped an hour out passing as this load's."""
+    ok, msg = check_load_pulls(_load(lag_h=1, wobble=0.02), _load(), "Europe/Berlin", 2025)
+    assert not ok and "fits best shifted by +1 h" in msg
+
+
+@pytest.mark.parametrize("scale, unit, match", [
+    (1e-3, "MAW", "MAPE"),
+    (1.0, "KWT", "units KWT"),
+])
+def test_load_pulls_fail_on_a_wrong_scale_or_unit(scale, unit, match):
+    ok, msg = check_load_pulls(_load(scale=scale, unit=unit, wobble=0.02), _load(),
+                               "Europe/Berlin", 2025)
+    assert not ok and match in msg
+
+
+@pytest.mark.parametrize("n_short, passes", [(3, True), (4, False)])
+def test_load_pulls_allow_one_percent_of_short_days(n_short, passes):
+    drop = {dt.date(2025, 2, d) for d in range(1, n_short + 1)}
+    ok, msg = check_load_pulls(_load(wobble=0.02, drop=drop), _load(), "Europe/Berlin", 2025)
+    assert ok is passes, msg
+    assert f"forecast {365 - n_short}/365 whole days" in msg
+
+
+def test_load_pulls_fail_on_a_step_stated_twice():
+    forecast = _load(wobble=0.02)
+    ok, msg = check_load_pulls(forecast + forecast[100:101], _load(), "Europe/Berlin", 2025)
+    assert not ok and "forecast: 1 step(s) stated twice" in msg

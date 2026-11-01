@@ -31,6 +31,11 @@ Only the zones in the analysis are landed (since 19.10.2026). config/zones.csv
 keeps three more for the third-zone diagnostic (Master Plan §2.3); their
 payloads stay in raw/, where notebooks/third_zone.py measures them, so the
 warehouse, its dbt tests and every intensity figure stay on DE-LU and FR.
+
+Two folders hold one document type (since 01.11.2026): A65/ the actual total
+load, process A16, and A65_A01/ the day-ahead load forecast, process A01. No
+landed point tells them apart, so land_tree refuses a payload whose process
+type is not its folder's (PROCESS_OF) instead of landing one as the other.
 """
 from __future__ import annotations
 
@@ -55,6 +60,11 @@ VALUE_ELEMENTS = ("quantity", "price.amount")
 
 # raw_store names every retrieval <UTC time>_<first 8 hex digits of sha256>.
 STORED_NAME = re.compile(r"^\d{8}T\d{6}Z_([0-9a-f]{8})\.xml$")
+
+# The raw folders that share a document type, with the process type each holds
+# (entsoe_client.actual_load and load_forecast write them).
+PROCESS_OF = {"A65": "A16", "A65_A01": "A01"}
+PROCESS_TYPE = re.compile(rb"<process\.processType>\s*([A-Z0-9]+)\s*</process\.processType>")
 
 DTYPES = {
     "classification_sequence": "Int64",   # nullable: None where a zone has one curve
@@ -246,6 +256,21 @@ def _check_stored_name(xml: Path, frame: pd.DataFrame) -> None:
         )
 
 
+def _check_process(xml: Path, folder: str) -> None:
+    """A payload in a folder of PROCESS_OF must hold that folder's process.
+
+    The actual load and the day-ahead load forecast are both A65; filed in each
+    other's folder, either would land as the other without a visible trace.
+    """
+    want = PROCESS_OF.get(folder)
+    if want is None:
+        return
+    m = PROCESS_TYPE.search(xml.read_bytes())
+    got = m.group(1).decode() if m else None
+    if got != want:
+        raise ValueError(f"{xml.name}: process type {got}, but {folder}/ holds {want} only")
+
+
 ZONES_CSV = Path(__file__).resolve().parents[2] / "config" / "zones.csv"
 
 
@@ -276,6 +301,7 @@ def land_tree(raw_root: Path, parquet_root: Path, strict: bool = True,
                 if x.relative_to(doc_dir).parts[0] not in skip_zones]
         for xml in xmls:
             try:
+                _check_process(xml, doc_dir.name)
                 frame = land(xml)
                 _check_stored_name(xml, frame)
                 frames.append(frame)

@@ -613,3 +613,89 @@ def check_stage6_marts(con, payloads, factors: dict, sparse=frozenset()) -> tupl
                   f"{draws.shape[0]:,} stored draws of seed {seed}, the point inside, as does "
                   "each yearly figure; every factor row cites a source and none is priced from "
                   "a placeholder")
+
+
+# The load pulls: rules fixed on 01.11.2026, before the data (RUNBOOK Stage 8).
+LOAD_SHORT_DAYS_MAX = 0.01        # rule 1: share of a year's local days that may fall short
+LOAD_MAPE_MAX = 0.10              # rule 3: loose on purpose, see check_load_pulls
+LOAD_SHIFTS_HOURS = range(-3, 4)  # rule 3: the forecast must fit best unshifted
+
+
+def _load_days(rows, tz: str, year: int) -> tuple[int, int, int]:
+    """(local days of the year, days short of their hours, steps stated twice)."""
+    z = zoneinfo.ZoneInfo(tz)
+    stated = Counter(r["ts_utc"] for r in rows)
+    hours: dict = defaultdict(float)
+    for r in rows:
+        if r["mw"] is not None:
+            hours[r["ts_utc"].astimezone(z).date()] += r["step_hours"]
+    day, short, n_days = dt.date(year, 1, 1), 0, 0
+    while day.year == year:
+        n_days += 1
+        if abs(hours.get(day, 0.0) - expected_steps(day, tz, 1.0)) > 1e-9:
+            short += 1
+        day += dt.timedelta(days=1)
+    return n_days, short, sum(1 for n in stated.values() if n > 1)
+
+
+def _hourly(rows) -> dict:
+    """Mean MW of every UTC hour all of whose steps are stated."""
+    energy: dict = defaultdict(float)
+    covered: dict = defaultdict(float)
+    for r in rows:
+        if r["mw"] is None:
+            continue
+        hour = r["ts_utc"].replace(minute=0, second=0, microsecond=0)
+        energy[hour] += r["mw"] * r["step_hours"]
+        covered[hour] += r["step_hours"]
+    return {h: energy[h] for h, c in covered.items() if abs(c - 1.0) < 1e-9}
+
+
+def check_load_pulls(forecast_rows, actual_rows, tz: str, year: int) -> tuple[bool, str]:
+    """One zone and local year of the day-ahead load forecast (A65, process
+    A01) against the actual load (A65, A16), rows as entsoe_load_parse returns
+    them. Both series pass when:
+
+    1. whole days: no step is stated twice, and at most 1% of the local days
+       of the year fall short of their 23, 24 or 25 hours;
+    2. units: every point is in MW (MAW);
+    3. the forecast forecasts this load: hour by hour, its mean absolute
+       percentage error against the actual load is below 10%, and its mean
+       absolute error is smallest unshifted among shifts of -3 to +3 hours.
+
+    The 10% is loose on purpose. It is meant to fail on a wrong zone, unit or
+    time alignment, not on a forecast that is merely poor.
+    """
+    problems, notes = [], []
+    for name, rows in (("forecast", forecast_rows), ("actual", actual_rows)):
+        n_days, short, twice = _load_days(rows, tz, year)
+        notes.append(f"{name} {n_days - short}/{n_days} whole days")
+        if twice:
+            problems.append(f"{name}: {twice} step(s) stated twice")
+        if short > LOAD_SHORT_DAYS_MAX * n_days:
+            problems.append(f"{name}: {short} of {n_days} local days short of their hours")
+        units = sorted({str(r["unit"]) for r in rows})
+        if units != ["MAW"]:
+            problems.append(f"{name}: units {', '.join(units) or 'none'}, not MAW only")
+    forecast, actual = _hourly(forecast_rows), _hourly(actual_rows)
+    paired = [h for h in actual if h in forecast and actual[h] > 0]
+    if not paired:
+        problems.append("no hour holds both series")
+    else:
+        mape = sum(abs(forecast[h] - actual[h]) / actual[h] for h in paired) / len(paired)
+        mae = {}
+        for s in LOAD_SHIFTS_HOURS:
+            lag = dt.timedelta(hours=s)
+            diffs = [abs(forecast[h + lag] - actual[h]) for h in actual if h + lag in forecast]
+            if diffs:
+                mae[s] = sum(diffs) / len(diffs)
+        best = min(mae, key=mae.get)
+        notes.append(f"MAPE {mape:.1%} over {len(paired):,} hours, best shift {best:+d} h")
+        if mape >= LOAD_MAPE_MAX:
+            problems.append(f"MAPE {mape:.1%}, not below {LOAD_MAPE_MAX:.0%}")
+        if best != 0:
+            problems.append(f"the forecast fits best shifted by {best:+d} h")
+    message = f"{year}: " + "; ".join(notes)
+    if problems:
+        return False, message + ". Fails: " + "; ".join(problems)
+    return True, message

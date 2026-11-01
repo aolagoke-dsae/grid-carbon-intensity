@@ -144,6 +144,44 @@ def test_a11_keeps_the_border(tmp_path):
     assert (df["out_domain_eic"].iat[0], df["in_domain_eic"].iat[0]) == (DE, FR)
 
 
+NS65 = "urn:iec62325.351:tc57wg16:451-6:generationloaddocument:3:0"
+
+
+def _a65(process, mw):
+    return (
+        f'<?xml version="1.0" encoding="UTF-8"?><GL_MarketDocument xmlns="{NS65}">'
+        "<mRID>m</mRID><revisionNumber>1</revisionNumber><type>A65</type>"
+        f"<process.processType>{process}</process.processType><TimeSeries><mRID>1</mRID>"
+        f'<businessType>A04</businessType><outBiddingZone_Domain.mRID codingScheme="A01">{DE}'
+        "</outBiddingZone_Domain.mRID><quantity_Measure_Unit.name>MAW</quantity_Measure_Unit.name>"
+        "<curveType>A01</curveType><Period><timeInterval><start>2025-06-01T22:00Z</start>"
+        "<end>2025-06-01T23:00Z</end></timeInterval><resolution>PT60M</resolution>"
+        f"<Point><position>1</position><quantity>{mw}</quantity></Point></Period></TimeSeries>"
+        "</GL_MarketDocument>"
+    )
+
+
+def test_the_actual_load_and_its_forecast_land_apart(tmp_path):
+    """One document type, two series: each lands in a parquet of its own."""
+    raw = tmp_path / "raw"
+    _store(raw / "A65" / DE / "2025", "20261101T100000Z", _a65("A16", 51_000.0))
+    _store(raw / "A65_A01" / DE / "2025", "20261101T100001Z", _a65("A01", 50_000.0))
+    counts = X.land_tree(raw, raw / "parquet")
+    assert counts == {"A65": 1, "A65_A01": 1}
+    assert pd.read_parquet(raw / "parquet" / "a65.parquet")["quantity"].tolist() == [51_000.0]
+    assert pd.read_parquet(raw / "parquet" / "a65_a01.parquet")["quantity"].tolist() == [50_000.0]
+
+
+@pytest.mark.parametrize("folder, process", [("A65_A01", "A16"), ("A65", "A01")])
+def test_a_load_payload_in_the_other_series_folder_is_refused(tmp_path, folder, process):
+    """Prevents: the actual load landed as the forecast, or the reverse."""
+    raw = tmp_path / "raw"
+    _store(raw / folder / DE / "2025", "20261101T100000Z", _a65(process, 51_000.0))
+    with pytest.raises(RuntimeError, match="1 payload"):
+        X.land_tree(raw, raw / "parquet")
+    assert not list(raw.glob("parquet/*.parquet"))
+
+
 def test_an_acknowledgement_is_refused(tmp_path):
     ack = ('<?xml version="1.0" encoding="UTF-8"?><Acknowledgement_MarketDocument '
            'xmlns="urn:iec62325.351:tc57wg16:451-1:acknowledgementdocument:7:0"><mRID>a</mRID>'
