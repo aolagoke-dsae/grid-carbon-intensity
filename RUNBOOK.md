@@ -25,7 +25,7 @@ has been pulled.*
 
 | | Written | Unit-tested | Run against real data |
 |---|---|---|---|
-| Ingestion client (ENTSO-E) | yes | token redaction, the append-only raw store, local-year windows | **A44 and A75** — A44 06.10.2026; A75 for DE-LU and FR, 2025 on 17.10.2026 and 2021–2024 on 18.10.2026; for Germany alone, 2024–2025, on 25.10.2026; A65 not yet fetched |
+| Ingestion client (ENTSO-E) | yes | token redaction, the append-only raw store, local-year windows | **A44 and A75** — A44 06.10.2026; A75 for DE-LU and FR, 2025 on 17.10.2026 and 2021–2024 on 18.10.2026; for Germany alone, 2024–2025, on 25.10.2026; A65, the actual load and the day-ahead forecast, for DE-LU and FR, 2021–2025, on 01.11.2026 |
 | Ingestion client (SMARD) | yes | the yearly backfill: which weeks a year needs, stored weeks not fetched again | **yes** — one week 06.10.2026; every week of 2021–2025, hourly and quarter-hourly, 19.10.2026 |
 | Ingestion client (Energy-Charts) | yes, 25.10.2026 | the monthly backfill: which months a year needs, what counts as data, stored months not fetched again | **yes** — every month of 2024–2025, 25.10.2026; tracks our parse at r = 0.9995 and 0.9997 (Checkpoint 5) |
 | Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **yes** — DE-LU and FR 2021–2025, 17. and 18.10.2026 |
@@ -886,6 +886,33 @@ for z in zones:
                                    read("A65", z["eic"], year, "A16"), z["tz"], year)
         print(z["key"], ok, msg)
 ```
+
+**Pulled, checked and landed 01.11.2026.** Twenty requests, all HTTP 200,
+none rejected. Every payload holds one TimeSeries at curveType A03, revision 1,
+in MW. DE-LU is quarter-hourly throughout. France is hourly until
+31.12.2024 00:00 UTC and quarter-hourly after, in both series.
+
+- **Rule 3 holds in all ten zone-years.** The forecast's MAPE against the
+  actual load is 4.0, 4.1, 3.8, 3.7 and 3.7% in DE-LU, 2021 to 2025, and 1.7,
+  1.8, 2.4, 2.1 and 1.7% in France, and it fits best unshifted every time.
+- **Rule 2 holds everywhere; rule 1 in eight zone-years.** France's actual
+  load fails it in 2021 and 2022, short on 8 and 9 days. The missing 9 and 21
+  hours are gaps between the periods of the series as published: hours the
+  platform has no value for, not values the parser drops. France's forecast
+  is whole on every day of both years, and rule 3 holds on the 8,751 and
+  8,739 hours the two series share. The failure lies in the reference, not in
+  the forecast. That is the explanation the rule asks for, so France's
+  forecasts for 2021 and 2022 enter the model with the rest.
+- **The forecasts that pass are not all whole.** DE-LU's misses 22 February
+  and 24 March 2022 entirely, and the first local hour of the 25-hour days of
+  2023 and 2024. How the ML forecast treats a day without a whole load
+  forecast is to be fixed before it runs.
+
+Landed with `python -m src.transform.xml_to_parquet A65 A65_A01`, which names
+the folders to land so that A75 is not read again (since the same day):
+245,215 and 244,192 stated points, every row's digest an accepted retrieval in
+`raw/manifest.csv`. `stg_entsoe__load` stays disabled: the committed sample
+and the dbt fixtures carry no A65, and CI builds both.
 
 The sampling rule is implemented and worth stating in interviews. AR5 gives
 min / median / max per fuel, and most bands reach much further above the median

@@ -281,20 +281,30 @@ def zones_outside_analysis(zones_csv: Path = ZONES_CSV) -> frozenset[str]:
 
 
 def land_tree(raw_root: Path, parquet_root: Path, strict: bool = True,
-              skip_zones: frozenset[str] = frozenset()) -> dict:
+              skip_zones: frozenset[str] = frozenset(),
+              only: frozenset[str] | None = None) -> dict:
     """Land the newest accepted retrieval of every raw/<DOCTYPE>/<EIC>/<year>/
     item into raw/parquet/<doctype>.parquet, except the zones in skip_zones.
+
+    only names the document folders to land, all of them when None, so a new
+    document type lands without reading the 700 MB of A75 again. A name with
+    no folder under raw_root is refused rather than landing nothing quietly.
 
     strict=True re-raises after reporting. The previous bare `except Exception:
     print(...)` meant a document type that failed on EVERY file produced no
     parquet, no non-zero exit and no test failure - which is how the A44
     landing stayed broken while the pipeline looked green.
     """
+    if only is not None:
+        missing = sorted(n for n in only if not (raw_root / n).is_dir())
+        if missing:
+            raise ValueError(f"no folder to land under {raw_root}: {', '.join(missing)}")
     counts: dict[str, int] = {}
     failures: list[tuple[Path, Exception]] = []
     for doc_dir in sorted(
         p for p in raw_root.iterdir()
         if p.is_dir() and p.name != "parquet" and not p.name.startswith("_")
+        and (only is None or p.name in only)
     ):
         frames = []
         xmls = [x for x in current_payloads(doc_dir)
@@ -327,7 +337,9 @@ def land_tree(raw_root: Path, parquet_root: Path, strict: bool = True,
 if __name__ == "__main__":
     import sys
 
+    # python -m src.transform.xml_to_parquet [--keep-going] [FOLDER ...]
+    folders = frozenset(a for a in sys.argv[1:] if not a.startswith("--"))
     c = land_tree(Path("raw"), Path("raw/parquet"), strict="--keep-going" not in sys.argv,
-                  skip_zones=zones_outside_analysis())
+                  skip_zones=zones_outside_analysis(), only=folders or None)
     for k, v in c.items():
         print(f"{k}: {v:,} stated points")

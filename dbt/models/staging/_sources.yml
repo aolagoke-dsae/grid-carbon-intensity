@@ -24,7 +24,9 @@ sources:
       - name: a75
         description: Aggregated generation per production type (16.1.B & C)
       - name: a65
-        description: Actual total load (6.1.A). Not pulled yet.
+        description: Actual total load (6.1.A), process A16. Pulled 01.11.2026.
+      - name: a65_a01
+        description: Day-ahead total load forecast (6.1.B), process A01. Pulled 01.11.2026; no model reads it yet.
       - name: a44
         description: Day-ahead prices (12.1.D)
       - name: a11

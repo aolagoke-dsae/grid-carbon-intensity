@@ -1,9 +1,9 @@
 {{ config(enabled = false) }}
 {#-
-  Disabled until raw/parquet/a65.parquet exists. A view over a missing file
-  fails when it is created, so with this model enabled `dbt build` could not
-  go green on the data that does exist. Remove the config line after the
-  first A65 pull.
+  Disabled: a view over a missing file fails when it is created. The real
+  raw/parquet/a65.parquet exists since the first A65 pull, 01.11.2026, but
+  the committed sample (curated/sample/) and the dbt fixtures carry no A65,
+  and CI builds both. Enable it with A65 added to both.
 -#}
 with src as (select * from {{ source('entsoe', 'a65') }})
 select

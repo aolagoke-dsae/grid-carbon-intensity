@@ -172,6 +172,18 @@ def test_the_actual_load_and_its_forecast_land_apart(tmp_path):
     assert pd.read_parquet(raw / "parquet" / "a65_a01.parquet")["quantity"].tolist() == [50_000.0]
 
 
+def test_only_the_named_document_folders_are_landed(tmp_path):
+    """A new document type lands without re-landing the others; a folder that
+    does not exist is refused rather than landing nothing quietly."""
+    raw = tmp_path / "raw"
+    _store(raw / "A44" / "Z" / "2025", "20261006T183150Z", _a44(20.0))
+    _store(raw / "A65_A01" / DE / "2025", "20261101T100001Z", _a65("A01", 50_000.0))
+    assert X.land_tree(raw, raw / "parquet", only=frozenset({"A65_A01"})) == {"A65_A01": 1}
+    assert not (raw / "parquet" / "a44.parquet").exists()
+    with pytest.raises(ValueError, match="A75"):
+        X.land_tree(raw, raw / "parquet", only=frozenset({"A75"}))
+
+
 @pytest.mark.parametrize("folder, process", [("A65_A01", "A16"), ("A65", "A01")])
 def test_a_load_payload_in_the_other_series_folder_is_refused(tmp_path, folder, process):
     """Prevents: the actual load landed as the forecast, or the reverse."""

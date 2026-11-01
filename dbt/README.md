@@ -9,7 +9,7 @@ As of 25 October 2026:
 
 | Layer | Files | What it does |
 |---|---|---|
-| `models/staging/` | 4 models, `_sources.yml`, `_models.yml` | 1:1 with the sources: rename, cast, resolve `position` to a timestamp. No business logic, per RUNBOOK Stage 6, except the one filter that cannot wait: `stg_entsoe__prices` keeps one of the two A44 curves (trap 5). `stg_entsoe__load` and `stg_entsoe__flows` are disabled until A65 and A11 are pulled. |
+| `models/staging/` | 4 models, `_sources.yml`, `_models.yml` | 1:1 with the sources: rename, cast, resolve `position` to a timestamp. No business logic, per RUNBOOK Stage 6, except the one filter that cannot wait: `stg_entsoe__prices` keeps one of the two A44 curves (trap 5). `stg_entsoe__load` stays disabled although A65 is pulled, and `stg_entsoe__flows` until A11 is (see **Disabled**). |
 | `models/intermediate/` | 6 models, `_models.yml` | Traps 1, 2 and 4, where the lineage graph can show them: A03 carry-forward with A01 left empty, for generation and for prices; the direction split as a full outer join; MW to MWh. The steps a missing series leaves partial, the twin of `validate.incomplete_steps`. And `int_intensity_interval`, a Python model: each step's 5th, 50th and 95th percentile under the shared factor draws. |
 | `models/marts/` | 4 dimensions, 4 facts, `_models.yml` | `dim_zone` and `dim_production_type` read `config/` in place. `dim_date` is a generated calendar holding the length of every local day (trap 3). `dim_factor_draw`, a Python model, holds the Monte Carlo draws of every priced factor that every step shares. `fact_generation` holds exactly the parser's rows with energy and emissions, `fact_intensity` the intensity of every generation step, the twin of Checkpoint 5, with its 90% interval, `fact_price` one day-ahead price per step, and `fact_intensity_year` the yearly figure of each zone with its interval. Every row of the first three facts carries `source_sha256`, its retrieval's key in `raw/manifest.csv`. |
 | `tests/` | 11 singular tests, plus 35 generic ones in the `_models.yml` files | Each encodes an error that yields a *plausible number* rather than a crash. |
@@ -84,9 +84,12 @@ as a passing test although it tested nothing.
 
 ## Disabled
 
-- `stg_entsoe__load` and `stg_entsoe__flows`, until `raw/parquet/a65.parquet`
-  and `a11.parquet` exist. A view over a missing file fails when it is
-  created, so `dbt build` could not go green on the data that does exist.
+- `stg_entsoe__load` and `stg_entsoe__flows`, because a view over a missing
+  file fails when it is created. `raw/parquet/a65.parquet` exists since
+  01.11.2026, with the day-ahead forecast beside it in `a65_a01.parquet`,
+  but the committed sample and the fixtures of `test_dbt_models.py` carry no
+  A65, and CI builds both. The load models are enabled when the decision
+  model needs them, with A65 added to both. `a11.parquet` does not exist.
 
 ## Running it
 
