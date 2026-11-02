@@ -8,7 +8,7 @@ B06,Fossil Oil,,,,unknown,"No AR5 oil row. Unpriced until a cited source is foun
 B09,Geothermal,38,6,79,high,IPCC AR5 WG3 Annex III Table A.III.2
 B10,Hydro Pumped Storage,,,,excluded,"Storage, not generation. Emissions derive from charging mix - handled separately"
 B11,Hydro Run-of-river,24,1,24,medium,"IPCC AR5 WG3 Annex III Table A.III.2 (hydropower): min and median. Max set to the median on 18.10.2026: the row's upper end is reservoir methane (88 typical in the table's methane column), which a run-of-river plant has no reservoir to emit; LCAs give 2-5 for run-of-river against 11-20 for dam reservoirs (Turconi et al. 2013, RSER 28: 555-565). docs/FACTOR_CHECK.md, decision 2"
-B12,Hydro Water Reservoir,24,1,2200,medium,"IPCC AR5 WG3 Annex III Table A.III.2 (hydropower; very wide range, reservoir methane included: 88 typical)"
+B12,Hydro Water Reservoir,24,1,88,medium,"IPCC AR5 WG3 Annex III Table A.III.2 (hydropower): min and median. Max set on 02.11.2026 to the table's typical reservoir methane, 88, in place of the row's 2200, whose top is reservoir methane at tropical levels; LCAs give 11-20 for dam reservoirs (Turconi et al. 2013, RSER 28: 555-565), so 88 errs high. docs/FACTOR_CHECK.md, decision 5"
 B14,Nuclear,12,3.7,110,high,IPCC AR5 WG3 Annex III Table A.III.2
 B15,Other renewable,,,,unknown,Composition not disclosed by ENTSO-E - REVIEW
 B16,Solar,48,18,180,high,"IPCC AR5 WG3 Annex III Table A.III.2 (utility PV). Kept over rooftop (26/41/60) on 18.10.2026: ENTSO-E's B16 does not separate them, utility's band contains rooftop's, and rooftop would move DE-LU by at most 1.2 and FR by 0.4 gCO2e/kWh (2021-2025). docs/FACTOR_CHECK.md, decision 3"
