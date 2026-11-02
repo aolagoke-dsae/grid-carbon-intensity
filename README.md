@@ -35,7 +35,8 @@ deal. For the same plant shifting the same load within the day, therefore:
 Whether that holds is for the data to say. Each saving will be reported per
 zone with its Monte Carlo interval. How each part is tested was fixed on
 31 October 2026, before any shift was computed, with what was already known
-about the intensity stated beside the rules (`docs/DECISION_MODEL.md`). One
+about the intensity stated beside the rules, and amended on 2 November, still
+before any shift (`docs/DECISION_MODEL.md`). One
 limitation is stated with it from the start: the intensity used here is the
 *average* intensity of the generation mix, not the *marginal* intensity of the
 plant that actually responds to a shift, and the two can differ substantially.
@@ -93,7 +94,7 @@ Named here rather than left for a reader to discover.
 |---|---|
 | dbt facts | **built 25.10.2026**: `fact_generation`, `fact_intensity` and `fact_price`, green on the 2021–2025 A75 and A44 data and on fixtures in CI, and equal to the Python parser and the stage 5 check (RUNBOOK Checkpoint 6); `fact_intensity` carries the 90% Monte Carlo interval of every step it reports. Rebuilt from a clean clone the same day, in a new environment, with the payloads verified against `raw/manifest.csv`: every mart table equal row for row. Rebuilt again on 02.11.2026 with reservoir hydro's narrower band (`docs/FACTOR_CHECK.md`, decision 5), Checkpoint 6 passed again. `stg_entsoe__load` stays disabled although A65 is pulled (01.11.2026), because the committed sample and the dbt fixtures carry no A65 and CI builds both; `stg_entsoe__flows` until A11 is pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
 | `curated/sample/` | **built 25.10.2026, synthetic.** It cannot hold real data: ENTSO-E's list of data open for reuse has neither A75 nor A44 (see **Licence**). So it holds the dbt fixtures' payloads, every number invented, and `dbt build --target sample` builds every model from it on a clean clone, as CI's dbt job does on every push. It shows that the code runs, not the figures |
-| Load-shifting decision model | **design fixed 31.10.2026, before any run** (`docs/DECISION_MODEL.md`): the plant, the decision, the three Monte Carlo inputs and the rules H1–H3. Nothing built yet — the question the project exists to answer |
+| Load-shifting decision model | **design fixed 31.10.2026 and amended 02.11.2026, before any run** (`docs/DECISION_MODEL.md`): the plant, the decision, the three Monte Carlo inputs and the rules H1–H3. Nothing built yet — the question the project exists to answer |
 | Quarto report, GitHub Pages | **not started** |
 | Power BI dashboard | **not started**; it will read the marts that every build writes to `exports/` as Parquet, since 31.10.2026, `fact_intensity_year` for the yearly figure. The Azure portability excursion was dropped in October 2026 and is archived in `archive/azure-excursion/` |
 | Sobol sensitivity of the saving | **not built**; designed 31.10.2026: first and total order over the three inputs, the driver named by total order (RUNBOOK Checkpoint 8, amended the same day). For the intensity alone, `variance_contribution()` reports first-order variance shares — for this linear model, its first-order Sobol indices — and each fuel's share of the 90% interval width |
@@ -631,9 +632,15 @@ Transparency Platform as the source (clause 3.1).
 What is published is derived from those data: the figures, the CSV beside
 each figure with every value it draws, and the results in this README and in
 `docs/`, all naming the ENTSO-E Transparency Platform as their source. Whether
-publishing such results needs the data owners' agreement has not been asked;
-it is to be settled with ENTSO-E before the report goes public (RUNBOOK,
-Stage 10). Nothing else from ENTSO-E is in the repository: `curated/sample/`
+publishing such results needs the data owners' agreement was asked of ENTSO-E
+on 2 November 2026 (ticket #9477147). It answered the same day that it cannot
+advise on data outside its open list, whose primary owners claim the rights
+to it, and referred the question to the data providers the platform names:
+RTE for France's generation, the four German transmission system operators
+for DE-LU's, and whoever it names for the day-ahead prices. Until they agree,
+the decision model publishes only its yearly figures
+(`docs/DECISION_MODEL.md`, A5), and the report does not go public (RUNBOOK,
+Checkpoint 10). Nothing else from ENTSO-E is in the repository: `curated/sample/`
 and every test fixture are synthetic, every number in them invented, and MIT
 like the code. Seven values that a test quoted from a real payload until
 31.10.2026 remain in the history of earlier commits.

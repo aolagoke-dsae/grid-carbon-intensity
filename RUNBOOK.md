@@ -56,7 +56,10 @@ that works.
 ## Pre-flight — already done
 
 **RESTful API access was granted on 7 August 2026** (ticket #9465462,
-transparency@entsoe.eu). Nothing is waiting on ENTSO-E.
+transparency@entsoe.eu). Access needs nothing further. The question whether
+results derived from the data may be published went to ENTSO-E on 02.11.2026
+(ticket #9477147); it referred it to the data owners the same day
+(Checkpoint 10).
 
 One step remains and it takes minutes: log in to
 <https://transparency.entsoe.eu/> → **My Account** → generate the security
@@ -984,8 +987,9 @@ A1–A5, and `docs/FACTOR_CHECK.md`, decision 5:
 - **The ML forecast** predicts each hour's price minus its day's mean. Days
   without a whole load forecast leave training and are decided naively in
   2024 and 2025 (A4). This closes the rule left open above.
-- **Only the yearly decision figures** are published until ENTSO-E has
-  answered (A5; Checkpoint 10).
+- **Only the yearly decision figures** are published until the data owners
+  have agreed (A5, reworded the same day after ENTSO-E's answer; Checkpoint
+  10).
 
 **Checkpoint 8**
 
@@ -1042,7 +1046,7 @@ it into two workflows:
   secrets, never hard-coded.
 
 *Amended 02.11.2026:* `refresh.yml` publishes nothing derived from ENTSO-E
-data before ENTSO-E has answered (Checkpoint 10). If Modul IV runs short,
+data before the data owners have agreed (Checkpoint 10). If Modul IV runs short,
 Stage 9 stays at the weekly CI run already in place, which builds the
 synthetic sample on a schedule.
 
@@ -1079,13 +1083,22 @@ training set.
 
 **Checkpoint 10**
 
-- Before the URL goes public: ENTSO-E has answered whether publishing results
-  derived from A75 and A44, and the values behind each figure, for
-  non-commercial research needs the data owners' prior agreement (Terms of
-  Use, clause 3.1; README, Licence). Ask the Transparency Platform's help
-  centre; added 31.10.2026. *Brought forward: asked on 02.11.2026 by email
-  to transparency@entsoe.eu, under ticket #9465462, so that the answer is in
-  before the capstone is submitted on 11.12. Answer awaited.*
+- Before the URL goes public: the data owners have agreed to the publication
+  of results derived from A75 and A44, and of the values behind each figure,
+  for non-commercial research (Terms of Use, clause 3.1; README, Licence).
+  Added 31.10.2026 as a question for ENTSO-E's help centre. *Brought forward:
+  asked on 02.11.2026 by email to transparency@entsoe.eu (ticket #9477147)
+  and answered the same day. Data outside ENTSO-E's open list belongs to its
+  primary owners, who claim the rights to it, so ENTSO-E cannot advise on a
+  single case and refers it to the data providers. The platform names them
+  beside each value: for A75, RTE for France and the four German TSOs for
+  DE-LU; the providers of the day-ahead prices are read off the same way.
+  Until this answer, the criterion was that ENTSO-E had answered. RTE was
+  asked the same day through the contact form of its data portal
+  (analysesetdonnees.rte-france.com, subject "Données"), and the four German
+  TSOs in one message through the contact form of netztransparenz.de, their
+  joint platform, addressed to all four (reference NTZ-CDVDPM8I, confirmed
+  by email). Answers awaited.*
 - SMARD asks that its wholesale prices not be used until a licensing review,
   the HEDWIG proceedings, is settled (smard.de, data use, read 02.11.2026).
   The check of the A44 curves against SMARD's filter 4169 (19.10.2026) is
@@ -1138,7 +1151,7 @@ each block.
 | WE 2, 17./18.10. | Modul 4a, SQL | **Stage 3.** Backfill DE-LU and FR, coverage checked per year |
 | WE 3, 24./25.10. | Modul 4b, Tableau | **Stage 4.** Every factor checked by hand against AR5 Table A.III.2. Repository public |
 | WE 4, 31.10./01.11. | Modul 5a, Tableau LOD | **Stage 5.** The deterministic intensity on the backfill; Checkpoint 5 (its week plot done on 24.10., the Electricity Maps cross-check on 25.10.) |
-| WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10.). *Amended 02.11.2026:* the question to ENTSO-E sent on 02.11. (Checkpoint 10, brought forward); FACTOR_CHECK decision 5 taken, so rebuild with B12's new band and pass Checkpoint 6 again (done on 02.11.) |
+| WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10.). *Amended 02.11.2026:* the question to ENTSO-E sent on 02.11. and answered the same day: the data owners decide (Checkpoint 10, brought forward); FACTOR_CHECK decision 5 taken, so rebuild with B12's new band and pass Checkpoint 6 again (done on 02.11.) |
 | WE 6, 14./15.11. | Modul 6, Machine Learning | **Stage 6.** The intensity fact with a first Monte Carlo interval: the first defensible number (done on 25.10.; rebuilt with B12's new band on 02.11.) |
 | WE 7, 21./22.11. | Modul 7, DAX and APIs | One Power BI page showing that number, read from the `exports/` Parquet; README draft (the exports and `fact_intensity_year`, which holds the number, built on 31.10.) |
 | WE 8, 28./29.11. | Modul 9, Green IT | Buffer. The marginal-versus-average intensity section, the limitation an experienced interviewer opens first, now with the location-based reading of `docs/DECISION_MODEL.md`, A1. *Amended 02.11.2026:* `src/decision/shift.py` with the perfect and naive forecasts and its tests, so that Modul 10 starts with the core running. A one-page work plan for Modul 10. (The A65 load pulls, planned here on 31.10., were brought forward to 01.11., before the ML module: Stage 8) |

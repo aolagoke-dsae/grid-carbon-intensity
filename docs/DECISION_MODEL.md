@@ -255,10 +255,13 @@ the rules H1–H3 keep their wording.*
 
 ### A5. What leaves the machine
 
-- Until ENTSO-E has answered the question in RUNBOOK Checkpoint 10, sent on
-  02.11.2026, only the yearly figures of `fact_shift_year` are published, in the README and the
-  report. `fact_shift_day`, which carries each day's start and saving, stays
-  in `exports/` on the machine that built it, for the Power BI pages.
+- Until the data owners have agreed (RUNBOOK Checkpoint 10), only the yearly
+  figures of `fact_shift_year` are published, in the README and the report.
+  `fact_shift_day`, which carries each day's start and saving, stays in
+  `exports/` on the machine that built it, for the Power BI pages.
+- *Reworded on 02.11.2026 after ENTSO-E's answer, confirmed the same day.
+  The condition was ENTSO-E's answer; ENTSO-E referred the question to the
+  data providers (ticket #9477147), so it is now their agreement.*
 
 ## References
 
