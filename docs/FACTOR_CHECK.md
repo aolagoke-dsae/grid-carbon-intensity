@@ -33,7 +33,7 @@ table's methane column, which the reproduction leaves out, gives hydropower
 | 5 | B05 | Fossil Hard coal | Coal — PC | 820 | 740 | 910 | high | 740 | 820 | 910 | yes | decision 1: CSV now 1040 / 861 / 1320, not from AR5 |
 | 6 | B09 | Geothermal | Geothermal | 38 | 6 | 79 | high | 6.0 | 38 | 79 | yes | |
 | 7 | B11 | Hydro Run-of-river | Hydropower | 24 | 1 | 2200 | medium | 1.0 | 24 | 2200 | yes | decision 2: CSV max now 24 |
-| 8 | B12 | Hydro Water Reservoir | Hydropower | 24 | 1 | 2200 | medium | 1.0 | 24 | 2200 | yes | decision 2 |
+| 8 | B12 | Hydro Water Reservoir | Hydropower | 24 | 1 | 2200 | medium | 1.0 | 24 | 2200 | yes | decisions 2 and 5: CSV max now 88 |
 | 9 | B14 | Nuclear | Nuclear | 12 | 3.7 | 110 | high | 3.7 | 12 | 110 | yes | |
 | 10 | B16 | Solar | Solar PV — utility | 48 | 18 | 180 | high | 18 | 48 | 180 | yes | decision 3 |
 | 11 | B18 | Wind Offshore | Wind offshore | 12 | 8 | 35 | high | 8.0 | 12 | 35 | yes | |
@@ -357,6 +357,21 @@ Before the decision model's first run:
 3. Checkpoint 6 again, the point inside its interval at every step.
 4. The README's yearly table, whose French upper bounds narrow.
 
+**Done on 02.11.2026.**
+
+1. The factor file in commit `3242818`, with the sampler's tests: `pytest`,
+   251 passed.
+2. `dbt build` of the six models that depend on the factor file, green with
+   their 29 tests. In `dim_factor_draw` B12's median is now 24.2, its 90th
+   percentile 52.5 and its 95th 63.3.
+3. Checkpoint 6: `True` on all ten zone-years, the point inside its interval
+   at every one of the 245,856 reported steps. The rule that fixed the draw
+   count, run again, still gives 10,000 (RUNBOOK Stage 6).
+4. The README's yearly table. France's intervals narrow by 10–20%, almost
+   all of it at the upper bound, which falls by 6–11 gCO2eq/kWh; DE-LU's
+   bounds fall by 0.3–0.5; no point moves. France's figures on AR5's whole
+   row stand beside them as the sensitivity.
+
 ## If a number differs from the PDF
 
 None did on 18 October 2026. For a later check:
@@ -375,7 +390,7 @@ both changed reasons only, no value. Later that day B02 took Germany's value,
 the second value change, in a commit of its own (`25f869a`), and B05
 Germany's hard-coal value, the third, in another. Decision 5, on reservoir
 hydro, was taken on 02.11.2026, before the decision model's first run: the
-fourth value change, in a commit of its own.
+fourth value change, in a commit of its own (`3242818`).
 
 The check is recorded under Checkpoint 4 in the runbook, and this worksheet is
 committed as its record.

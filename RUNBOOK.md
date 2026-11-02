@@ -30,10 +30,10 @@ has been pulled.*
 | Ingestion client (Energy-Charts) | yes, 25.10.2026 | the monthly backfill: which months a year needs, what counts as data, stored months not fetched again | **yes** — every month of 2024–2025, 25.10.2026; tracks our parse at r = 0.9995 and 0.9997 (Checkpoint 5) |
 | Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **yes** — DE-LU and FR 2021–2025, 17. and 18.10.2026 |
 | Parser, A44 prices (trap 5) | yes | yes | **yes** — the DE-LU payloads of 2021–2025; curve 1 equals SMARD 4169 to the cent in every year, 19.10.2026 |
-| Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; two weeks of 2025 plotted and their shape checked, 24.10.2026; checked against Electricity Maps' published figures, 25.10.2026; in `fact_intensity` since 25.10.2026, equal to the stage 5 check at every step, with its 90% Monte Carlo interval from 10,000 shared draws, the point inside it at all 245,856 reported steps |
-| Stage checks (2–6) | yes; 2 and 5 rewritten 17.10. so they can fail; 3 counts either leg and measures time since 18.10.; 6 written 25.10. and extended to the interval the same day | yes, each made to fail | **all five**: 2–5 on the 2021–2025 A75 pulls, 18.10.2026; 6 on the marts built from them, 25.10.2026 |
+| Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; two weeks of 2025 plotted and their shape checked, 24.10.2026; checked against Electricity Maps' published figures, 25.10.2026; in `fact_intensity` since 25.10.2026, equal to the stage 5 check at every step, with its 90% Monte Carlo interval from 10,000 shared draws, the point inside it at all 245,856 reported steps; rebuilt 02.11.2026 with reservoir hydro (B12) at 1 / 24 / 88, the point again inside at every step |
+| Stage checks (2–6) | yes; 2 and 5 rewritten 17.10. so they can fail; 3 counts either leg and measures time since 18.10.; 6 written 25.10. and extended to the interval the same day | yes, each made to fail | **all five**: 2–5 on the 2021–2025 A75 pulls, 18.10.2026; 6 on the marts built from them, 25.10.2026, and on their rebuild of 02.11.2026 |
 | T-SQL schema + DQ views (Azure) | archived 17.10.2026 in `archive/azure-excursion/` | — | never: DuckDB cannot run them |
-| dbt models | yes — 18 models (16 enabled, two of them Python), 11 singular tests, 38 generic; the three facts and the interval since 25.10.2026, the yearly fact and the Parquet exports since 31.10.2026 | built on fixtures in CI and compared with the Python parser, the facts also with the stage 5 and 6 checks | **yes** — the 2021–2025 A75 and A44 data, 18.10.2026: 23 nodes green; rebuilt 19.10.2026 with the Itten coal rows, `dim_production_type` equal to the factor file row for row; with the facts and the interval, 25.10.2026: 61 nodes green; Checkpoint 6 passed, the rebuild from a clean clone included |
+| dbt models | yes — 18 models (16 enabled, two of them Python), 11 singular tests, 38 generic; the three facts and the interval since 25.10.2026, the yearly fact and the Parquet exports since 31.10.2026 | built on fixtures in CI and compared with the Python parser, the facts also with the stage 5 and 6 checks | **yes** — the 2021–2025 A75 and A44 data, 18.10.2026: 23 nodes green; rebuilt 19.10.2026 with the Itten coal rows, `dim_production_type` equal to the factor file row for row; with the facts and the interval, 25.10.2026: 61 nodes green; Checkpoint 6 passed, the rebuild from a clean clone included; on 02.11.2026 the six models that depend on the factor file, rebuilt with B12's new band, green with their 29 tests, and Checkpoint 6 passed again |
 | Decision model | the design only, fixed 31.10.2026 before any shift was computed (`docs/DECISION_MODEL.md`); no code yet | — | no |
 | CI | yes, `.github/workflows/pipeline.yml` | — | **yes**, green on 3.11 and 3.14 |
 | Version control | yes — MIT; public since 20.10.2026, ahead of the planned WE 3 (<https://github.com/aolagoke-dsae/grid-carbon-intensity>) | — | — |
@@ -370,8 +370,10 @@ the row's band, and DE-LU moves by −0.7 to +4.0 (decision 4, 19.10.2026).
 `load_factors` refuses a
 priced row whose source is a placeholder. Run-of-river (B11) keeps AR5's
 hydropower minimum and median and stops at the median, 1 / 24 / 24, decided
-18.10.2026 after the hand check: the row's upper end is reservoir methane,
-which B12 keeps (`docs/FACTOR_CHECK.md`, decision 2).
+18.10.2026 after the hand check: the row's upper end is reservoir methane.
+Reservoirs (B12) kept the whole row until 02.11.2026 and since then stop at
+AR5's typical reservoir methane, 1 / 24 / 88 (`docs/FACTOR_CHECK.md`,
+decisions 2 and 5).
 
 > **This is the stage that carries the whole project's credibility.** Open IPCC
 > AR5 WG3 Annex III Table A.III.2 and verify every number in that CSV against
@@ -644,18 +646,43 @@ model), set beside the point in `fact_intensity`.
    `docs/FACTOR_CHECK.md`'s at both bounds, and 2023's are the same to the
    decimal.
 
+**Run again on 02.11.2026**, on the warehouse rebuilt with reservoir hydro
+(B12) at 1 / 24 / 88 (`docs/FACTOR_CHECK.md`, decision 5). Each reported
+step's percentiles at 2,000, 5,000, 10,000 and 20,000 shared draws came from
+`intensity.step_intervals`, the 10,000-draw ones equal to the warehouse's at
+every step; on the factor file before decision 5 the same code gives every
+figure of 25.10 above. All three held again.
+
+1. France's 95th percentile moves against 20,000 by up to 6.4% at 2,000
+   draws, 2.3% at 5,000 and 1.7% at 10,000 (median 0.5%); at 10,000 its 5th
+   moves by up to 1.6%, and DE-LU's bounds by 1.0% and 0.4%. The rule still
+   gives 10,000. Narrowing B12 more than halved France's largest movement, so
+   part of the 3.7% of 25.10 came from B12's tail, which reached 2,200, not
+   from nuclear's alone.
+2. The point lies inside its interval at every one of the 245,856 reported
+   steps, in dbt and in `check_stage6_marts`.
+3. DE-LU's yearly intervals lie within 0.3% of `docs/FACTOR_CHECK.md`'s at
+   both bounds, B12's new band included.
+
+The build's post-hook rewrote the exports of the five marts it rebuilt.
+
 **The first defensible number.** Energy-weighted over the steps that report
 an intensity, at median factors, with the 90% interval from the stored draws,
 gCO2e/kWh; generation-based, over the priced share of generation (DE-LU
-94.9–95.6%, France 97.7–98.5%):
+94.9–95.6%, France 97.7–98.5%), since 02.11.2026 with B12 at 1 / 24 / 88:
 
 | Year | DE-LU | France |
 |---|---|---|
-| 2021 | 410.6 (394.6–464.7) | 54.6 (48.4–101.9) |
-| 2022 | 441.6 (423.1–500.4) | 71.4 (64.3–113.3) |
-| 2023 | 384.8 (369.8–435.1) | 46.9 (41.1–91.2) |
-| 2024 | 357.4 (343.8–404.7) | 33.6 (28.2–81.4) |
-| 2025 | 352.1 (338.4–398.8) | 32.3 (27.0–77.2) |
+| 2021 | 410.6 (394.3–464.4) | 54.6 (48.0–92.6) |
+| 2022 | 441.6 (422.7–499.9) | 71.4 (63.7–107.6) |
+| 2023 | 384.8 (369.4–434.7) | 46.9 (40.6–83.3) |
+| 2024 | 357.4 (343.5–404.3) | 33.6 (27.8–70.4) |
+| 2025 | 352.1 (338.1–398.5) | 32.3 (26.6–69.9) |
+
+On 25.10, with B12 on AR5's whole row, France's upper bounds were 101.9,
+113.3, 91.2, 81.4 and 77.2, its lower bounds 0.3–0.6 higher, and DE-LU's
+bounds 0.3–0.5 higher; no point differs. The README keeps France's figures
+on the whole row beside the table, as the sensitivity.
 
 Any total takes its interval the same way, from the warehouse alone:
 
@@ -705,7 +732,9 @@ print(check_stage6_marts(con, payloads, load_factors("config/ipcc_ar5_factors.cs
   and 40 tests, with DuckDB 1.5.6 and again with 2.0.0 from the same landed
   parquet; the catalog lists all 13 relations, and every model is documented.
   With the interval the same day: 61 nodes, 15 models and 46 tests, green on
-  both, all 15 models in the catalog and documented
+  both, all 15 models in the catalog and documented. **Again 02.11.2026**
+  with B12's new band: the six models that depend on the factor file and
+  their 29 tests, green
 - Mart row count equals the parsed row count **exactly**. **Done 25.10.2026**:
   `check_stage6_marts` returns `True` on all ten zone-years. `fact_generation`
   holds the parser's 4,207,792 rows, the same keys and the same MW, and
@@ -714,7 +743,9 @@ print(check_stage6_marts(con, payloads, load_factors("config/ipcc_ar5_factors.cs
   points 410.6, 441.6, 384.8, 357.4 and 352.1 gCO2e/kWh as in
   `docs/FACTOR_CHECK.md`. Each of the 245,856 steps it reports carries the
   interval of its parsed mix under the stored draws, the point inside.
-  `fact_price` holds 101,070 steps, 1,010 of them carried forward
+  `fact_price` holds 101,070 steps, 1,010 of them carried forward. **Again
+  02.11.2026**, on the rebuild: `True` on all ten zone-years, each of the
+  245,856 reported steps with its new interval, the point inside
 - Every fact row resolves to its retrieval in the ingest manifest: every
   landed row carries `source_sha256`, and the intermediate models pass it on.
   **Done 25.10.2026**: `assert_every_fact_row_resolves_to_the_manifest`
@@ -923,10 +954,13 @@ median, min and max sit at the 2.5th and 97.5th percentiles, and every draw
 stays inside the band. A triangular with the median as its mode — the default
 until 17 October 2026 — moves the median of a skewed band (nuclear's to 37.7)
 and pushed the deterministic point outside its interval on nuclear-heavy mixes.
-`describe_sampling()` lists the fitted spreads per fuel. One band is narrower
-than AR5's: run-of-river (B11) stops at its median since 18.10.2026, because
-AR5's hydropower maximum is reservoir methane. Under the full band it owned
-65–71% of France's interval variance (Stage 4).
+`describe_sampling()` lists the fitted spreads per fuel. Two bands are
+narrower than AR5's, both on its hydropower row, whose maximum is reservoir
+methane: run-of-river (B11) stops at its median since 18.10.2026, and
+reservoirs (B12) at AR5's typical reservoir methane, 88, since 02.11.2026.
+Under the full band run-of-river owned 65–71% of France's interval variance
+(Stage 4); B12's narrower band lowers France's yearly upper bounds by 6–11
+(Stage 6).
 
 **Lignite and hard coal.** The 900 / 1,300 sensitivity planned on 18.10.2026
 is not needed: since 19.10.2026 B02 and B05 carry Germany's values from Itten
@@ -946,7 +980,7 @@ A1–A5, and `docs/FACTOR_CHECK.md`, decision 5:
   scenarios and kept in the Sobol analysis, on its own sample (A2).
 - **Reservoir hydro** (B12) goes to 1 / 24 / 88 (decision 5): the factor
   file, `dbt build`, Checkpoint 6 and the README's yearly table, all before
-  the first shift (A3).
+  the first shift (A3). Done on 02.11.2026 (Stage 6).
 - **The ML forecast** predicts each hour's price minus its day's mean. Days
   without a whole load forecast leave training and are decided naively in
   2024 and 2025 (A4). This closes the rule left open above.
@@ -967,9 +1001,10 @@ convergence bullet gave no criterion for an interval that contains zero.*
   convergence and you should be able to state it. Where an interval contains
   zero, as a saving's can, the criterion is 1% of its width. If the saving's
   bounds move more, its figures are given at 20,000 draws, with the movement
-  stated. Measured early for the per-step intervals, 25.10.2026 (Stage 6): at
-  10,000 draws France's 95th percentile still moves by up to 3.7%, DE-LU's
-  bounds by up to 1.0%.
+  stated. Measured early for the per-step intervals (Stage 6): at 10,000
+  draws France's 95th percentile still moves by up to 1.7%, DE-LU's bounds by
+  up to 1.0% (02.11.2026; France's 3.7% on 25.10 was with B12 on AR5's whole
+  row).
 - For the intensity, Sobol indices sum to approximately 1 and name a dominant
   driver: the intensity is linear in the factors, so first-order shares account
   for all of its variance. A fuel's share grows with its energy share squared
@@ -1103,8 +1138,8 @@ each block.
 | WE 2, 17./18.10. | Modul 4a, SQL | **Stage 3.** Backfill DE-LU and FR, coverage checked per year |
 | WE 3, 24./25.10. | Modul 4b, Tableau | **Stage 4.** Every factor checked by hand against AR5 Table A.III.2. Repository public |
 | WE 4, 31.10./01.11. | Modul 5a, Tableau LOD | **Stage 5.** The deterministic intensity on the backfill; Checkpoint 5 (its week plot done on 24.10., the Electricity Maps cross-check on 25.10.) |
-| WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10.). *Amended 02.11.2026:* the question to ENTSO-E sent on 02.11. (Checkpoint 10, brought forward); FACTOR_CHECK decision 5 taken, so rebuild with B12's new band and pass Checkpoint 6 again |
-| WE 6, 14./15.11. | Modul 6, Machine Learning | **Stage 6.** The intensity fact with a first Monte Carlo interval: the first defensible number (done on 25.10.) |
+| WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10.). *Amended 02.11.2026:* the question to ENTSO-E sent on 02.11. (Checkpoint 10, brought forward); FACTOR_CHECK decision 5 taken, so rebuild with B12's new band and pass Checkpoint 6 again (done on 02.11.) |
+| WE 6, 14./15.11. | Modul 6, Machine Learning | **Stage 6.** The intensity fact with a first Monte Carlo interval: the first defensible number (done on 25.10.; rebuilt with B12's new band on 02.11.) |
 | WE 7, 21./22.11. | Modul 7, DAX and APIs | One Power BI page showing that number, read from the `exports/` Parquet; README draft (the exports and `fact_intensity_year`, which holds the number, built on 31.10.) |
 | WE 8, 28./29.11. | Modul 9, Green IT | Buffer. The marginal-versus-average intensity section, the limitation an experienced interviewer opens first, now with the location-based reading of `docs/DECISION_MODEL.md`, A1. *Amended 02.11.2026:* `src/decision/shift.py` with the perfect and naive forecasts and its tests, so that Modul 10 starts with the core running. A one-page work plan for Modul 10. (The A65 load pulls, planned here on 31.10., were brought forward to 01.11., before the ML module: Stage 8) |
 | **01.–11.12.** | **Modul 10, final project** | **Stages 7 and 8.** Every dbt test green on the backfill; the decision model with Monte Carlo and Sobol, reproducible with a fixed seed; the ML part on this data, baseline **first** (seasonal naive, same weekday last week; if the model loses to it, document that), then the price-spread forecast; Power BI pages 2 and 3, measures in DAX rather than precomputed in Power Query; README, lineage screenshot, `BENCHMARKS.md`. Submission. *Amended 02.11.2026, if time runs short:* cut the A69 variant first, then PL, then the marginal estimate |

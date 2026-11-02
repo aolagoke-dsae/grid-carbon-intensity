@@ -72,7 +72,8 @@ point is `deterministic_intensity()` — the energy-weighted mean at each fuel's
 median factor, no sampling — and it is a different quantity from the median of
 the draws. If it escapes the interval the propagation is skewed, and no figure
 is published. On the 2021–2025 data it holds at every one of the 245,856
-steps the warehouse reports (25 October 2026).
+steps the warehouse reports (25 October 2026, and again on 2 November after
+reservoir hydro's band was narrowed).
 
 > Corrected 7 October 2026. The test behind this criterion used to compare the
 > sampled median against the sampled percentiles, which is true by definition
@@ -90,7 +91,7 @@ Named here rather than left for a reader to discover.
 
 | | Status |
 |---|---|
-| dbt facts | **built 25.10.2026**: `fact_generation`, `fact_intensity` and `fact_price`, green on the 2021–2025 A75 and A44 data and on fixtures in CI, and equal to the Python parser and the stage 5 check (RUNBOOK Checkpoint 6); `fact_intensity` carries the 90% Monte Carlo interval of every step it reports. Rebuilt from a clean clone the same day, in a new environment, with the payloads verified against `raw/manifest.csv`: every mart table equal row for row. `stg_entsoe__load` stays disabled although A65 is pulled (01.11.2026), because the committed sample and the dbt fixtures carry no A65 and CI builds both; `stg_entsoe__flows` until A11 is pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
+| dbt facts | **built 25.10.2026**: `fact_generation`, `fact_intensity` and `fact_price`, green on the 2021–2025 A75 and A44 data and on fixtures in CI, and equal to the Python parser and the stage 5 check (RUNBOOK Checkpoint 6); `fact_intensity` carries the 90% Monte Carlo interval of every step it reports. Rebuilt from a clean clone the same day, in a new environment, with the payloads verified against `raw/manifest.csv`: every mart table equal row for row. Rebuilt again on 02.11.2026 with reservoir hydro's narrower band (`docs/FACTOR_CHECK.md`, decision 5), Checkpoint 6 passed again. `stg_entsoe__load` stays disabled although A65 is pulled (01.11.2026), because the committed sample and the dbt fixtures carry no A65 and CI builds both; `stg_entsoe__flows` until A11 is pulled. (Corrected 08.10.2026: an earlier version of this row said no models were written; the 10 models arrived on 5 October in commit `1c21970`.) |
 | `curated/sample/` | **built 25.10.2026, synthetic.** It cannot hold real data: ENTSO-E's list of data open for reuse has neither A75 nor A44 (see **Licence**). So it holds the dbt fixtures' payloads, every number invented, and `dbt build --target sample` builds every model from it on a clean clone, as CI's dbt job does on every push. It shows that the code runs, not the figures |
 | Load-shifting decision model | **design fixed 31.10.2026, before any run** (`docs/DECISION_MODEL.md`): the plant, the decision, the three Monte Carlo inputs and the rules H1–H3. Nothing built yet — the question the project exists to answer |
 | Quarto report, GitHub Pages | **not started** |
@@ -432,13 +433,20 @@ published min and max sit at its 2.5th and 97.5th percentiles, each side of
 the median takes its own spread, and every draw stays inside the published
 band. `describe_sampling()` lists the fitted spreads per fuel.
 
-One band is narrower than AR5's, decided 18 October 2026. AR5 has a single
-hydropower row, and its upper end is reservoir methane, which a run-of-river
-plant has no reservoir to emit. Run-of-river (B11) therefore keeps AR5's
-minimum and median and stops at the median, 1 / 24 / 24; reservoirs (B12)
-keep the full row. Under the full band, run-of-river accounted for 65–71% of
-France's interval variance in 2021–2025 at 7–9% of its generation. The point
-estimate does not change; France's interval narrows by 35–40%.
+Two bands are narrower than AR5's, both on its single hydropower row, whose
+upper end is reservoir methane at its worst. A run-of-river plant has no
+reservoir to emit it, so since 18 October 2026 run-of-river (B11) keeps AR5's
+minimum and median and stops at the median, 1 / 24 / 24. Under the full band,
+run-of-river accounted for 65–71% of France's interval variance in 2021–2025
+at 7–9% of its generation; cutting its tail narrowed France's interval by
+35–40%, and the point did not move. Reservoirs (B12) kept the full row until
+2 November 2026, and their stored draws reached 699 at the 95th percentile,
+above gas's median. They now stop at AR5's typical value for reservoir
+methane, 1 / 24 / 88, which still errs high against the 11–20 reported for
+dam reservoirs in the studies Turconi et al. (2013) review. France's yearly
+intervals narrow by a further 10–20%, almost all of it at the upper bound,
+which falls by 6–11 gCO₂e/kWh; DE-LU's bounds fall by 0.3–0.5, and no point
+moves (`docs/FACTOR_CHECK.md`, decisions 2 and 5).
 
 Two factors are not AR5's, decided 19 October 2026. AR5's single coal row
 stops at 910 gCO₂e/kWh, below where a life-cycle inventory resolved by country
@@ -462,9 +470,10 @@ numbers), so they cannot depend on the order in which a mix is written down;
 until 17 October they did. Intensity is linear in independent factors, so the
 variance shares are first-order Sobol indices and sum to one, up to Monte
 Carlo error. The
-interval-width shares are reported beside them because a heavy tail can lead
-the variance without leading the interval: in a nuclear-heavy test mix, hydro
-supplies 3% of the energy, 23% of the variance and 13% of the interval width.
+interval-width shares are reported beside them because a heavy tail can take
+far more of the variance than of the interval: in a nuclear-heavy test mix
+with reservoirs on AR5's whole hydropower row, hydro supplies 3% of the
+energy, 23% of the variance and 13% of the interval width.
 
 **In the warehouse, since 25 October 2026.** One set of 10,000 factor draws
 serves every step (`dim_factor_draw`, seed 20260917). A factor's error is the
@@ -474,20 +483,24 @@ step, the errors would average out and such intervals would come out far too
 narrow. `fact_intensity` carries each reported step's 90% interval beside its
 point, and `fact_intensity_year` the yearly figures, energy-weighted over the
 reported steps, in gCO₂e/kWh, generation-based and over the priced share of
-generation:
+generation. Since 2 November 2026 reservoirs carry 1 / 24 / 88:
 
-| Year | DE-LU | France |
-|---|---|---|
-| 2021 | 410.6 (394.6–464.7) | 54.6 (48.4–101.9) |
-| 2022 | 441.6 (423.1–500.4) | 71.4 (64.3–113.3) |
-| 2023 | 384.8 (369.8–435.1) | 46.9 (41.1–91.2) |
-| 2024 | 357.4 (343.8–404.7) | 33.6 (28.2–81.4) |
-| 2025 | 352.1 (338.4–398.8) | 32.3 (27.0–77.2) |
+| Year | DE-LU | France | France, reservoirs on AR5's whole row |
+|---|---|---|---|
+| 2021 | 410.6 (394.3–464.4) | 54.6 (48.0–92.6) | 54.6 (48.4–101.9) |
+| 2022 | 441.6 (422.7–499.9) | 71.4 (63.7–107.6) | 71.4 (64.3–113.3) |
+| 2023 | 384.8 (369.4–434.7) | 46.9 (40.6–83.3) | 46.9 (41.1–91.2) |
+| 2024 | 357.4 (343.5–404.3) | 33.6 (27.8–70.4) | 33.6 (28.2–81.4) |
+| 2025 | 352.1 (338.1–398.5) | 32.3 (26.6–69.9) | 32.3 (27.0–77.2) |
+
+The last column is the sensitivity decision 5 keeps: France with reservoirs
+on AR5's whole hydropower row, as this table gave it from 25 October to
+2 November 2026.
 
 The draw count was fixed by a rule written before the run (RUNBOOK Stage 6).
-At 10,000 draws France's upper bounds still move by up to 3.7% against
-20,000, because they sit in the sparse far tail of nuclear's band; DE-LU's
-move by up to 1.0%.
+At 10,000 draws France's bounds still move by up to 1.7% against 20,000, and
+DE-LU's by up to 1.0%, measured again on 2 November 2026. With reservoirs on
+the whole row, France's upper bounds moved by up to 3.7%.
 
 ## Tests
 
