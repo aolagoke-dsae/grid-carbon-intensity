@@ -5,6 +5,10 @@ by Adewole Olagoke: the six items at the end stand as drafted. Nothing here is
 built or run yet. The commit is the record, as for every rule in this
 repository, and a section written after the run will say so.*
 
+*Amendments of 02.11.2026, made before any shift was computed and confirmed the
+same day by Adewole Olagoke, follow the confirmed items. Where they differ from
+the text above, they take precedence.*
+
 ## The question
 
 For a plant that can move a block of load within the day, what does moving it
@@ -188,8 +192,89 @@ choice, the design as written settles it:
    room), its figures are reported by the same method. It needs A44 for 2025, a
    third zone through the marts and a column on every page.
 
-## Reference
+## Amendments of 02.11.2026, before any run
+
+*From a review of the design on 02.11.2026, confirmed the same day by Adewole
+Olagoke. No shift had been computed. Each amendment says what changes and why;
+the rules H1–H3 keep their wording.*
+
+### A1. What the CO₂ figures measure
+
+- Every CO₂ figure is the change the shift makes to the plant's emissions as
+  hourly location-based Scope 2 accounting counts them: on the average
+  intensity of the grid the plant draws from, which is how the GHG Protocol
+  defines the location-based method (GHG Protocol, 2015).
+- It is not the emissions the shift avoids physically. Those depend on the
+  plant at the margin, which an average intensity does not identify, and
+  average factors can misstate avoided emissions badly (Siler-Evans et al.,
+  2012).
+- "What does moving it save, in tCO₂e" is read in that sense, and H1 and H3
+  test it in that sense. Every CO₂ figure is labelled "location-based, hourly,
+  production-based".
+- Reported only, and the first thing cut if Modul 10 runs short: a marginal
+  estimate per zone for 2025, the slope of hour-to-hour changes in fossil
+  emissions at the median factors on hour-to-hour changes in the actual load
+  (A65, A16), after Hawkes (2010). The CO₂ effect of the cost-driven shift is
+  given at that slope beside the average figure, stating that cross-border
+  flows meet part of any change.
+
+### A2. Flexibility leaves the tested intervals
+
+- The point and the tested intervals are at n = 4, the plant as specified.
+  Their uncertainty comes from the emission factors and the forecast error.
+- n = 2, 3, 5 and 6 are reported as scenarios, each with its own interval, so
+  the effect of flexibility is shown rather than mixed into the uncertainty.
+- Sobol keeps all three inputs, with n drawn from 2 to 6 as before, on its own
+  10,000 base rows: matrix A is no longer the interval's sample. The
+  convergence rule applies to both.
+- Why: n is a choice about the plant, not uncertainty about the world. Drawn
+  into the interval, it would widen H1–H3's intervals by a design choice.
+
+### A3. Reservoir hydro's factor band, before the first run
+
+- Decision 5 of `docs/FACTOR_CHECK.md`, taken on 02.11.2026: reservoir hydro
+  (B12) runs from 1 to 88 gCO₂e/kWh rather than to 2,200, and `dim_factor_draw`
+  and `fact_intensity` are rebuilt before the first shift is computed.
+- France's figures and H1 are also reported under AR5's full row, labelled as
+  the sensitivity.
+- Why: French reservoirs run at the peaks a shift can reach. Under the full
+  row, the lower end of H1's interval would rest partly on reservoir methane
+  at tropical levels (FACTOR_CHECK, decision 5).
+
+### A4. The ML forecast: what it predicts, and days without a whole load forecast
+
+- The choice depends only on the order of the start times, not on the price
+  level. The ML forecast therefore predicts each hour's price minus its day's
+  mean, which keeps 2022's price levels from dominating training on 2021–2023.
+  It is still judged by its decisions, as above.
+- A day whose day-ahead load forecast is not whole is left out of training:
+  in DE-LU, 22.02. and 24.03.2022 and the first local hour of the 25-hour day
+  of 2023. In 2024 and 2025, such a day is decided by the naive forecast and
+  counted; the 25-hour day of 2024 is one. These days are listed with the
+  results.
+
+### A5. What leaves the machine
+
+- Until ENTSO-E has answered the question in RUNBOOK Checkpoint 10, sent on
+  02.11.2026, only the yearly figures of `fact_shift_year` are published, in the README and the
+  report. `fact_shift_day`, which carries each day's start and saving, stays
+  in `exports/` on the machine that built it, for the Power BI pages.
+
+## References
 
 Commission Regulation (EU) No 543/2013 of 14 June 2013 on submission and
 publication of data in electricity markets. *Official Journal of the European
 Union*, L 163, 15.6.2013, 1–12. https://eur-lex.europa.eu/eli/reg/2013/543/oj
+
+GHG Protocol. (2015). *GHG Protocol Scope 2 Guidance: An amendment to the GHG
+Protocol Corporate Standard*. World Resources Institute and World Business
+Council for Sustainable Development. Executive summary:
+https://ghgprotocol.org/sites/default/files/Scope2_ExecSum_Final.pdf
+
+Hawkes, A. D. (2010). Estimating marginal CO2 emissions rates for national
+electricity systems. *Energy Policy*, 38(10), 5977–5987.
+https://doi.org/10.1016/j.enpol.2010.05.053
+
+Siler-Evans, K., Azevedo, I. L., & Morgan, M. G. (2012). Marginal emissions
+factors for the U.S. electricity system. *Environmental Science & Technology*,
+46(9), 4742–4748. https://doi.org/10.1021/es300145v

@@ -1,7 +1,7 @@
 # Project A — Build Runbook
 
 **Grid Carbon Intensity & Load-Shift Optimiser**
-Dr. Adewole Olagoke · started 7 August 2026 · runbook revised 31 October 2026
+Dr. Adewole Olagoke · started 7 August 2026 · runbook revised 2 November 2026
 Gate: Stages 1–6 standing and the first defensible number by **26 November 2026**
 Capstone: Stages 7–8 in Modul 10, the final-project block, **01.–11.12.2026**
 Target: Stage 10 public during Modul IV, before **6 January 2027**
@@ -906,7 +906,8 @@ in MW. DE-LU is quarter-hourly throughout. France is hourly until
 - **The forecasts that pass are not all whole.** DE-LU's misses 22 February
   and 24 March 2022 entirely, and the first local hour of the 25-hour days of
   2023 and 2024. How the ML forecast treats a day without a whole load
-  forecast is to be fixed before it runs.
+  forecast is to be fixed before it runs. *Fixed 02.11.2026:
+  `docs/DECISION_MODEL.md`, A4.*
 
 Landed with `python -m src.transform.xml_to_parquet A65 A65_A01`, which names
 the folders to land so that A75 is not read again (since the same day):
@@ -933,6 +934,24 @@ et al. (2023), 1,060 and 1,040, with bands of 1,000–1,350 and 861–1,320,
 sampled like every other band. Lignite now leads DE-LU's interval, 48–57% of
 the variance and 29–34% of the width, 2021–2025; hard coal has 13–31% of the
 variance.
+
+**Amendments of 02.11.2026, before any shift was computed, confirmed the same
+day.** From a review of the design; the text is in `docs/DECISION_MODEL.md`,
+A1–A5, and `docs/FACTOR_CHECK.md`, decision 5:
+
+- **The CO₂ figures** are read as hourly location-based Scope 2 accounting, on
+  the grid's average intensity. A marginal estimate is reported only, and is
+  the first thing cut if time runs short (A1).
+- **n = 4** for the point and the tested intervals. n = 2–6 is shown as
+  scenarios and kept in the Sobol analysis, on its own sample (A2).
+- **Reservoir hydro** (B12) goes to 1 / 24 / 88 (decision 5): the factor
+  file, `dbt build`, Checkpoint 6 and the README's yearly table, all before
+  the first shift (A3).
+- **The ML forecast** predicts each hour's price minus its day's mean. Days
+  without a whole load forecast leave training and are decided naively in
+  2024 and 2025 (A4). This closes the rule left open above.
+- **Only the yearly decision figures** are published until ENTSO-E has
+  answered (A5; Checkpoint 10).
 
 **Checkpoint 8**
 
@@ -966,6 +985,9 @@ convergence bullet gave no criterion for an interval that contains zero.*
   order counts what an input does through its interactions.
 - B02 and B05 carry German lignite and hard-coal factors, not AR5's coal row:
   done 19.10.2026, from Itten et al. (2023).
+- *Amended 02.11.2026:* the tested intervals are taken at n = 4. n is drawn
+  only for the Sobol analysis and shown as scenarios (`docs/DECISION_MODEL.md`,
+  A2).
 
 ---
 
@@ -983,6 +1005,11 @@ it into two workflows:
 - **`refresh.yml`** — scheduled 06:00 UTC: ingest → validate manifest →
   transform → `dbt build` → render Quarto → publish. Token from repository
   secrets, never hard-coded.
+
+*Amended 02.11.2026:* `refresh.yml` publishes nothing derived from ENTSO-E
+data before ENTSO-E has answered (Checkpoint 10). If Modul IV runs short,
+Stage 9 stays at the weekly CI run already in place, which builds the
+synthetic sample on a schedule.
 
 **Checkpoint 9**
 
@@ -1021,7 +1048,14 @@ training set.
   derived from A75 and A44, and the values behind each figure, for
   non-commercial research needs the data owners' prior agreement (Terms of
   Use, clause 3.1; README, Licence). Ask the Transparency Platform's help
-  centre; added 31.10.2026
+  centre; added 31.10.2026. *Brought forward: asked on 02.11.2026 by email
+  to transparency@entsoe.eu, under ticket #9465462, so that the answer is in
+  before the capstone is submitted on 11.12. Answer awaited.*
+- SMARD asks that its wholesale prices not be used until a licensing review,
+  the HEDWIG proceedings, is settled (smard.de, data use, read 02.11.2026).
+  The check of the A44 curves against SMARD's filter 4169 (19.10.2026) is
+  reported as a check made, and no SMARD price is published. *Added
+  02.11.2026*
 - GitHub Pages URL opens from a signed-out browser
 - README opens with a **screenshot**, not a folder tree
 - `docs/METHODOLOGY.md` written: sources, factor table with citations, the
@@ -1069,11 +1103,11 @@ each block.
 | WE 2, 17./18.10. | Modul 4a, SQL | **Stage 3.** Backfill DE-LU and FR, coverage checked per year |
 | WE 3, 24./25.10. | Modul 4b, Tableau | **Stage 4.** Every factor checked by hand against AR5 Table A.III.2. Repository public |
 | WE 4, 31.10./01.11. | Modul 5a, Tableau LOD | **Stage 5.** The deterministic intensity on the backfill; Checkpoint 5 (its week plot done on 24.10., the Electricity Maps cross-check on 25.10.) |
-| WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10.) |
+| WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10.). *Amended 02.11.2026:* the question to ENTSO-E sent on 02.11. (Checkpoint 10, brought forward); FACTOR_CHECK decision 5 taken, so rebuild with B12's new band and pass Checkpoint 6 again |
 | WE 6, 14./15.11. | Modul 6, Machine Learning | **Stage 6.** The intensity fact with a first Monte Carlo interval: the first defensible number (done on 25.10.) |
 | WE 7, 21./22.11. | Modul 7, DAX and APIs | One Power BI page showing that number, read from the `exports/` Parquet; README draft (the exports and `fact_intensity_year`, which holds the number, built on 31.10.) |
-| WE 8, 28./29.11. | Modul 9, Green IT | Buffer. The marginal-versus-average intensity section, the limitation an experienced interviewer opens first. A one-page work plan for Modul 10. (The A65 load pulls, planned here on 31.10., were brought forward to 01.11., before the ML module: Stage 8) |
-| **01.–11.12.** | **Modul 10, final project** | **Stages 7 and 8.** Every dbt test green on the backfill; the decision model with Monte Carlo and Sobol, reproducible with a fixed seed; the ML part on this data, baseline **first** (seasonal naive, same weekday last week; if the model loses to it, document that), then the price-spread forecast; Power BI pages 2 and 3, measures in DAX rather than precomputed in Power Query; README, lineage screenshot, `BENCHMARKS.md`. Submission |
+| WE 8, 28./29.11. | Modul 9, Green IT | Buffer. The marginal-versus-average intensity section, the limitation an experienced interviewer opens first, now with the location-based reading of `docs/DECISION_MODEL.md`, A1. *Amended 02.11.2026:* `src/decision/shift.py` with the perfect and naive forecasts and its tests, so that Modul 10 starts with the core running. A one-page work plan for Modul 10. (The A65 load pulls, planned here on 31.10., were brought forward to 01.11., before the ML module: Stage 8) |
+| **01.–11.12.** | **Modul 10, final project** | **Stages 7 and 8.** Every dbt test green on the backfill; the decision model with Monte Carlo and Sobol, reproducible with a fixed seed; the ML part on this data, baseline **first** (seasonal naive, same weekday last week; if the model loses to it, document that), then the price-spread forecast; Power BI pages 2 and 3, measures in DAX rather than precomputed in Power Query; README, lineage screenshot, `BENCHMARKS.md`. Submission. *Amended 02.11.2026, if time runs short:* cut the A69 variant first, then PL, then the marginal estimate |
 | 12./13.12. | — | All repositories public; README and lineage checked |
 | **14.12.–06.01.** | **Modul IV** — PSM I, Praktikumsgespräche | **Stages 9 and 10** in the margin; PL-300 between 14 and 23 December |
 

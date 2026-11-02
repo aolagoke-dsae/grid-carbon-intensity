@@ -314,6 +314,49 @@ row's band, and still a fraction of what lignite moved.
 Pages 65–85 supplied and checked against the report by Adewole Olagoke ·
 19 October 2026 · Climate Change 11/2026, sections 4.6–4.10
 
+### 5. Reservoir hydro (B12): AR5's whole row, or its typical reservoir methane as the top
+
+*Taken on 02.11.2026, before the decision model's first run, and confirmed by
+Adewole Olagoke the same day.*
+
+Decision 2 left reservoirs (B12) on AR5's whole hydropower row, 1 / 24 /
+2,200. The top of that row is reservoir methane at its worst. AR5's methane
+column gives 88 as the typical value, and Turconi et al. (2013) report 11–20
+for the dam reservoirs in the studies they reviewed. The draws reach far
+beyond both: in `dim_factor_draw` (seed 20260917), B12's median is 24.5, its
+90th percentile 365 and its 95th 699, above gas's median of 490.
+
+The tail matters for the decision model because French reservoirs run at the
+peaks a shift can reach. In 2025 they are 2.65% of France's priced generation,
+and 3.2% at 08:00. Measured on the 2025 marts on 02.11.2026, with every other
+factor at its median:
+
+| France, 2025 | Median factors | B12 at its 90th percentile, 365 | B12 at its 95th, 699 |
+|---|---:|---:|---:|
+| Intensity at 08:00 local, gCO2eq/kWh | 33.6 | 44.7 | 55.5 |
+| Range of the hourly intensity, 04:00–16:00 | 7.0 | 11.0 | 15.3 |
+
+A wider range within the day raises France's relative CO₂ potential, the
+quantity H1 sets against DE-LU's (`docs/DECISION_MODEL.md`). Under the whole
+row, the lower end of H1's interval would rest partly on methane from
+reservoirs unlike France's or Germany's.
+
+**Recommendation, taken 02.11.2026.** B12 keeps AR5's minimum and median and
+takes AR5's typical reservoir methane as its maximum: 1 / 24 / 88. Against
+Turconi's 11–20 for dam reservoirs, 88 errs high. Its 90th percentile falls to
+about 56 before the sampler's truncation, and France's intensity at 08:00 then
+moves by about 1 gCO2eq/kWh at that draw. AR5's whole row is kept as a
+sensitivity: France's figures and H1 are also reported under it, labelled.
+
+Before the decision model's first run:
+
+1. `config/ipcc_ar5_factors.csv`: B12's maximum to 88, with the reason in its
+   `source` column, in a commit of its own.
+2. `dbt build`, which redraws `dim_factor_draw` and rebuilds `fact_intensity`
+   and `fact_intensity_year`.
+3. Checkpoint 6 again, the point inside its interval at every step.
+4. The README's yearly table, whose French upper bounds narrow.
+
 ## If a number differs from the PDF
 
 None did on 18 October 2026. For a later check:
@@ -330,7 +373,9 @@ reasons in the `source` column, the README and the runbook (`5d04521`).
 On 19 October 2026 decision 1 gained its replacement and decision 4 was taken;
 both changed reasons only, no value. Later that day B02 took Germany's value,
 the second value change, in a commit of its own (`25f869a`), and B05
-Germany's hard-coal value, the third, in another.
+Germany's hard-coal value, the third, in another. Decision 5, on reservoir
+hydro, was taken on 02.11.2026, before the decision model's first run: the
+fourth value change, in a commit of its own.
 
 The check is recorded under Checkpoint 4 in the runbook, and this worksheet is
 committed as its record.
