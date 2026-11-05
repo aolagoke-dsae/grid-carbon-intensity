@@ -1155,13 +1155,16 @@ training set.
   curve 1 is the SDAC market-coupling price, provided by JAO, and curve 2 is
   EXAA's 10:15 auction, which confirms trap 5's identification (README).
   JAO was asked the same day through the contact form on jao.eu, for DE-LU
-  and France. EXAA has not been asked; the model uses curve 1 only. RTE was
-  sent a follow-up the same day, adding France's A65. A65 (6.1.A and
-  6.1.B), which the ML forecast and the marginal estimate use, was not part
-  of the first questions, so the TSOs' answer does not cover DE-LU's; unless
-  ENTSO-E's open list holds it, which has not been checked, it joins A75 and
-  A44 in the criterion above. Awaited: RTE and JAO. Fallback for France: the
-  éCO2mix cross-check (Checkpoint 5).*
+  and France. EXAA has not been asked; the model uses curve 1 only. A65
+  (6.1.A and 6.1.B), which the ML forecast and the marginal estimate use,
+  was not part of the first questions, so the TSOs' answer does not cover
+  DE-LU's; unless ENTSO-E's open list holds it, which has not been checked,
+  it joins A75 and A44 in the criterion above. Follow-ups adding A65 went
+  the same day to RTE, for France, and to the TSOs, for DE-LU, through
+  netztransparenz.de under the same reference; the TSOs' also states the
+  reading that their grant covers the values behind each figure, inviting
+  correction. Awaited: RTE, JAO, and the TSOs on A65. Fallback for France:
+  the éCO2mix cross-check (Checkpoint 5).*
 - SMARD asks that its wholesale prices not be used until a licensing review,
   the HEDWIG proceedings, is settled (smard.de, data use, read 02.11.2026).
   The check of the A44 curves against SMARD's filter 4169 (19.10.2026) is
