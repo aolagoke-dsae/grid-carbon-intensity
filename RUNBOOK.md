@@ -1,7 +1,7 @@
 # Project A — Build Runbook
 
 **Grid Carbon Intensity & Load-Shift Optimiser**
-Dr. Adewole Olagoke · started 7 August 2026 · runbook revised 2 November 2026
+Dr. Adewole Olagoke · started 7 August 2026 · runbook revised 5 November 2026
 Gate: Stages 1–6 standing and the first defensible number by **26 November 2026**
 Capstone: Stages 7–8 in Modul 10, the final-project block, **01.–11.12.2026**
 Target: Stage 10 public during Modul IV, before **6 January 2027**
@@ -28,6 +28,7 @@ has been pulled.*
 | Ingestion client (ENTSO-E) | yes | token redaction, the append-only raw store, local-year windows | **A44 and A75** — A44 06.10.2026; A75 for DE-LU and FR, 2025 on 17.10.2026 and 2021–2024 on 18.10.2026; for Germany alone, 2024–2025, on 25.10.2026; A65, the actual load and the day-ahead forecast, for DE-LU and FR, 2021–2025, on 01.11.2026 |
 | Ingestion client (SMARD) | yes | the yearly backfill: which weeks a year needs, stored weeks not fetched again | **yes** — one week 06.10.2026; every week of 2021–2025, hourly and quarter-hourly, 19.10.2026 |
 | Ingestion client (Energy-Charts) | yes, 25.10.2026 | the monthly backfill: which months a year needs, what counts as data, stored months not fetched again | **yes** — every month of 2024–2025, 25.10.2026; tracks our parse at r = 0.9995 and 0.9997 (Checkpoint 5) |
+| Ingestion client (éCO2mix) | no — planned 05.11.2026, for France's cross-check (Checkpoint 5) | — | no |
 | Parser, A75 (A03, direction, DST, MAW) | yes | yes; transition days since 17.10. | **yes** — DE-LU and FR 2021–2025, 17. and 18.10.2026 |
 | Parser, A44 prices (trap 5) | yes | yes | **yes** — the DE-LU payloads of 2021–2025; curve 1 equals SMARD 4169 to the cent in every year, 19.10.2026 |
 | Intensity + uncertainty | yes; method 2.0.0 since 17.10. | yes | the median-factor intensity of the 2021–2025 pulls, under the stage 5 check, 18.10.2026; two weeks of 2025 plotted and their shape checked, 24.10.2026; checked against Electricity Maps' published figures, 25.10.2026; in `fact_intensity` since 25.10.2026, equal to the stage 5 check at every step, with its 90% Monte Carlo interval from 10,000 shared draws, the point inside it at all 245,856 reported steps; rebuilt 02.11.2026 with reservoir hydro (B12) at 1 / 24 / 88, the point again inside at every step |
@@ -539,6 +540,55 @@ tracks our parse of Germany alone hour by hour: r = 0.9995 (2024) and 0.9997
 hard coal, solar, run-of-river and waste. Our generation data are confirmed;
 what remains of the gap to Electricity Maps is how they average a year and
 what their processing does (`docs/EM_CROSSCHECK.md`).
+
+**France against RTE's own figures (planned; added 05.11.2026).**
+Energy-Charts covers Germany alone, so France's parse has not yet been set
+against a second publication. RTE publishes one: éCO2mix, the national
+dataset "consolidées et définitives", distributed by Open Data Réseaux
+Énergies under the Licence Ouverte 2.0, which allows re-use and publication
+with the source and the date of the last update named
+(<https://www.data.gouv.fr/datasets/donnees-eco2mix-nationales-consolidees-et-definitives>,
+read 05.11.2026). It is definitive for 2012–2024 and consolidated after that,
+with the consumption and the production by source per half-hour, and RTE's
+J-1 and J consumption forecasts per quarter-hour. RTE is also the provider
+the platform names for France's A75, so this is not an independent
+measurement: it checks ENTSO-E's copy and our parse against RTE's own
+publication, the role SMARD played for the price curves.
+
+The rule follows `notebooks/energy_charts.py`, so that the two checks read
+alike, and is fixed in the header of `notebooks/eco2mix.py` before the first
+request:
+
+1. **Hours.** Both sides summed to UTC hours; an hour enters only if it is
+   complete in both. How éCO2mix states time, local or UTC, is read from the
+   first response and fixed before any comparison; clock-change days must
+   carry 46 and 50 half-hours.
+2. **Generation, one factor set.** Both mixes are priced with our median
+   factors over the fuels we price, so any difference is the generation
+   data's. Translating éCO2mix's filières into PsrTypes is not part of the
+   rule: a name the map does not know stops the run, and the map is
+   completed from the first response.
+3. **Load.** The actual load (A65, A16) against éCO2mix's consumption, and
+   the day-ahead forecast (A65, A01) against its J-1 forecast.
+4. **Verdict, per year, 2021–2025**, for the intensity and for both load
+   series: r ≥ 0.98, best unshifted against shifts of one and two hours
+   either way, and plain means within 3%. Where they align but the means
+   part, the energy by fuel says which fuels make the difference.
+
+RTE's own CO₂ estimate in the same file is reported beside ours and not
+tested: it is not computed with our factors.
+
+Cost: `src/ingest/eco2mix_client.py` for the yearly files and the notebook,
+as for Energy-Charts on 25.10.2026. ODRÉ applies a quota to its API
+(data.gouv.fr, read 05.11.2026), so each year is pulled once and stored in
+`raw/`, like every other payload.
+
+**It is also the fallback for France's published figures (Checkpoint 10).**
+If RTE has not agreed when Stage 10 is due, France's generation and load
+enter from éCO2mix through staging models of their own, provided this check
+has passed, and the README says which source each zone's figures rest on.
+Prices are unaffected: éCO2mix carries none, so France's day-ahead prices
+still need JAO's agreement.
 
 **This is the free/local gate.** Everything to here costs nothing. Nothing
 after it should start until this passes.
@@ -1098,7 +1148,20 @@ training set.
   (analysesetdonnees.rte-france.com, subject "Données"), and the four German
   TSOs in one message through the contact form of netztransparenz.de, their
   joint platform, addressed to all four (reference NTZ-CDVDPM8I, confirmed
-  by email). Answers awaited.*
+  by email).*
+  *Amended 05.11.2026. The TSOs answered on 05.11.2026 (NTZ-CDVDPM8I): they
+  grant the use of DE-LU's A75 under ENTSO-E's open-data licence, on the
+  condition that the source is named. DE-LU's A44 is not theirs to grant:
+  curve 1 is the SDAC market-coupling price, provided by JAO, and curve 2 is
+  EXAA's 10:15 auction, which confirms trap 5's identification (README).
+  JAO was asked the same day through the contact form on jao.eu, for DE-LU
+  and France. EXAA has not been asked; the model uses curve 1 only. RTE was
+  sent a follow-up the same day, adding France's A65. A65 (6.1.A and
+  6.1.B), which the ML forecast and the marginal estimate use, was not part
+  of the first questions, so the TSOs' answer does not cover DE-LU's; unless
+  ENTSO-E's open list holds it, which has not been checked, it joins A75 and
+  A44 in the criterion above. Awaited: RTE and JAO. Fallback for France: the
+  éCO2mix cross-check (Checkpoint 5).*
 - SMARD asks that its wholesale prices not be used until a licensing review,
   the HEDWIG proceedings, is settled (smard.de, data use, read 02.11.2026).
   The check of the A44 curves against SMARD's filter 4169 (19.10.2026) is
@@ -1151,7 +1214,7 @@ each block.
 | WE 2, 17./18.10. | Modul 4a, SQL | **Stage 3.** Backfill DE-LU and FR, coverage checked per year |
 | WE 3, 24./25.10. | Modul 4b, Tableau | **Stage 4.** Every factor checked by hand against AR5 Table A.III.2. Repository public |
 | WE 4, 31.10./01.11. | Modul 5a, Tableau LOD | **Stage 5.** The deterministic intensity on the backfill; Checkpoint 5 (its week plot done on 24.10., the Electricity Maps cross-check on 25.10.) |
-| WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10.). *Amended 02.11.2026:* the question to ENTSO-E sent on 02.11. and answered the same day: the data owners decide (Checkpoint 10, brought forward); FACTOR_CHECK decision 5 taken, so rebuild with B12's new band and pass Checkpoint 6 again (done on 02.11.) |
+| WE 5, 07./08.11. | Power BI; DAX into late November | **Stage 6.** The intensity model and the facts in dbt (done on 25.10.). *Amended 02.11.2026:* the question to ENTSO-E sent on 02.11. and answered the same day: the data owners decide (Checkpoint 10, brought forward); FACTOR_CHECK decision 5 taken, so rebuild with B12's new band and pass Checkpoint 6 again (done on 02.11.). *Amended 05.11.2026:* the éCO2mix cross-check for France (Checkpoint 5), before the ML module uses France's load and while RTE's answer is awaited (Checkpoint 10) |
 | WE 6, 14./15.11. | Modul 6, Machine Learning | **Stage 6.** The intensity fact with a first Monte Carlo interval: the first defensible number (done on 25.10.; rebuilt with B12's new band on 02.11.) |
 | WE 7, 21./22.11. | Modul 7, DAX and APIs | One Power BI page showing that number, read from the `exports/` Parquet; README draft (the exports and `fact_intensity_year`, which holds the number, built on 31.10.) |
 | WE 8, 28./29.11. | Modul 9, Green IT | Buffer. The marginal-versus-average intensity section, the limitation an experienced interviewer opens first, now with the location-based reading of `docs/DECISION_MODEL.md`, A1. *Amended 02.11.2026:* `src/decision/shift.py` with the perfect and naive forecasts and its tests, so that Modul 10 starts with the core running. A one-page work plan for Modul 10. (The A65 load pulls, planned here on 31.10., were brought forward to 01.11., before the ML module: Stage 8) |
