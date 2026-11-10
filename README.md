@@ -1,20 +1,88 @@
 # Grid Carbon Intensity
 
-Hourly-and-quarter-hourly carbon intensity for two European bidding zones,
-DE-LU and FR, **derived** from the ENTSO-E generation mix using published
-life-cycle factors — IPCC AR5 for most fuels, a country-resolved inventory for
-German lignite and hard coal — rather than consumed from a vendor, with the
-published factor uncertainty propagated through to a 90% interval by Monte
-Carlo, and a first-order sensitivity index saying which fuel's factor that
-interval is mostly made of.
+**How clean is an hour of electricity in Germany and France, and how sure can we be?**
+Carbon intensity for the DE-LU and FR bidding zones, 2021–2025, at hourly and
+quarter-hourly resolution. It is *derived* from the ENTSO-E generation mix and
+published life-cycle emission factors (IPCC AR5, and a country-resolved
+inventory for German lignite and hard coal), not taken from a vendor, and every
+step and year it reports carries a 90% Monte Carlo interval.
 
-The eventual purpose is a load-shifting decision model that prices the saving
-in tCO2e and euros. That is the question the project exists to answer; it is
-not built yet. See **What is not built** below.
+[![pipeline](https://github.com/aolagoke-dsae/grid-carbon-intensity/actions/workflows/pipeline.yml/badge.svg)](https://github.com/aolagoke-dsae/grid-carbon-intensity/actions/workflows/pipeline.yml)
 
-> **Status: in build (started 7 August 2026).** See `RUNBOOK.md` for the staged
-> plan and current position. Nothing in this repository is presented as
-> operational until Stage 10 passes.
+**Author:** Dr. Adewole Olagoke · [aolagoke-dsae](https://github.com/aolagoke-dsae)
+
+## At a glance
+
+| | DE-LU | France |
+|---|---|---|
+| 2025 intensity of generation, gCO₂e/kWh (90% interval) | **352.1** (338.1–398.5) | **32.3** (26.6–69.9) |
+| 2021 → 2025 | 410.6 → 352.1 | 54.6 → 32.3 |
+
+Generation-based, energy-weighted over the share of generation that carries a
+factor, and derived from data of the ENTSO-E Transparency Platform (see
+**Licence / reuse**).
+
+- **The within-day swing is large in Germany.** In the sunniest DE-LU week of
+  2025, intensity at median factors falls from about 500 gCO₂e/kWh at night to
+  118–152 at midday, every day. Lignite's factor accounts for 48–57% of DE-LU's
+  interval variance, 2021–2025.
+- **Against Electricity Maps.** Their figure for Germany in 2025 is 335.4,
+  imports included, against 352.1 here for generation alone: imports lower
+  theirs by 27.1, their factors raise it by 9.8. The timing agrees, but the
+  level is not settled until they say how they average a year
+  (`docs/EM_CROSSCHECK.md`).
+- **Checked against independent data.** Fraunhofer ISE's Energy-Charts
+  generation, priced with the same factors, tracks this series hour by hour
+  (r = 0.9995 in 2024, 0.9997 in 2025; its yearly means 2.5% and 1.0% lower).
+  DE-LU's day-ahead price, the first of the two curves ENTSO-E returns, equals
+  SMARD's to the cent at every hour and quarter-hour of 2021–2025.
+- **Rules before results, changes dated.** The hypothesis was committed before
+  any generation data was pulled, and the decision model's rules before any
+  shift was computed. Where a check, a factor or the method changed after data
+  had arrived (four factor values, two corrections to the acceptance test, the
+  stage checks rewritten in October), the change is dated, explained and
+  committed (`RUNBOOK.md`, `docs/FACTOR_CHECK.md`, `docs/CORRECTIONS.md`).
+- **Builds without a token.** `git clone`, then `pytest`: 251 tests, of which
+  241 pass on a clean clone and the 10 that read the raw payloads skip; and a
+  dbt build of the whole warehouse on a synthetic sample, 65 models and tests,
+  all green.
+
+![DE-LU carbon intensity by quarter-hour, a sunny June week and a still January week of 2025, with solar and wind output below](docs/figures/stage5_week_de_lu_2025.png)
+
+## What this repository demonstrates
+
+| Skill | Where to look |
+|---|---|
+| API ingestion with an append-only raw layer and a SHA-256 manifest | `src/ingest/`, `raw/manifest.csv` |
+| Parsing awkward source data: five documented traps, including daylight-saving days and two competing price curves | `src/transform/`, **What is non-obvious in this data** |
+| Analytics engineering: DuckDB + dbt, staging → intermediate → marts, 11 singular and 38 generic tests | `dbt/` |
+| Uncertainty propagation: two-piece lognormal factor sampling, 10,000 shared draws, first-order Sobol shares | `src/transform/intensity.py`, **The interval is the deliverable** |
+| CI on Python 3.11 and 3.14, with a weekly run that catches dependency drift | `.github/workflows/pipeline.yml` |
+| A hypothesis committed before the data, decision rules before any result | **Hypothesis**, `docs/DECISION_MODEL.md` |
+
+## Quick start (no token needed)
+
+```bash
+pip install -r requirements.txt
+python -m pytest -q
+cp dbt/profiles.example.yml dbt/profiles.yml && mkdir -p warehouse
+GRID_ROOT=. dbt build --project-dir dbt --profiles-dir dbt --target sample
+```
+
+This shows the code runs; the sample's numbers are invented. Real figures need
+the ENTSO-E payloads, which are not redistributed (see **Licence / reuse**).
+
+## Status
+
+Intensity, intervals and the warehouse are **built and checked on 2021–2025
+data**. The load-shifting decision model (does shifting load within the day
+save much more CO₂ in DE-LU than in France, and money in both?) is **designed,
+not yet run**: its rules were fixed on 31.10.2026 and amended on 02.11.2026,
+both before any shift was computed. The Quarto report and the Power BI
+dashboard follow; the report goes public only once the data owners agree (see
+**Licence / reuse**). The project has been in build since 7 August 2026, and
+nothing in it is presented as operational until Stage 10 passes (`RUNBOOK.md`).
+Full detail is in **What is not built**.
 
 ## Hypothesis
 
@@ -76,15 +144,10 @@ is published. On the 2021–2025 data it holds at every one of the 245,856
 steps the warehouse reports (25 October 2026, and again on 2 November after
 reservoir hydro's band was narrowed).
 
-> Corrected 7 October 2026. The test behind this criterion used to compare the
-> sampled median against the sampled percentiles, which is true by definition
-> and could never fail. The headline control was vacuous for seven weeks.
->
-> Corrected 17 October 2026. Once the test was real, it held for coal- and
-> gas-heavy mixes and failed for nuclear-heavy French ones, because the sampler
-> moved the median of every skewed factor band. The sampler now keeps each
-> published median, and the criterion holds on all of 729 French-like test
-> mixes (see **The interval is the deliverable**).
+> Corrected twice, both dated in `docs/CORRECTIONS.md`: until 7 October 2026
+> the test behind this criterion could not fail, and until 17 October the
+> sampler moved the median of every skewed factor band, so the criterion failed
+> for nuclear-heavy French mixes.
 
 ## What is not built
 
@@ -121,21 +184,12 @@ payloads. On 19 October 2026 the diagnostic chose PL: as flat within the day as
 France at almost twice Germany's carbon level (`docs/THIRD_ZONE.md`). Choosing
 it does not add it to the analysis yet.
 
-No subscription, no licence and no free tier is required to run any of it.
-`git clone` then `pytest` works today, and it builds the dbt models on
-fixtures. Without a token, the synthetic sample in `curated/sample/` builds
-the whole warehouse:
-
-```bash
-pip install -r requirements.txt
-cp dbt/profiles.example.yml dbt/profiles.yml
-mkdir -p warehouse
-GRID_ROOT=. dbt build --project-dir dbt --profiles-dir dbt --target sample
-```
-
-That shows the code runs; it reproduces no figure. `dbt build` on real data
-needs the payloads, which are not redistributed (see **Licence**): pull and
-land them with a token. Stated here rather than discovered after cloning.
+No subscription, no licence and no free tier is required to run any of it:
+the **Quick start** above runs the tests and builds the whole warehouse from
+the synthetic sample in `curated/sample/`, which shows the code runs and
+reproduces no figure. `dbt build` on real data needs the payloads, which are
+not redistributed (see **Licence / reuse**): pull and land them with a token.
+Stated here rather than discovered after cloning.
 
 The architecture is defined in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
@@ -458,13 +512,9 @@ et al., 2023). Lignite's band reaches much further above its centre than
 below, and lignite now leads DE-LU's interval with 48–57% of the variance,
 2021–2025; hard coal has 13–31%.
 
-> Changed 17 October 2026 (method 2.0.0). Until then the default was a
-> triangular with the published median as its mode. For a skewed band that
-> moves the median — nuclear's came out at 37.7 instead of 12 — so French,
-> nuclear-heavy hours came out too dirty and their deterministic point fell
-> outside its own interval. Hydro already had a lognormal, but with an open
-> upper tail that ran past AR5's maximum. A triangular over the hydro range
-> would put the median near 650 gCO₂e/kWh, dirtier than gas.
+> Method 2.0.0, since 17 October 2026. Before it, each factor was sampled from
+> a triangular with the published median as its mode, which moves a skewed
+> band's median; `docs/CORRECTIONS.md` has the detail.
 
 The sensitivity shares reuse one set of draws for every fuel (common random
 numbers), so they cannot depend on the order in which a mix is written down;
@@ -579,8 +629,9 @@ docs/               ARCHITECTURE.md, the standard; RESOURCES.md, reading by stag
                     FACTOR_CHECK.md and THIRD_ZONE.md, decisions with their
                     evidence; DECISION_MODEL.md, the decision model's design,
                     fixed before any run; EM_CROSSCHECK.md, the comparison with
-                    Electricity Maps; figures/, each PNG beside a CSV of what
-                    it draws, with their sources in figures/README.md
+                    Electricity Maps; CORRECTIONS.md, the dated corrections
+                    to the method and its checks; figures/, each PNG beside a
+                    CSV of what it draws, with their sources in figures/README.md
 notebooks/          percent-cell exploration, nothing load-bearing: Stages 0–2
                     interactively, the third-zone diagnostic, the price-curve
                     check, the Stage 5 week plot, the Electricity Maps and
