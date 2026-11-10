@@ -47,7 +47,11 @@ factor, and derived from data of the ENTSO-E Transparency Platform (see
   dbt build of the whole warehouse on a synthetic sample, 65 models and tests,
   all green.
 
-![DE-LU carbon intensity by quarter-hour, a sunny June week and a still January week of 2025, with solar and wind output below](docs/figures/stage5_week_de_lu_2025.png)
+![DE-LU carbon intensity of generation by quarter-hour, 16–22 June and 13–19 January 2025, with solar and wind output below](docs/figures/stage5_week_de_lu_2025.png)
+
+*DE-LU, the sunniest week of summer 2025 and the stillest of winter, at median
+factors. How the two weeks were chosen and what they show: **Two weeks of
+DE-LU, looked at**.*
 
 ## What this repository demonstrates
 
@@ -436,10 +440,9 @@ asserted in `test_prices_parse.py`, and enforced in SQL by the curve filter in
 
 ## Two weeks of DE-LU, looked at
 
-![DE-LU carbon intensity of generation by quarter-hour, 16–22 June and 13–19 January 2025, with solar and wind output below](docs/figures/stage5_week_de_lu_2025.png)
-
-The deterministic intensity at median factors, for two weeks of 2025 chosen by
-a rule fixed before anything was plotted: the sunniest week of June–August and
+The figure under **At a glance** draws the deterministic intensity at median
+factors, for two weeks of 2025 chosen by a rule fixed before anything was
+plotted: the sunniest week of June–August and
 the stillest of December–February (`notebooks/stage5_week.py`; every value
 drawn is in `docs/figures/stage5_week_de_lu_2025.csv`). In summer the
 intensity falls from about 500 gCO₂e/kWh at night to 118–152 at midday, every
