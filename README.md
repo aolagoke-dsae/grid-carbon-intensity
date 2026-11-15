@@ -692,8 +692,14 @@ on 2 November 2026 (ticket #9477147). It answered the same day that it cannot
 advise on data outside its open list, whose primary owners claim the rights
 to it, and referred the question to the data providers the platform names:
 RTE for France's generation, the four German transmission system operators
-for DE-LU's, and whoever it names for the day-ahead prices. Until they agree,
-the decision model publishes only its yearly figures
+for DE-LU's, and whoever it names for the day-ahead prices. The four German
+TSOs answered on 5 November: DE-LU's generation may be used under ENTSO-E's
+open-data licence, with the source named. RTE answered on 12 November: France's
+generation and load may be reused under its legal notices, with the source
+named and nothing changed or distorted. Both name JAO as the owner of the
+day-ahead prices, asked on 5 November and not yet answered, as the TSOs have
+not yet answered on DE-LU's load (`RUNBOOK.md`, Checkpoint 10). Until all of
+them agree, the decision model publishes only its yearly figures
 (`docs/DECISION_MODEL.md`, A5), and the report does not go public (RUNBOOK,
 Checkpoint 10). Nothing else from ENTSO-E is in the repository: `curated/sample/`
 and every test fixture are synthetic, every number in them invented, and MIT

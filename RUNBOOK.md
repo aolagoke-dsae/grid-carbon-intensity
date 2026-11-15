@@ -1165,6 +1165,29 @@ training set.
   reading that their grant covers the values behind each figure, inviting
   correction. Awaited: RTE, JAO, and the TSOs on A65. Fallback for France:
   the éCO2mix cross-check (Checkpoint 5).*
+  *Amended 15.11.2026. RTE answered on 12.11.2026 by email
+  (rte-contact-analysesetdonnees@rte-france.com, "RE: Nouveau message :
+  Formulaire Contact"), to the question of 02.11. and the follow-up of 05.11.
+  together. For France's A75 and A65 (6.1.A and 6.1.B), 2021–2025, it refers
+  to its legal notices: data published on rte-france.com may be reused on
+  condition that the source is named, and any change or partial or total
+  distortion of the content is prohibited. Read here as consent to publish
+  results derived from France's A75 and A65, and the values behind each
+  figure, with RTE and the ENTSO-E Transparency Platform named as sources and
+  no value presented as RTE's that this repository computed; the reading is
+  this repository's, not RTE's. For A44, RTE is the data provider, not the
+  owner, and names JAO as the owner to ask, as the TSOs did; the prices on
+  RTE's own portal are EPEX SPOT's, under terms that forbid any distribution,
+  so none is taken from there. RTE also pointed to its own carbon intensity
+  as open data on ODRÉ: of generation, in éCO2mix (eco2mix-national-cons-def
+  and eco2mix-national-tr), already the Checkpoint 5 comparator, and of
+  consumption (part-enr-intensite-ges-conso-tr), new here, a candidate
+  comparator for the import-adjusted intensity once A11 is pulled, under
+  ODRÉ's own licence, to be read before use. The criterion now stands at:
+  A75 agreed for both zones (TSOs 05.11., RTE 12.11.); A65 agreed for
+  France, awaited from the TSOs for DE-LU; A44 awaited from JAO for both
+  zones. The éCO2mix fallback for France is no longer needed for the
+  permission, and stays as the cross-check.*
 - SMARD asks that its wholesale prices not be used until a licensing review,
   the HEDWIG proceedings, is settled (smard.de, data use, read 02.11.2026).
   The check of the A44 curves against SMARD's filter 4169 (19.10.2026) is
