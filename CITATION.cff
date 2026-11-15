@@ -1,0 +1,70 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite it as below. Figures derived from
+  ENTSO-E data must also name the ENTSO-E Transparency Platform as their
+  source, under its terms of use.
+type: software
+title: "Grid Carbon Intensity: hourly carbon intensity of electricity in DE-LU and France, with its uncertainty"
+abstract: >-
+  Carbon intensity of electricity generation for the DE-LU and FR bidding
+  zones, 2021-2025, at hourly and quarter-hourly resolution, derived from the
+  ENTSO-E generation mix and published life-cycle emission factors (IPCC AR5,
+  and Itten et al. 2023 for German lignite and hard coal), with a 90 % Monte
+  Carlo interval on every step and year and the share of each fuel's factor
+  in its variance. Ingestion with an append-only raw layer and SHA-256
+  manifest, DuckDB and dbt from staging to marts, and checks against
+  Fraunhofer ISE's Energy-Charts and SMARD. Work in progress: the
+  load-shifting decision model is designed but not yet run.
+authors:
+  - family-names: Olagoke
+    given-names: Adewole
+repository-code: "https://github.com/aolagoke-dsae/grid-carbon-intensity"
+license: MIT
+keywords:
+  - carbon intensity
+  - electricity
+  - ENTSO-E
+  - life-cycle assessment
+  - uncertainty quantification
+  - Monte Carlo
+  - dbt
+  - DuckDB
+references:
+  - type: database
+    title: "ENTSO-E Transparency Platform"
+    authors:
+      - name: ENTSO-E
+    url: "https://transparency.entsoe.eu/"
+    notes: >-
+      Generation per production type (A75), day-ahead prices (A44) and load
+      (A65). Not redistributed here; see the README, Licence / reuse.
+  - type: book
+    title: "Annex III: Technology-specific cost and performance parameters"
+    authors:
+      - family-names: Schlömer
+        given-names: S.
+      - name: "et al."
+    collection-title: >-
+      Climate Change 2014: Mitigation of Climate Change. Contribution of
+      Working Group III to the Fifth Assessment Report of the
+      Intergovernmental Panel on Climate Change
+    publisher:
+      name: Cambridge University Press
+    year: 2014
+  - type: report
+    title: >-
+      Life cycle inventories of solid fossil fuels: Updates for electricity
+      generation from hard coal, lignite and peat
+    authors:
+      - family-names: Itten
+        given-names: R.
+      - family-names: Oberschelp
+        given-names: C.
+      - family-names: Kröhnert
+        given-names: H.
+      - family-names: Stucki
+        given-names: M.
+    institution:
+      name: ZHAW Zürcher Hochschule für Angewandte Wissenschaften
+    year: 2023
+    doi: 10.21256/zhaw-30218

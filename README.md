@@ -663,7 +663,8 @@ docs/METHODOLOGY.md assurance write-up
 
 Three different things are licensed three different ways.
 
-**The code is MIT** — see `LICENSE`. Use it, change it, ship it; keep the notice.
+**The code is MIT** — see `LICENSE`. Use it, change it, ship it; keep the notice. To cite it:
+[`CITATION.cff`](CITATION.cff), shown by GitHub as *Cite this repository*.
 
 **The emission factors** in `config/ipcc_ar5_factors.csv` are reproduced with
 citation from IPCC AR5 WG3 Annex III, except lignite and hard coal, which are
