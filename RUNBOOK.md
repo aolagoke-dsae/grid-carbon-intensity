@@ -1196,7 +1196,16 @@ training set.
   load and day-ahead load forecast. The criterion now stands at: A75 and A65
   agreed for both zones; A44 awaited from JAO for both zones, its reminder
   of 15.11.2026 not yet sent because jao.eu's contact page and service desk
-  were unreachable that day.*
+  were unreachable that day.* *Amended 16.11.2026: jao.eu and its contact
+  form were still unreachable, with and without a VPN and in three
+  browsers. The follow-up went to JAO by email the same day, 13:02, to
+  its helpdesk, contact, GDPR and support addresses with two staff members
+  copied ("Follow-up to my request of 5 November 2026: publishing results
+  derived from SDAC day-ahead prices (DE-LU, FR)"): the data, the use, what
+  would be published (yearly results, the figures and their values, the
+  sources named) and what would not (the price series). If JAO does not
+  answer, the TSOs are to be asked on thread NTZ-OI0Z6IUU for its contact
+  for data reuse.*
 - SMARD asks that its wholesale prices not be used until a licensing review,
   the HEDWIG proceedings, is settled (smard.de, data use, read 02.11.2026).
   The check of the A44 curves against SMARD's filter 4169 (19.10.2026) is
