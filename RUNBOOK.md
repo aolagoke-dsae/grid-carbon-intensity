@@ -1188,6 +1188,15 @@ training set.
   France, awaited from the TSOs for DE-LU; A44 awaited from JAO for both
   zones. The éCO2mix fallback for France is no longer needed for the
   permission, and stays as the cross-check.*
+  *Amended 16.11.2026. The four German TSOs answered the follow-up on A65
+  by email from netztransparenz.de (reference NTZ-OI0Z6IUU, "AW: An alle
+  Übertragungsnetzbetreiber"), signed by 50Hertz, Amprion, TenneT and
+  TransnetBW: the reference to the source is fine, and "the same conditions
+  can also be applied regarding the data of 6.1.a and 6.1.b", DE-LU's actual
+  load and day-ahead load forecast. The criterion now stands at: A75 and A65
+  agreed for both zones; A44 awaited from JAO for both zones, its reminder
+  of 15.11.2026 not yet sent because jao.eu's contact page and service desk
+  were unreachable that day.*
 - SMARD asks that its wholesale prices not be used until a licensing review,
   the HEDWIG proceedings, is settled (smard.de, data use, read 02.11.2026).
   The check of the A44 curves against SMARD's filter 4169 (19.10.2026) is
