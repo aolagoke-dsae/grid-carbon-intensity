@@ -700,7 +700,8 @@ named and nothing changed or distorted. Both name JAO as the owner of the
 day-ahead prices, asked on 5 November. JAO answered on 17 November that it
 cannot answer the question and referred to its terms and conditions, which
 do not clearly permit publishing results derived from the prices; that is
-not an agreement. The TSOs extended
+not an agreement; written authorisation was requested the same day at the
+address those terms give, and is awaited. The TSOs extended
 their answer to DE-LU's load and load forecast on 16 November
 (`RUNBOOK.md`, Checkpoint 10). Without JAO's agreement, the decision model publishes only its yearly figures
 (`docs/DECISION_MODEL.md`, A5), and the report does not go public (RUNBOOK,

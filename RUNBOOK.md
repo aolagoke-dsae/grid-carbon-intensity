@@ -1225,6 +1225,16 @@ training set.
   legitimate use. The criterion therefore stays unmet for A44 in both
   zones, and the limits it sets stay in force. Open: whether to ask JAO
   for written authorisation at the address its terms give for licensing.*
+  *Amended 17.11.2026, later the same day. Written authorisation was
+  requested by email to the contact address alone, the one the terms give
+  for uses that need JAO's approval ("Request for written authorisation:
+  research use of SDAC day-ahead prices (DE-LU, FR), ref.
+  JAO-20261116-0013"), under A.2 and A.4: to publish the yearly cost
+  figures per zone, their charts and the values the charts draw, with the
+  source named; and to train the price-spread forecast on the 2021–2023
+  prices inside this project, named because of B.2. It states that the
+  price series is neither published nor redistributed, and asks whom to
+  ask if JAO is not the rightsholder. Awaited.*
 - SMARD asks that its wholesale prices not be used until a licensing review,
   the HEDWIG proceedings, is settled (smard.de, data use, read 02.11.2026).
   The check of the A44 curves against SMARD's filter 4169 (19.10.2026) is
