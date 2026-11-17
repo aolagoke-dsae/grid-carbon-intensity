@@ -1206,6 +1206,25 @@ training set.
   sources named) and what would not (the price series). If JAO does not
   answer, the TSOs are to be asked on thread NTZ-OI0Z6IUU for its contact
   for data reuse.*
+  *Amended 17.11.2026. JAO's support desk answered the follow-up by email
+  at 07:18 (JAO-20261116-0013): it cannot answer the question, and its terms
+  and conditions on jao.eu are to be read and the conclusion drawn from
+  them. That is an answer, not an agreement. The terms (General Terms and
+  Conditions for the Use of the Information Systems, v 1.20, undated, read
+  17.11.2026) say: research and one's own analysis and reporting are
+  legitimate use (definitions; A.2); content includes analyses, outputs and
+  aggregations derived from the data, and may not be made available to
+  third parties without JAO's written authorisation unless the use is a
+  legitimate one (A.4); market coupling results and auction prices may
+  carry third-party rights that JAO does not license and the user must
+  clear with the rightsholder, who is not named (A.4); using the content
+  to train machine-learning models without prior authorisation is
+  prohibited, in a list placed under the restricted areas, so its reach
+  over the public market data is unclear (B.2); the source is to be named
+  (A.3). The terms do not say whether publishing research results is
+  legitimate use. The criterion therefore stays unmet for A44 in both
+  zones, and the limits it sets stay in force. Open: whether to ask JAO
+  for written authorisation at the address its terms give for licensing.*
 - SMARD asks that its wholesale prices not be used until a licensing review,
   the HEDWIG proceedings, is settled (smard.de, data use, read 02.11.2026).
   The check of the A44 curves against SMARD's filter 4169 (19.10.2026) is
